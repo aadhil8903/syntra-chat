@@ -35,7 +35,7 @@ services:
 
       AI_SERVICE_URL: http://ai-service:8000
 
-      FRONTEND_URL: http://localhost:4200
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
 
     volumes:
 
@@ -111,6 +111,10 @@ services:
     ports:
 
       - "4200:80"
+
+    environment:
+
+      BACKEND_URL: ${BACKEND_URL:-http://backend:3000}
 
     depends_on:
 
