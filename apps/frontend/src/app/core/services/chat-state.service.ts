@@ -3,6 +3,7 @@ import { Observable, throwError } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
 import { ApiService } from './api.service';
 import { IMessage, ISendMessageResponse, IConversation } from '@enter-chat/shared-types';
+import { getApiBaseUrl } from '../config/app-config';
 
 export type ChatGenerationStatus = 'idle' | 'generating' | 'done' | 'error';
 
@@ -228,7 +229,7 @@ export class ChatStateService {
     const token = localStorage.getItem('syntra_chat_access_token') || localStorage.getItem('enter_chat_access_token') || '';
 
     try {
-      const response = await fetch('http://localhost:3000/api/messages/stream', {
+      const response = await fetch(`${getApiBaseUrl()}/messages/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

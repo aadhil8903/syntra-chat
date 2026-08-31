@@ -23,12 +23,15 @@ import {
   ICreateFolderDto,
   IUpdateFolderDto,
 } from '@enter-chat/shared-types';
+import { getApiBaseUrl } from '../config/app-config';
 
 @Injectable({
   providedIn: 'root',
 })
 export class ApiService {
-  private readonly baseUrl = 'http://localhost:3000/api';
+  private get baseUrl(): string {
+    return getApiBaseUrl();
+  }
 
   constructor(private http: HttpClient) {}
 

@@ -3,12 +3,15 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, tap, catchError, of, throwError } from 'rxjs';
 import { IUser, ILoginDto, IAuthResponse, APP_CONFIG } from '@enter-chat/shared-types';
 import { Router } from '@angular/router';
+import { getApiBaseUrl } from '../config/app-config';
 
 @Injectable({
   providedIn: 'root',
 })
 export class AuthService {
-  private readonly baseUrl = 'http://localhost:3000/api/auth';
+  private get baseUrl(): string {
+    return `${getApiBaseUrl()}/auth`;
+  }
   private readonly TOKEN_KEY = `${APP_CONFIG.storagePrefix}_access_token`;
   private readonly REFRESH_KEY = `${APP_CONFIG.storagePrefix}_refresh_token`;
   private readonly USER_KEY = `${APP_CONFIG.storagePrefix}_user`;
