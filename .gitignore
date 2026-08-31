@@ -1,0 +1,39 @@
+# Node dependencies
+node_modules/
+dist/
+build/
+.angular/
+
+# Test coverage
+coverage/
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Generated shared-types build output
+packages/shared-types/src/*.js
+packages/shared-types/src/*.js.map
+packages/shared-types/src/*.d.ts
+
+# Python virtual environment & cache
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Uploads & temporary storage
+uploads/
+storage/
+temp/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp 

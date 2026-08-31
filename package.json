@@ -1,0 +1,28 @@
+{
+  "name": "enter-chat-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "start:backend": "npm run start:dev --workspace=apps/backend",
+    "start:frontend": "npm run start --workspace=apps/frontend",
+    "start:ai": "cd apps/ai-service && uv run uvicorn main:app --reload --port 8000",
+    "test": "npm run test:backend && npm run test:ai && npm run test:frontend",
+    "test:backend": "npm run test --workspace=apps/backend",
+    "test:ai": "cd apps/ai-service && uv run pytest",
+    "test:frontend": "npm run test --workspace=apps/frontend",
+    "test:security": "node scripts/run-security-tests.js",
+    "test:cov": "npm run test:cov --workspace=apps/backend"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "highlight.js": "^11.12.0"
+  }
+}

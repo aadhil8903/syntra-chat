@@ -1,0 +1,313 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CSS Monochrome Design Tokens */
+:root {
+  --bg-primary: #09090b;
+  --bg-elevated: #111114;
+  --bg-subtle: #18181b;
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --border-subtle: #27272a;
+  --border-contrast: #3f3f46;
+  --accent: #ffffff;
+  --accent-contrast: #09090b;
+}
+
+/* CSS Reset & Global Layout */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #09090b;
+  color: #fafafa;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Guard all SVGs from blowing up */
+svg {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+  max-width: 100%;
+}
+
+svg.w-3 { width: 0.75rem; height: 0.75rem; }
+svg.w-3\.5 { width: 0.875rem; height: 0.875rem; }
+svg.w-4 { width: 1rem; height: 1rem; }
+svg.w-5 { width: 1.25rem; height: 1.25rem; }
+svg.w-6 { width: 1.5rem; height: 1.5rem; }
+svg.w-7 { width: 1.75rem; height: 1.75rem; }
+svg.w-8 { width: 2rem; height: 2rem; }
+svg.w-12 { width: 3rem; height: 3rem; }
+svg.w-14 { width: 3.5rem; height: 3.5rem; }
+
+/* Custom Minimalist Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Code block typography */
+pre, code {
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Rich Markdown Typography for AI messages */
+.prose-ai {
+  font-size: 0.9375rem;
+  line-height: 1.68;
+  color: #e4e4e7;
+
+  h1, h2, h3, h4 {
+    color: #ffffff;
+    font-weight: 600;
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.35;
+  }
+  h1 { font-size: 1.3rem; }
+  h2 { font-size: 1.15rem; }
+  h3 { font-size: 1.025rem; }
+  h4 { font-size: 0.95rem; }
+
+  p {
+    margin-top: 0.4rem;
+    margin-bottom: 0.75rem;
+  }
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+
+  strong {
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  em {
+    color: #d4d4d8;
+    font-style: italic;
+  }
+
+  ul, ol {
+    margin-top: 0.4rem;
+    margin-bottom: 0.75rem;
+    padding-left: 1.35rem;
+  }
+
+  ul {
+    list-style-type: disc;
+  }
+
+  ol {
+    list-style-type: decimal;
+  }
+
+  li {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+
+  blockquote {
+    border-left: 2px solid #ffffff;
+    padding-left: 0.85rem;
+    margin: 0.75rem 0;
+    color: #a1a1aa;
+    font-style: italic;
+  }
+
+  code:not(pre code) {
+    background-color: rgba(255, 255, 255, 0.07);
+    color: #9cdcfe;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.375rem;
+    font-size: 0.85em;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  pre {
+    background-color: #000000 !important;
+    border: 1px solid #27272a;
+    border-radius: 0.75rem;
+    padding: 0.85rem 1rem;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+
+    code {
+      background: transparent !important;
+      padding: 0;
+      border: none;
+      color: #d4d4d4;
+      font-size: 0.85rem;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+      line-height: 1.6;
+    }
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.85rem 0;
+    font-size: 0.85rem;
+
+    th, td {
+      border: 1px solid #27272a;
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+    }
+
+    th {
+      background-color: #141417;
+      color: #fafafa;
+      font-weight: 600;
+    }
+
+    tr:hover {
+      background-color: rgba(255, 255, 255, 0.04);
+    }
+  }
+
+  hr {
+    border: 0;
+    border-top: 1px solid #27272a;
+    margin: 1.25rem 0;
+  }
+}
+
+/* ==========================================================================
+   VS Code Dark+ Syntax Highlighting Theme (Pitch Black Background)
+   Balanced, low eye-strain contrast inspired by VS Code Default Dark+
+   ========================================================================== */
+
+pre.hljs-vscode-dark,
+.hljs-vscode-dark code,
+code.hljs {
+  background-color: #000000 !important;
+  color: #d4d4d4;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.65;
+  tab-size: 4;
+}
+
+/* Keywords (import, from, def, class, return, as) - Soft VS Code Blue */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-meta .hljs-keyword {
+  color: #569cd6 !important;
+  font-weight: 500;
+}
+
+/* Control flow keywords (if, else, for, while, try, except, with) - Soft Magenta */
+.hljs-keyword:is(
+  [data-control],
+  [class*="control"]
+),
+.hljs-keyword:is(for, while, if, else, elif, try, except, finally, with, return, yield, break, continue) {
+  color: #c586c0 !important;
+}
+
+/* Strings & Attributes - Warm Soft Terracotta / Coral */
+.hljs-string,
+.hljs-attribute,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition,
+.hljs-meta .hljs-string {
+  color: #ce9178 !important;
+}
+
+/* Comments & Documentation - Soft Olive Green */
+.hljs-comment,
+.hljs-quote {
+  color: #6a9955 !important;
+  font-style: italic;
+}
+
+/* Functions & Method calls - Warm Soft Cream Yellow */
+.hljs-title.function_,
+.hljs-title.function,
+.hljs-function .hljs-title,
+.hljs-title.class_.inherited__,
+.hljs-title.class_ {
+  color: #dcdcaa !important;
+}
+
+/* Built-in Types & Modules - Soft Mint Teal */
+.hljs-built_in,
+.hljs-type,
+.hljs-class .hljs-title {
+  color: #4ec9b0 !important;
+}
+
+/* Variables, Object Properties & Parameters - Soft Sky Blue */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-attr,
+.hljs-property,
+.hljs-params {
+  color: #9cdcfe !important;
+}
+
+/* Numbers & Constants - Soft Sage Green */
+.hljs-number,
+.hljs-literal,
+.hljs-boolean {
+  color: #b5cea8 !important;
+}
+
+/* Operators, Punctuation & Brackets - Soft Neutral Gray */
+.hljs-operator,
+.hljs-punctuation,
+.hljs-subst {
+  color: #d4d4d4 !important;
+}
+
+/* Tags in XML/HTML - Soft Blue */
+.hljs-tag,
+.hljs-name {
+  color: #569cd6 !important;
+}
+
+/* Highlighting Selection in code block */
+pre.hljs-vscode-dark ::selection,
+code.hljs ::selection {
+  background-color: rgba(38, 79, 120, 0.75) !important;
+  color: #ffffff !important;
+}
+

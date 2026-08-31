@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: enter-chat-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: enter_chat
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - enter-chat-net
+
+  backend:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.backend
+    container_name: enter-chat-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: mongodb://mongodb:27017/enter_chat
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-your_super_secret_jwt_access_key_123456789!}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your_super_secret_jwt_refresh_key_987654321!}
+      STORAGE_LOCAL_PATH: /app/uploads
+      AI_SERVICE_URL: http://ai-service:8000
+      FRONTEND_URL: http://localhost:4200
+    volumes:
+      - shared_uploads:/app/uploads
+    depends_on:
+      - mongodb
+      - ai-service
+    networks:
+      - enter-chat-net
+
+  ai-service:
+    build:
+      context: ../apps/ai-service
+      dockerfile: ../../infra/Dockerfile.ai-service
+    container_name: enter-chat-ai-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: 8000
+      HOST: 0.0.0.0
+      MONGODB_URI: mongodb://mongodb:27017
+      MONGODB_DB_NAME: enter_chat
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-bge_local}
+      BGE_MODEL: ${BGE_MODEL:-BAAI/bge-base-en-v1.5}
+      BGE_DIMENSION: 768
+    volumes:
+      - shared_uploads:/app/uploads
+      - bge_cache:/root/.cache/huggingface
+    depends_on:
+      - mongodb
+    networks:
+      - enter-chat-net
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.frontend
+    container_name: enter-chat-frontend
+    restart: unless-stopped
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - enter-chat-net
+
+volumes:
+  mongodb_data:
+  shared_uploads:
+  bge_cache:
+
+networks:
+  enter-chat-net:
+    driver: bridge
+

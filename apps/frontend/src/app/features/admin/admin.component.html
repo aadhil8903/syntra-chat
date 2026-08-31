@@ -1,0 +1,1223 @@
+<div class="p-6 lg:p-8 max-w-7xl mx-auto space-y-6 animate-fade-in text-zinc-200">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800/80 pb-6">
+    <div>
+      <div class="flex items-center gap-3">
+        <h1 class="text-2xl font-bold text-white tracking-tight">Enterprise Administration</h1>
+        <span class="px-2.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-400">
+          {{ users.length }} Users &bull; {{ roles.length }} Roles
+        </span>
+      </div>
+      <p class="text-xs sm:text-sm text-zinc-400 mt-1 max-w-2xl">
+        Manage employee accounts, configure granular security roles, assign folder permissions, and process access requests.
+      </p>
+    </div>
+    
+    <div class="flex items-center gap-2 flex-wrap">
+      <button
+        *ngIf="activeTab === 'users'"
+        (click)="openCreateModal()"
+        class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors flex items-center gap-2"
+      >
+        <svg class="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        </svg>
+        <span>+ Add User</span>
+      </button>
+
+      <button
+        *ngIf="activeTab === 'roles'"
+        (click)="openCreateRoleModal()"
+        class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors flex items-center gap-2"
+      >
+        <svg class="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        <span>+ Create Role</span>
+      </button>
+
+      <span *ngIf="pendingRequests.length > 0" class="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-300 flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+        {{ pendingRequests.length }} Pending Request{{ pendingRequests.length === 1 ? '' : 's' }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Navigation Tabs -->
+  <div class="flex items-center gap-2 flex-wrap">
+    <!-- Tab 1: Users -->
+    <button
+      class="px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-2 border"
+      [ngClass]="activeTab === 'users' ? 'bg-white text-black font-semibold border-white' : 'bg-[#111114] text-zinc-400 hover:text-white border-zinc-800 hover:bg-zinc-800'"
+      (click)="activeTab = 'users'"
+    >
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+      </svg>
+      <span>Users & Permissions ({{ users.length }})</span>
+    </button>
+
+    <!-- Tab 2: Roles -->
+    <button
+      class="px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-2 border"
+      [ngClass]="activeTab === 'roles' ? 'bg-white text-black font-semibold border-white' : 'bg-[#111114] text-zinc-400 hover:text-white border-zinc-800 hover:bg-zinc-800'"
+      (click)="activeTab = 'roles'"
+    >
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      </svg>
+      <span>Security Roles ({{ roles.length }})</span>
+    </button>
+
+    <!-- Tab 3: Access Requests -->
+    <button
+      class="px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-2 border"
+      [ngClass]="activeTab === 'requests' ? 'bg-white text-black font-semibold border-white' : 'bg-[#111114] text-zinc-400 hover:text-white border-zinc-800 hover:bg-zinc-800'"
+      (click)="activeTab = 'requests'"
+    >
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+      </svg>
+      <span>Access Requests</span>
+      @if (pendingRequests.length > 0) {
+        <span class="px-1.5 py-0.2 rounded-full bg-zinc-700 text-white text-[10px] font-mono">{{ pendingRequests.length }}</span>
+      }
+    </button>
+  </div>
+
+  <!-- Tab 1: User Management -->
+  <div *ngIf="activeTab === 'users'" class="space-y-4">
+    <!-- Search & Filter Bar -->
+    <div class="flex items-center justify-between gap-4 bg-[#111114] p-2.5 rounded-2xl border border-zinc-800">
+      <div class="relative flex-1 max-w-md">
+        <input
+          type="text"
+          [(ngModel)]="searchQuery"
+          placeholder="Filter by name, email, or department..."
+          class="w-full pl-8 pr-4 py-1.5 rounded-xl bg-[#09090b] border border-zinc-800 text-xs text-white focus:outline-none focus:border-zinc-600 placeholder:text-zinc-600 transition-colors"
+        />
+        <svg class="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
+      @if (searchQuery) {
+        <span class="text-xs text-zinc-400 pr-2">Found {{ filteredUsers.length }} user(s)</span>
+      }
+    </div>
+
+    <!-- Users Table -->
+    <div class="bg-[#111114] rounded-2xl border border-zinc-800/80 overflow-hidden shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-[#09090b] border-b border-zinc-800 text-zinc-400">
+              <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px]">User</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Role</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Departments</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Allowed Folders</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Status</th>
+              <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-800/60">
+            @for (user of filteredUsers; track user.id) {
+              <tr class="hover:bg-zinc-800/30 transition-colors">
+                <!-- User Info -->
+                <td class="py-3.5 px-5">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center font-semibold text-zinc-300 text-xs">
+                      {{ (user.firstName || user.email).charAt(0).toUpperCase() }}
+                    </div>
+                    <div>
+                      <div class="font-medium text-zinc-100">{{ user.firstName }} {{ user.lastName }}</div>
+                      <div class="text-[11px] text-zinc-500 font-mono">{{ user.email }}</div>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- Role Selection -->
+                <td class="py-3.5 px-4">
+                  <div *ngIf="editingUserId !== user.id">
+                    <span
+                      class="px-2.5 py-0.5 rounded-md text-[10px] font-mono uppercase font-semibold border bg-zinc-800/80 text-zinc-300 border-zinc-700"
+                    >
+                      {{ user.role }}
+                    </span>
+                  </div>
+                  <div *ngIf="editingUserId === user.id" class="space-y-1.5">
+                    <select
+                      [(ngModel)]="editRole"
+                      class="bg-[#09090b] border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-zinc-500"
+                    >
+                      <option value="admin">Admin (System)</option>
+                      <option value="manager">Manager (System)</option>
+                      <option value="auditor">Auditor (System)</option>
+                      <option value="user">User (System)</option>
+                      @for (r of roles; track r.key) {
+                        <option *ngIf="r.key !== 'admin' && r.key !== 'manager' && r.key !== 'auditor' && r.key !== 'user'" [value]="r.key">
+                          {{ r.name }} (Custom)
+                        </option>
+                      }
+                    </select>
+                    <div *ngIf="editRole === 'admin' && user.role !== 'admin'" class="space-y-0.5 animate-fade-in">
+                      <label class="block text-[10px] text-amber-400 font-medium">Master Admin Password *</label>
+                      <input
+                        type="password"
+                        [(ngModel)]="editMasterAdminPassword"
+                        placeholder="Master password"
+                        autocomplete="new-password"
+                        class="w-full px-2 py-1 rounded bg-[#09090b] border border-amber-600/60 text-[11px] text-white focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                  </div>
+                </td>
+
+                <!-- Departments -->
+                <td class="py-3.5 px-4">
+                  <div *ngIf="editingUserId !== user.id" class="flex flex-wrap gap-1">
+                    @for (dep of user.departments; track dep) {
+                      <span class="px-2 py-0.5 bg-zinc-900 text-zinc-400 rounded-md text-[10px] border border-zinc-800">
+                        {{ dep }}
+                      </span>
+                    }
+                    @if (!user.departments.length) {
+                      <span class="text-zinc-600 text-[11px] font-mono">Unrestricted</span>
+                    }
+                  </div>
+                  <div *ngIf="editingUserId === user.id">
+                    <input
+                      type="text"
+                      [(ngModel)]="editDepartmentsText"
+                      placeholder="e.g. Sales, HR, Finance"
+                      class="w-full px-2.5 py-1 rounded-lg bg-[#09090b] border border-zinc-700 text-xs text-white focus:outline-none focus:border-zinc-500"
+                    />
+                  </div>
+                </td>
+
+                <!-- Allowed Folders -->
+                <td class="py-3.5 px-4">
+                  <!-- View Mode -->
+                  <div *ngIf="editingUserId !== user.id" class="flex flex-wrap gap-1">
+                    @if (user.role === 'admin') {
+                      <span class="px-2 py-0.5 bg-emerald-950/40 text-emerald-300 rounded-md text-[10px] border border-emerald-800/60 font-mono">
+                        All (Admin)
+                      </span>
+                    } @else if (user.allowedFolders && user.allowedFolders.length > 0) {
+                      @for (f of user.allowedFolders; track f) {
+                        <span class="px-2 py-0.5 bg-zinc-900 text-sky-400 rounded-md text-[10px] border border-zinc-800 flex items-center gap-1">
+                          📁 {{ f }}
+                        </span>
+                      }
+                    } @else {
+                      <span class="text-zinc-600 text-[11px] font-mono">No restricted folders</span>
+                    }
+                  </div>
+
+                  <!-- Edit Mode -->
+                  <div *ngIf="editingUserId === user.id" class="space-y-1.5 min-w-[170px]">
+                    <div class="flex flex-wrap gap-1">
+                      @for (f of editSelectedFolders; track f) {
+                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-zinc-800 text-sky-300 text-[10px] border border-zinc-700">
+                          📁 {{ f }}
+                          <button type="button" (click)="removeItem(editSelectedFolders, f, $event)" class="text-zinc-400 hover:text-rose-400">&times;</button>
+                        </span>
+                      }
+                    </div>
+                    <div class="relative dropdown-container">
+                      <button
+                        type="button"
+                        (click)="toggleDropdown('edit-user-folders-' + user.id, $event)"
+                        class="px-2 py-1 rounded-lg bg-[#09090b] border border-zinc-700 text-[11px] text-zinc-300 hover:text-white flex items-center gap-1 w-full justify-between"
+                      >
+                        <span>{{ editSelectedFolders.length ? editSelectedFolders.length + ' folder(s)' : '+ Grant Folders' }}</span>
+                        <span class="text-[9px] text-zinc-500">▼</span>
+                      </button>
+                      <div
+                        *ngIf="openDropdownId === 'edit-user-folders-' + user.id"
+                        class="absolute left-0 top-8 z-50 w-56 bg-[#18181b] border border-zinc-700 rounded-xl p-2 shadow-2xl space-y-2"
+                      >
+                        <div class="max-h-36 overflow-y-auto space-y-1">
+                          @for (folder of availableFolders; track folder) {
+                            <label class="flex items-center gap-2 px-2 py-1 hover:bg-zinc-800 rounded text-[11px] cursor-pointer text-zinc-300">
+                              <input
+                                type="checkbox"
+                                [checked]="editSelectedFolders.includes(folder)"
+                                (change)="toggleItem(editSelectedFolders, folder, $event)"
+                                class="rounded bg-zinc-900 border-zinc-700"
+                              />
+                              <span class="truncate">📁 {{ folder }}</span>
+                            </label>
+                          }
+                          @if (!availableFolders.length) {
+                            <div class="text-[10px] text-zinc-500 p-1">No workspace folders created yet</div>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- Status -->
+                <td class="py-3.5 px-4">
+                  <div *ngIf="editingUserId !== user.id">
+                    <span
+                      class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono border bg-zinc-900 text-zinc-300 border-zinc-800 font-medium"
+                    >
+                      <span class="w-1.5 h-1.5 rounded-full" [ngClass]="user.status === 'suspended' ? 'bg-rose-500' : 'bg-emerald-500'"></span>
+                      {{ user.status || 'active' }}
+                    </span>
+                  </div>
+                  <div *ngIf="editingUserId === user.id">
+                    <select
+                      [(ngModel)]="editStatus"
+                      class="bg-[#09090b] border border-zinc-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-zinc-500"
+                    >
+                      <option value="active">Active</option>
+                      <option value="suspended">Suspended</option>
+                    </select>
+                  </div>
+                </td>
+
+                <!-- Actions -->
+                <td class="py-3.5 px-5 text-right">
+                  <div *ngIf="editingUserId !== user.id" class="flex items-center justify-end gap-1.5">
+                    <button
+                      (click)="startEditingUser(user)"
+                      class="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-medium text-xs transition-colors border border-zinc-700"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      *ngIf="user.role !== 'admin'"
+                      (click)="deleteUser(user)"
+                      class="p-1 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-rose-400 transition-colors"
+                      title="Delete User Account"
+                    >
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div *ngIf="editingUserId === user.id" class="flex items-center justify-end gap-1.5">
+                    <button
+                      (click)="saveUser(user)"
+                      class="px-3 py-1 rounded-lg bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors"
+                    >
+                      Save
+                    </button>
+                    <button
+                      (click)="cancelEditing()"
+                      class="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-medium text-xs transition-colors border border-zinc-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+            @if (filteredUsers.length === 0) {
+              <tr>
+                <td colspan="5" class="py-12 text-center text-zinc-500 text-xs">No users found matching your search query.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 2: Security Roles Management -->
+  <div *ngIf="activeTab === 'roles'" class="space-y-4">
+    <div class="bg-[#111114] rounded-2xl border border-zinc-800/80 overflow-hidden shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-[#09090b] border-b border-zinc-800 text-zinc-400">
+              <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px]">Role Name & Key</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Description</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Restricted Folders</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Type</th>
+              <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-800/60">
+            @for (role of roles; track (role._id || role.id || role.key)) {
+              <tr class="hover:bg-zinc-800/30 transition-colors">
+                <!-- Name & Key -->
+                <td class="py-3.5 px-5">
+                  <div *ngIf="editingRoleId !== (role._id || role.id)">
+                    <div class="font-semibold text-zinc-100 text-sm">{{ role.name }}</div>
+                    <div class="text-[10px] font-mono text-zinc-500 mt-0.5">key: <span class="text-zinc-300">{{ role.key }}</span></div>
+                  </div>
+                  <div *ngIf="editingRoleId === (role._id || role.id)" class="space-y-1">
+                    <input
+                      type="text"
+                      [(ngModel)]="editRoleName"
+                      class="w-full px-2.5 py-1 rounded-lg bg-[#09090b] border border-zinc-700 text-xs text-white focus:outline-none focus:border-zinc-500"
+                      placeholder="Role name"
+                    />
+                    <div class="text-[10px] font-mono text-zinc-500">Key: {{ role.key }}</div>
+                  </div>
+                </td>
+
+                <!-- Description -->
+                <td class="py-3.5 px-4 max-w-xs">
+                  <div *ngIf="editingRoleId !== (role._id || role.id)" class="text-zinc-400 text-xs leading-relaxed">
+                    {{ role.description || 'No description provided.' }}
+                  </div>
+                  <div *ngIf="editingRoleId === (role._id || role.id)">
+                    <textarea
+                      [(ngModel)]="editRoleDescription"
+                      rows="2"
+                      class="w-full px-2.5 py-1 rounded-lg bg-[#09090b] border border-zinc-700 text-xs text-white focus:outline-none focus:border-zinc-500"
+                      placeholder="Role description"
+                    ></textarea>
+                  </div>
+                </td>
+
+                <!-- Allowed Folders -->
+                <td class="py-3.5 px-4">
+                  <div *ngIf="editingRoleId !== (role._id || role.id)" class="flex flex-wrap gap-1">
+                    @for (folder of (role.allowedFolders || []); track folder) {
+                      <span class="px-2 py-0.5 bg-zinc-900 text-zinc-300 rounded-md text-[10px] border border-zinc-800">
+                        {{ folder }}
+                      </span>
+                    }
+                    @if (!role.allowedFolders || !role.allowedFolders.length) {
+                      <span class="text-zinc-600 text-[11px] font-mono">All Workspaces</span>
+                    }
+                  </div>
+                  <div *ngIf="editingRoleId === (role._id || role.id)" class="space-y-1.5">
+                    <div class="flex flex-wrap gap-1">
+                      @for (f of editRoleSelectedFolders; track f) {
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-800 text-zinc-200 text-[10px] border border-zinc-700">
+                          {{ f }}
+                          <button type="button" (click)="removeItem(editRoleSelectedFolders, f, $event)" class="text-zinc-400 hover:text-rose-400">&times;</button>
+                        </span>
+                      }
+                    </div>
+                    <div class="relative dropdown-container">
+                      <button
+                        type="button"
+                        (click)="toggleDropdown('edit-role-folders-' + (role._id || role.id), $event)"
+                        class="px-2.5 py-1 rounded bg-[#09090b] border border-zinc-700 text-[11px] text-zinc-300 hover:text-white flex items-center gap-1"
+                      >
+                        <span>+ Assign Folders</span>
+                      </button>
+                      <div
+                        *ngIf="openDropdownId === 'edit-role-folders-' + (role._id || role.id)"
+                        class="absolute left-0 top-8 z-50 w-56 bg-[#18181b] border border-zinc-700 rounded-xl p-2 shadow-2xl space-y-2"
+                      >
+                        <div class="max-h-36 overflow-y-auto space-y-1">
+                          @for (folder of availableFolders; track folder) {
+                            <label class="flex items-center gap-2 px-2 py-1 hover:bg-zinc-800 rounded text-[11px] cursor-pointer text-zinc-300">
+                              <input
+                                type="checkbox"
+                                [checked]="editRoleSelectedFolders.includes(folder)"
+                                (change)="toggleItem(editRoleSelectedFolders, folder, $event)"
+                                class="rounded bg-zinc-900 border-zinc-700"
+                              />
+                              <span class="truncate">{{ folder }}</span>
+                            </label>
+                          }
+                        </div>
+                        <div class="pt-1 border-t border-zinc-800 flex gap-1">
+                          <input
+                            type="text"
+                            [(ngModel)]="customInputMap['edit-role-folders-' + (role._id || role.id)]"
+                            placeholder="New folder..."
+                            class="flex-1 px-2 py-0.5 rounded bg-[#09090b] border border-zinc-700 text-[10px] text-white"
+                          />
+                          <button
+                            type="button"
+                            (click)="addCustomItem(editRoleSelectedFolders, 'folder', 'edit-role-folders-' + (role._id || role.id), $event)"
+                            class="px-2 py-0.5 bg-white text-black rounded text-[10px] font-semibold"
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- Type -->
+                <td class="py-3.5 px-4">
+                  <span
+                    class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase border"
+                    [ngClass]="role.isSystem ? 'bg-zinc-900 text-zinc-400 border-zinc-800' : 'bg-blue-950/40 text-blue-300 border-blue-800/60'"
+                  >
+                    {{ role.isSystem ? 'System' : 'Custom' }}
+                  </span>
+                </td>
+
+                <!-- Actions -->
+                <td class="py-3.5 px-5 text-right">
+                  <div *ngIf="editingRoleId !== (role._id || role.id)" class="flex items-center justify-end gap-1.5">
+                    <button
+                      (click)="startEditingRole(role)"
+                      class="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-medium text-xs transition-colors border border-zinc-700"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      *ngIf="!role.isSystem"
+                      (click)="deleteRole(role)"
+                      class="p-1 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-rose-400 transition-colors"
+                      title="Delete Custom Role"
+                    >
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div *ngIf="editingRoleId === (role._id || role.id)" class="flex items-center justify-end gap-1.5">
+                    <button
+                      (click)="saveRole(role)"
+                      class="px-3 py-1 rounded-lg bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors"
+                    >
+                      Save
+                    </button>
+                    <button
+                      (click)="cancelEditingRole()"
+                      class="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-medium text-xs transition-colors border border-zinc-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 3: Access Requests & Audit History -->
+  <div *ngIf="activeTab === 'requests'" class="space-y-4">
+    <!-- Sub-tab Bar -->
+    <div class="flex items-center justify-between gap-4 flex-wrap">
+      <div class="flex items-center gap-2 p-1 bg-[#111114] border border-zinc-800 rounded-xl">
+        <button
+          type="button"
+          (click)="requestsSubTab = 'pending'"
+          class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2"
+          [ngClass]="requestsSubTab === 'pending' ? 'bg-white text-black shadow-sm' : 'text-zinc-400 hover:text-white'"
+        >
+          <span>Pending Approvals</span>
+          <span
+            *ngIf="pendingRequests.length > 0"
+            class="px-1.5 py-0.2 rounded-full text-[10px] font-mono"
+            [ngClass]="requestsSubTab === 'pending' ? 'bg-black text-white' : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'"
+          >
+            {{ pendingRequests.length }}
+          </span>
+        </button>
+        <button
+          type="button"
+          (click)="requestsSubTab = 'history'; loadHistory()"
+          class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2"
+          [ngClass]="requestsSubTab === 'history' ? 'bg-white text-black shadow-sm' : 'text-zinc-400 hover:text-white'"
+        >
+          <span>Audit & Resolution History</span>
+          <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono" [ngClass]="requestsSubTab === 'history' ? 'bg-black text-white' : 'bg-zinc-800 text-zinc-400'">
+            {{ historyTotal }}
+          </span>
+        </button>
+      </div>
+
+      <!-- Quick refresh button -->
+      <button
+        type="button"
+        (click)="loadRequests()"
+        class="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 text-xs font-medium transition-colors flex items-center gap-1.5"
+      >
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        <span>Refresh</span>
+      </button>
+    </div>
+
+    <!-- SUB-VIEW 1: PENDING REQUESTS TABLE -->
+    <div *ngIf="requestsSubTab === 'pending'" class="bg-[#111114] rounded-2xl border border-zinc-800/80 overflow-hidden shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-[#09090b] border-b border-zinc-800 text-zinc-400">
+              <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px]">Requester</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Requested Target</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Reason / Justification</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Requested At</th>
+              <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-800/60">
+            @for (req of pendingRequests; track req.id) {
+              <tr class="hover:bg-zinc-800/30 transition-colors">
+                <td class="py-3.5 px-5">
+                  <div class="font-medium text-zinc-100">{{ req.userName || req.userEmail || req.userId }}</div>
+                  <div *ngIf="req.userEmail" class="text-[11px] text-zinc-500 font-mono">{{ req.userEmail }}</div>
+                </td>
+                <td class="py-3.5 px-4 font-medium text-zinc-200">
+                  <span class="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono text-[10px] mr-1.5 uppercase border border-zinc-700">
+                    {{ req.resourceType }}
+                  </span>
+                  <span class="font-mono text-xs text-sky-400">{{ req.resourceName || req.folderPath || req.resourceId }}</span>
+                </td>
+                <td class="py-3.5 px-4 text-zinc-300 max-w-xs truncate">{{ req.reason || 'No justification provided' }}</td>
+                <td class="py-3.5 px-4 text-zinc-400 font-mono text-[11px] whitespace-nowrap">{{ req.createdAt | date:'medium' }}</td>
+                <td class="py-3.5 px-5 text-right whitespace-nowrap">
+                  <div class="flex items-center justify-end gap-1.5">
+                    <button
+                      (click)="approveRequest(req)"
+                      class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition-colors shadow-sm"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      (click)="rejectRequest(req)"
+                      class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-rose-400 font-medium text-xs transition-colors border border-zinc-700"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+            @if (pendingRequests.length === 0) {
+              <tr>
+                <td colspan="5" class="py-12 text-center text-zinc-500 text-xs">
+                  <div class="flex flex-col items-center justify-center gap-1.5">
+                    <span class="text-base">✨</span>
+                    <span class="font-medium text-zinc-400">All caught up!</span>
+                    <span class="text-[11px] text-zinc-600">No pending access requests require your review.</span>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SUB-VIEW 2: COMPLETE AUDIT & HISTORY LOG -->
+    <div *ngIf="requestsSubTab === 'history'" class="space-y-4">
+      <!-- Clean Executive Filter Controls -->
+      <div class="p-5 rounded-2xl bg-[#111114] border border-zinc-800 space-y-4">
+        <!-- Top Row Filters -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
+          <!-- Status Filter -->
+          <div>
+            <label class="block text-[11px] font-medium text-zinc-400 mb-1.5">Status</label>
+            <select
+              [(ngModel)]="historyFilterStatus"
+              (change)="applyHistoryFilters()"
+              class="w-full px-3 py-2 rounded-xl bg-[#18181b] border border-zinc-700/70 text-zinc-100 hover:border-zinc-500 focus:outline-none focus:border-white transition-colors"
+            >
+              <option value="">All Statuses (Pending, Approved, Rejected)</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+
+          <!-- Requester Filter -->
+          <div>
+            <label class="block text-[11px] font-medium text-zinc-400 mb-1.5">Requester</label>
+            <select
+              [(ngModel)]="historyFilterRequesterId"
+              (change)="applyHistoryFilters()"
+              class="w-full px-3 py-2 rounded-xl bg-[#18181b] border border-zinc-700/70 text-zinc-100 hover:border-zinc-500 focus:outline-none focus:border-white transition-colors"
+            >
+              <option value="">All Requesters</option>
+              @for (u of users; track u.id) {
+                <option [value]="u.id">{{ u.firstName }} {{ u.lastName }} ({{ u.email }})</option>
+              }
+            </select>
+          </div>
+
+          <!-- Resolving Admin Filter -->
+          <div>
+            <label class="block text-[11px] font-medium text-zinc-400 mb-1.5">Resolving Administrator</label>
+            <select
+              [(ngModel)]="historyFilterResolvedBy"
+              (change)="applyHistoryFilters()"
+              class="w-full px-3 py-2 rounded-xl bg-[#18181b] border border-zinc-700/70 text-zinc-100 hover:border-zinc-500 focus:outline-none focus:border-white transition-colors"
+            >
+              <option value="">All Administrators</option>
+              @for (u of users; track u.id) {
+                <option *ngIf="u.role === 'admin'" [value]="u.id">{{ u.firstName }} {{ u.lastName }} (Admin)</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <!-- Bottom Row: Date Range & Actions -->
+        <div class="flex flex-col lg:flex-row items-stretch lg:items-end justify-between gap-3 pt-3 border-t border-zinc-800/80">
+          <div class="flex flex-wrap items-end gap-2.5 flex-1">
+            <!-- Date Mode -->
+            <div class="w-44">
+              <label class="block text-[11px] font-medium text-zinc-400 mb-1.5">Date Field</label>
+              <select
+                [(ngModel)]="historyFilterDateField"
+                (change)="applyHistoryFilters()"
+                class="w-full px-3 py-2 rounded-xl bg-[#18181b] border border-zinc-700/70 text-zinc-200 text-xs focus:outline-none focus:border-white transition-colors"
+              >
+                <option value="requestedAt">Request Date</option>
+                <option value="resolvedAt">Resolution Date</option>
+              </select>
+            </div>
+
+            <!-- From Date -->
+            <div class="flex-1 min-w-[130px]">
+              <label class="block text-[11px] font-medium text-zinc-400 mb-1.5">From</label>
+              <input
+                type="date"
+                [(ngModel)]="historyFilterFrom"
+                (change)="applyHistoryFilters()"
+                class="w-full px-3 py-1.5 rounded-xl bg-[#18181b] border border-zinc-700/70 text-white text-xs focus:outline-none focus:border-white transition-colors"
+              />
+            </div>
+
+            <!-- To Date -->
+            <div class="flex-1 min-w-[130px]">
+              <label class="block text-[11px] font-medium text-zinc-400 mb-1.5">To</label>
+              <input
+                type="date"
+                [(ngModel)]="historyFilterTo"
+                (change)="applyHistoryFilters()"
+                class="w-full px-3 py-1.5 rounded-xl bg-[#18181b] border border-zinc-700/70 text-white text-xs focus:outline-none focus:border-white transition-colors"
+              />
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center justify-end gap-2 pt-1 lg:pt-0">
+            <span class="text-zinc-500 text-xs font-mono mr-2 hidden sm:inline">
+              {{ historyTotal }} record(s)
+            </span>
+            <button
+              type="button"
+              (click)="clearHistoryFilters()"
+              class="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 text-xs font-medium transition-colors"
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              (click)="applyHistoryFilters()"
+              class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors shadow-sm"
+            >
+              Apply Filters
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Table -->
+      <div class="bg-[#111114] rounded-2xl border border-zinc-800/80 overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-[#09090b] border-b border-zinc-800 text-zinc-400">
+                <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px]">Requester</th>
+                <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Requested Target</th>
+                <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Requested Date</th>
+                <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Status</th>
+                <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Resolving Admin</th>
+                <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] text-right">Resolved Date</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-800/60">
+              @for (req of historyRequests; track req.id) {
+                <tr class="hover:bg-zinc-800/30 transition-colors">
+                  <!-- Requester -->
+                  <td class="py-3.5 px-5">
+                    <div class="font-medium text-zinc-100">{{ req.userName || req.userEmail || req.userId }}</div>
+                    <div *ngIf="req.userEmail" class="text-[11px] text-zinc-500 font-mono">{{ req.userEmail }}</div>
+                  </td>
+
+                  <!-- Target Resource -->
+                  <td class="py-3.5 px-4">
+                    <div class="flex items-center gap-2">
+                      <span class="px-2 py-0.5 rounded-md bg-zinc-800/80 text-zinc-300 font-mono text-[10px] uppercase border border-zinc-700 font-medium">
+                        {{ req.resourceType }}
+                      </span>
+                      <span class="font-medium text-xs text-sky-400">
+                        {{ req.resourceName || req.folderPath || req.resourceId }}
+                      </span>
+                    </div>
+                    <div *ngIf="req.folderPath && req.resourceName" class="text-[11px] text-zinc-500 font-mono mt-0.5">
+                      Folder: {{ req.folderPath }}
+                    </div>
+                  </td>
+
+                  <!-- Requested At -->
+                  <td class="py-3.5 px-4 text-zinc-400 font-mono text-[11px] whitespace-nowrap">
+                    {{ req.createdAt | date:'medium' }}
+                  </td>
+
+                  <!-- Status Badge -->
+                  <td class="py-3.5 px-4">
+                    @if (req.status === 'approved') {
+                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-emerald-950/40 text-emerald-300 border border-emerald-800/60 font-semibold">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Approved
+                      </span>
+                    } @else if (req.status === 'rejected') {
+                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-rose-950/40 text-rose-300 border border-rose-800/60 font-semibold">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Rejected
+                      </span>
+                    } @else {
+                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-amber-950/40 text-amber-300 border border-amber-800/60 font-semibold">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span> Pending
+                      </span>
+                    }
+                  </td>
+
+                  <!-- Resolving Admin -->
+                  <td class="py-3.5 px-4">
+                    @if (req.status === 'pending') {
+                      <span class="text-zinc-600 font-mono">—</span>
+                    } @else {
+                      <div class="font-medium text-zinc-200">
+                        {{ req.resolvedByName || req.resolvedByEmail || 'Administrator' }}
+                      </div>
+                      <div *ngIf="req.resolvedByEmail && req.resolvedByName !== req.resolvedByEmail" class="text-[10px] text-zinc-500 font-mono">
+                        {{ req.resolvedByEmail }}
+                      </div>
+                    }
+                  </td>
+
+                  <!-- Resolved At -->
+                  <td class="py-3.5 px-5 text-right font-mono text-[11px] text-zinc-400 whitespace-nowrap">
+                    {{ req.resolvedAt ? (req.resolvedAt | date:'medium') : '—' }}
+                  </td>
+                </tr>
+              }
+
+              @if (historyRequests.length === 0 && !historyLoading) {
+                <tr>
+                  <td colspan="6" class="py-12 text-center text-zinc-500 text-xs">
+                    <div class="flex flex-col items-center justify-center gap-1">
+                      <span class="text-base">📋</span>
+                      <span class="font-medium text-zinc-400">No history records match the selected filters.</span>
+                      <span class="text-[11px] text-zinc-600">Try adjusting your date range, status, or user filters.</span>
+                    </div>
+                  </td>
+                </tr>
+              }
+              @if (historyLoading) {
+                <tr>
+                  <td colspan="6" class="py-12 text-center text-zinc-400 text-xs">
+                    Loading access request history...
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div *ngIf="historyTotalPages > 1" class="p-4 bg-[#09090b] border-t border-zinc-800 flex items-center justify-between text-xs">
+          <span class="text-zinc-500">
+            Page {{ historyPage }} of {{ historyTotalPages }} ({{ historyTotal }} records)
+          </span>
+          <div class="flex items-center gap-1.5">
+            <button
+              type="button"
+              (click)="goToHistoryPage(historyPage - 1)"
+              [disabled]="historyPage === 1"
+              class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            @for (p of [].constructor(historyTotalPages); track $index) {
+              <button
+                type="button"
+                (click)="goToHistoryPage($index + 1)"
+                [ngClass]="historyPage === ($index + 1) ? 'bg-white text-black font-bold' : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'"
+                class="w-7 h-7 rounded-lg text-xs transition-colors"
+              >
+                {{ $index + 1 }}
+              </button>
+            }
+            <button
+              type="button"
+              (click)="goToHistoryPage(historyPage + 1)"
+              [disabled]="historyPage === historyTotalPages"
+              class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Create User Modal -->
+  <div *ngIf="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+    <div class="w-full max-w-lg bg-[#111114] border border-zinc-800 rounded-2xl p-6 shadow-2xl space-y-5 text-zinc-200">
+      <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+        <h3 class="text-base font-bold text-white tracking-tight">Add New Enterprise User</h3>
+        <button (click)="showCreateModal = false" class="text-zinc-500 hover:text-white text-xl leading-none">&times;</button>
+      </div>
+
+      <div *ngIf="createUserError" class="p-3 rounded-xl bg-zinc-900 border border-rose-900/60 text-rose-300 text-xs">
+        {{ createUserError }}
+      </div>
+
+      <form (ngSubmit)="submitCreateUser()" class="space-y-4 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-zinc-400 font-medium mb-1">First Name</label>
+            <input
+              type="text"
+              [(ngModel)]="newUser.firstName"
+              name="firstName"
+              required
+              class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-800 text-white focus:outline-none focus:border-zinc-500"
+              placeholder="Alice"
+            />
+          </div>
+          <div>
+            <label class="block text-zinc-400 font-medium mb-1">Last Name</label>
+            <input
+              type="text"
+              [(ngModel)]="newUser.lastName"
+              name="lastName"
+              required
+              class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-800 text-white focus:outline-none focus:border-zinc-500"
+              placeholder="Smith"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-zinc-400 font-medium mb-1">Email Address</label>
+          <input
+            type="email"
+            [(ngModel)]="newUser.email"
+            name="email"
+            required
+            class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-800 text-white focus:outline-none focus:border-zinc-500"
+            placeholder="alice@company.com"
+          />
+        </div>
+
+        <div>
+          <label class="block text-zinc-400 font-medium mb-1">Security Role</label>
+          <select
+            [(ngModel)]="newUser.role"
+            name="role"
+            class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-800 text-white focus:outline-none focus:border-zinc-500"
+          >
+            <option value="admin">Administrator (Full Access)</option>
+            <option value="manager">Manager (Department Access)</option>
+            <option value="auditor">Auditor (Read-Only)</option>
+            <option value="user">User (Standard Access)</option>
+            @for (r of roles; track r.key) {
+              <option *ngIf="r.key !== 'admin' && r.key !== 'manager' && r.key !== 'auditor' && r.key !== 'user'" [value]="r.key">
+                {{ r.name }} (Custom Role)
+              </option>
+            }
+          </select>
+        </div>
+
+        <div *ngIf="newUser.role === 'admin'" class="space-y-1 animate-fade-in">
+          <label class="block text-zinc-400 font-medium mb-1 flex items-center justify-between">
+            <span class="text-amber-400">Master Admin Password *</span>
+            <span class="text-[10px] text-zinc-500 font-normal">Required for Administrator assignment</span>
+          </label>
+          <input
+            type="password"
+            [(ngModel)]="newUserMasterAdminPassword"
+            name="masterAdminPassword"
+            placeholder="••••••••••••"
+            autocomplete="new-password"
+            required
+            class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-amber-600/60 text-white focus:outline-none focus:border-amber-400 font-mono"
+          />
+        </div>
+
+        <!-- Departments -->
+        <div>
+          <label class="block text-zinc-400 font-medium mb-1">Departments</label>
+          <div class="flex flex-wrap gap-1 mb-2">
+            @for (d of newUserSelectedDepartments; track d) {
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-800 text-zinc-200 text-[10px] border border-zinc-700">
+                {{ d }}
+                <button type="button" (click)="removeItem(newUserSelectedDepartments, d, $event)" class="text-zinc-400 hover:text-rose-400">&times;</button>
+              </span>
+            }
+          </div>
+          <div class="relative dropdown-container">
+            <button
+              type="button"
+              (click)="toggleDropdown('new-user-deps', $event)"
+              class="px-2.5 py-1 rounded bg-[#09090b] border border-zinc-700 text-[11px] text-zinc-300 hover:text-white flex items-center gap-1"
+            >
+              <span>+ Select Departments</span>
+            </button>
+            <div
+              *ngIf="openDropdownId === 'new-user-deps'"
+              class="absolute left-0 top-8 z-50 w-56 bg-[#18181b] border border-zinc-700 rounded-xl p-2 shadow-2xl space-y-2"
+            >
+              <div class="max-h-36 overflow-y-auto space-y-1">
+                @for (dept of availableDepartments; track dept) {
+                  <label class="flex items-center gap-2 px-2 py-1 hover:bg-zinc-800 rounded text-[11px] cursor-pointer text-zinc-300">
+                    <input
+                      type="checkbox"
+                      [checked]="newUserSelectedDepartments.includes(dept)"
+                      (change)="toggleItem(newUserSelectedDepartments, dept, $event)"
+                      class="rounded bg-zinc-900 border-zinc-700"
+                    />
+                    <span class="truncate">{{ dept }}</span>
+                  </label>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Allowed Folders -->
+        <div>
+          <label class="block text-zinc-400 font-medium mb-1">Allowed Folders (Optional Restricted Access)</label>
+          <div class="flex flex-wrap gap-1 mb-2">
+            @for (f of newUserSelectedFolders; track f) {
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-800 text-sky-300 text-[10px] border border-zinc-700">
+                📁 {{ f }}
+                <button type="button" (click)="removeItem(newUserSelectedFolders, f, $event)" class="text-zinc-400 hover:text-rose-400">&times;</button>
+              </span>
+            }
+          </div>
+          <div class="relative dropdown-container">
+            <button
+              type="button"
+              (click)="toggleDropdown('new-user-folders', $event)"
+              class="px-2.5 py-1 rounded bg-[#09090b] border border-zinc-700 text-[11px] text-zinc-300 hover:text-white flex items-center gap-1"
+            >
+              <span>+ Select Workspace Folders</span>
+            </button>
+            <div
+              *ngIf="openDropdownId === 'new-user-folders'"
+              class="absolute left-0 top-8 z-50 w-56 bg-[#18181b] border border-zinc-700 rounded-xl p-2 shadow-2xl space-y-2"
+            >
+              <div class="max-h-36 overflow-y-auto space-y-1">
+                @for (folder of availableFolders; track folder) {
+                  <label class="flex items-center gap-2 px-2 py-1 hover:bg-zinc-800 rounded text-[11px] cursor-pointer text-zinc-300">
+                    <input
+                      type="checkbox"
+                      [checked]="newUserSelectedFolders.includes(folder)"
+                      (change)="toggleItem(newUserSelectedFolders, folder, $event)"
+                      class="rounded bg-zinc-900 border-zinc-700"
+                    />
+                    <span class="truncate">📁 {{ folder }}</span>
+                  </label>
+                }
+                @if (!availableFolders.length) {
+                  <div class="text-[10px] text-zinc-500 p-1">No workspace folders created yet</div>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+          <button
+            type="button"
+            (click)="showCreateModal = false"
+            class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            [disabled]="creatingUser || (newUser.role === 'admin' && !newUserMasterAdminPassword.trim())"
+            class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold disabled:opacity-50"
+          >
+            {{ creatingUser ? 'Provisioning...' : 'Provision User' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- User Provisioned Credentials Modal -->
+  <div *ngIf="showCreatedUserModal && createdUserResult" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+    <div class="w-full max-w-md bg-[#111114] border border-zinc-800 rounded-2xl p-6 shadow-2xl space-y-4 text-zinc-200">
+      <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+          <h3 class="text-base font-bold text-white tracking-tight">User Account Provisioned</h3>
+        </div>
+        <button (click)="closeCreatedUserModal()" class="text-zinc-500 hover:text-white text-xl leading-none">&times;</button>
+      </div>
+
+      <!-- Email Dispatch Status Banner -->
+      <div
+        class="p-3 rounded-xl text-xs flex items-center gap-2.5 border"
+        [ngClass]="createdUserResult.emailSent ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300' : 'bg-amber-950/40 border-amber-800/60 text-amber-300'"
+      >
+        <span class="text-base flex-shrink-0">{{ createdUserResult.emailSent ? '✉️' : '⚠️' }}</span>
+        <div class="leading-relaxed">
+          <p class="font-medium">
+            {{ createdUserResult.emailSent ? 'Welcome email dispatched successfully.' : 'Email delivery was unavailable or skipped.' }}
+          </p>
+          <p class="text-[11px] opacity-80 mt-0.5">
+            {{ createdUserResult.emailSent ? 'The user will receive their temporary password in their inbox.' : 'Please copy and provide the temporary password to the user directly.' }}
+          </p>
+        </div>
+      </div>
+
+      <!-- User Credentials Box -->
+      <div class="p-4 bg-[#09090b] border border-zinc-800 rounded-xl space-y-3 font-mono text-xs">
+        <div>
+          <span class="text-[10px] text-zinc-500 block uppercase tracking-wider">User Account</span>
+          <span class="text-white font-semibold">{{ createdUserResult.user?.firstName }} {{ createdUserResult.user?.lastName }}</span>
+          <span class="text-zinc-400 block text-[11px]">{{ createdUserResult.user?.email }}</span>
+        </div>
+
+        <div>
+          <span class="text-[10px] text-zinc-500 block uppercase tracking-wider mb-1">Temporary Sign-In Password</span>
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              readonly
+              [value]="createdUserResult.temporaryPassword"
+              class="flex-1 px-3 py-2 rounded-lg bg-[#18181b] border border-zinc-700 text-sky-400 font-bold text-xs select-all focus:outline-none"
+            />
+            <button
+              type="button"
+              (click)="copyCreatedPassword(createdUserResult.temporaryPassword)"
+              class="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white transition-colors border border-zinc-700 flex-shrink-0"
+            >
+              {{ copiedPassword ? 'Copied!' : 'Copy' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-2 border-t border-zinc-800">
+        <button
+          type="button"
+          (click)="closeCreatedUserModal()"
+          class="px-4 py-2 bg-white hover:bg-zinc-200 text-black text-xs font-semibold rounded-xl transition-colors"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Role Modal -->
+  <div *ngIf="showCreateRoleModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+    <div class="w-full max-w-md bg-[#111114] border border-zinc-800 rounded-2xl p-6 shadow-2xl space-y-5 text-zinc-200">
+      <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+        <h3 class="text-base font-bold text-white tracking-tight">Create Custom Security Role</h3>
+        <button (click)="showCreateRoleModal = false" class="text-zinc-500 hover:text-white text-xl leading-none">&times;</button>
+      </div>
+
+      <div *ngIf="createRoleError" class="p-3 rounded-xl bg-zinc-900 border border-rose-900/60 text-rose-300 text-xs">
+        {{ createRoleError }}
+      </div>
+
+      <form (ngSubmit)="submitCreateRole()" class="space-y-4 text-xs">
+        <div>
+          <label class="block text-zinc-400 font-medium mb-1">Role Name</label>
+          <input
+            type="text"
+            [(ngModel)]="newRole.name"
+            name="roleName"
+            required
+            class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-800 text-white focus:outline-none focus:border-zinc-500"
+            placeholder="e.g. Finance Analyst"
+          />
+        </div>
+
+        <div>
+          <label class="block text-zinc-400 font-medium mb-1">Role Key (Identifier)</label>
+          <input
+            type="text"
+            [(ngModel)]="newRole.key"
+            name="roleKey"
+            class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-800 text-white focus:outline-none focus:border-zinc-500 font-mono text-xs"
+            placeholder="finance_analyst"
+          />
+          <p class="text-[10px] text-zinc-500 mt-1">Unique machine key. Will be auto-generated from name if left empty.</p>
+        </div>
+
+        <div>
+          <label class="block text-zinc-400 font-medium mb-1">Description</label>
+          <textarea
+            [(ngModel)]="newRole.description"
+            name="roleDescription"
+            rows="2"
+            class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-800 text-white focus:outline-none focus:border-zinc-500"
+            placeholder="Role purpose and access limits"
+          ></textarea>
+        </div>
+
+        <!-- Allowed Folders Selector -->
+        <div>
+          <label class="block text-zinc-400 font-medium mb-1">Restricted Folders (Optional)</label>
+          <div class="flex flex-wrap gap-1 mb-2">
+            @for (f of newRoleSelectedFolders; track f) {
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-800 text-zinc-200 text-[10px] border border-zinc-700">
+                {{ f }}
+                <button type="button" (click)="removeItem(newRoleSelectedFolders, f, $event)" class="text-zinc-400 hover:text-rose-400">&times;</button>
+              </span>
+            }
+          </div>
+          <div class="relative dropdown-container">
+            <button
+              type="button"
+              (click)="toggleDropdown('new-role-folders', $event)"
+              class="px-2.5 py-1 rounded bg-[#09090b] border border-zinc-700 text-[11px] text-zinc-300 hover:text-white flex items-center gap-1"
+            >
+              <span>+ Select Workspace Folders</span>
+            </button>
+            <div
+              *ngIf="openDropdownId === 'new-role-folders'"
+              class="absolute left-0 top-8 z-50 w-56 bg-[#18181b] border border-zinc-700 rounded-xl p-2 shadow-2xl space-y-2"
+            >
+              <div class="max-h-36 overflow-y-auto space-y-1">
+                @for (folder of availableFolders; track folder) {
+                  <label class="flex items-center gap-2 px-2 py-1 hover:bg-zinc-800 rounded text-[11px] cursor-pointer text-zinc-300">
+                    <input
+                      type="checkbox"
+                      [checked]="newRoleSelectedFolders.includes(folder)"
+                      (change)="toggleItem(newRoleSelectedFolders, folder, $event)"
+                      class="rounded bg-zinc-900 border-zinc-700"
+                    />
+                    <span class="truncate">{{ folder }}</span>
+                  </label>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+          <button
+            type="button"
+            (click)="showCreateRoleModal = false"
+            class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            [disabled]="creatingRole"
+            class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold disabled:opacity-50"
+          >
+            {{ creatingRole ? 'Creating...' : 'Create Role' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
