@@ -74,6 +74,30 @@ export class MailService {
     }
   }
 
+  /**
+   * Resolves the frontend URL to use in emails.
+   * Priority:
+   * 1. Configured FRONTEND_URL environment variable (e.g. 'https://syntra-chat.onrender.com' or 'http://localhost:4200')
+   * 2. Production fallback: 'https://syntra-chat.onrender.com' (when NODE_ENV is 'production')
+   * 3. Local development fallback: 'http://localhost:4200'
+   */
+  getFrontendUrl(): string {
+    const configured = this.configService.get<string>('FRONTEND_URL');
+    if (configured && configured.trim()) {
+      return configured.trim().replace(/\/+$/, '');
+    }
+
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production' ||
+      process.env.NODE_ENV === 'production';
+
+    if (isProduction) {
+      return 'https://syntra-chat.onrender.com';
+    }
+
+    return 'http://localhost:4200';
+  }
+
   async sendWelcomeEmail(
     toEmail: string,
     firstName: string,
@@ -97,11 +121,7 @@ export class MailService {
       fromAddress = 'Syntra Chat Security <no-reply@syntrachat.internal>';
     }
 
-    const frontendUrl = this.configService.get<string>(
-      'FRONTEND_URL',
-      'http://localhost:4200',
-    );
-    const loginUrl = `${frontendUrl.replace(/\/$/, '')}/auth/login`;
+    const signInUrl = this.getFrontendUrl();
     const displayName = firstName ? firstName.trim() : 'there';
 
     const subject = 'Welcome to Syntra Chat — Your Account Credentials';
@@ -112,7 +132,7 @@ Welcome to Syntra Chat, your private enterprise knowledge and analytics platform
 
 Here are your initial sign-in credentials:
 --------------------------------------------------
-Login URL:          ${loginUrl}
+Login URL:          ${signInUrl}
 Email Address:      ${toEmail}
 Temporary Password: ${temporaryPassword}
 --------------------------------------------------
@@ -205,7 +225,7 @@ The Syntra Chat Platform Team`;
               <table role="presentation" border="0" cellspacing="0" cellpadding="0">
                 <tr>
                   <td align="center" style="border-radius: 10px; background-color: #ffffff;">
-                    <a href="${loginUrl}" target="_blank" style="font-size: 14px; font-weight: 600; color: #000000; text-decoration: none; padding: 12px 28px; display: inline-block; border-radius: 10px;">
+                    <a href="${signInUrl}" target="_blank" style="font-size: 14px; font-weight: 600; color: #000000; text-decoration: none; padding: 12px 28px; display: inline-block; border-radius: 10px;">
                       Sign In to Syntra Chat &rarr;
                     </a>
                   </td>
@@ -278,7 +298,7 @@ The Syntra Chat Platform Team`;
 
     // 3. Development Fallback
     this.logger.warn(
-      `[DEVELOPMENT FALLBACK] Welcome credentials generated for ${toEmail}: Password=${temporaryPassword}`,
+      `[DEVELOPMENT FALLBACK] Welcome credentials generated for ${toEmail}. Mail delivery unavailable (no RESEND_API_KEY or SMTP credentials configured).`,
     );
     return false;
   }

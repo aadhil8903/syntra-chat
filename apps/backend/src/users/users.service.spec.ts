@@ -96,7 +96,41 @@ describe('UsersService (Security & Admin Invariant)', () => {
     });
 
     expect(result.user.email).toBe('employee@test.com');
+    expect(mail.sendWelcomeEmail).toHaveBeenCalledWith(
+      'employee@test.com',
+      'Emp',
+      expect.any(String),
+    );
+    expect(result.emailSent).toBe(true);
     expect(systemSettings.verifyMasterPassword).not.toHaveBeenCalled();
+  });
+
+  it('should gracefully report emailSent: false when mail service delivery fails', async () => {
+    mail.sendWelcomeEmail.mockResolvedValueOnce(false);
+    repo.findByEmail.mockResolvedValue(null);
+    repo.create.mockResolvedValue({
+      _id: '507f1f77bcf86cd799439099',
+      email: 'failedmail@test.com',
+      firstName: 'Fail',
+      lastName: 'Mail',
+      role: UserRole.USER,
+      departments: [],
+      allowedFolders: [],
+      deniedFolders: [],
+      status: 'active',
+    });
+
+    const result = await service.createUserByAdmin({
+      email: 'failedmail@test.com',
+      firstName: 'Fail',
+      lastName: 'Mail',
+      role: UserRole.USER,
+    });
+
+    expect(result.user.email).toBe('failedmail@test.com');
+    expect(result.emailSent).toBe(false);
+    expect(result.message).toContain('Email delivery pending/unavailable');
+    expect(result.temporaryPassword).toBeDefined();
   });
 
   it('should reject creating Administrator if master password is not provided or invalid', async () => {

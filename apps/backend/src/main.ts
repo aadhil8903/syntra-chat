@@ -17,7 +17,12 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3000);
-  const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:4200');
+  const isProduction =
+    configService.get<string>('NODE_ENV') === 'production' ||
+    process.env.NODE_ENV === 'production';
+  const frontendUrl =
+    configService.get<string>('FRONTEND_URL') ||
+    (isProduction ? 'https://syntra-chat.onrender.com' : 'http://localhost:4200');
 
   // Build list of allowed origins from config and defaults
   const staticAllowedOrigins = [
