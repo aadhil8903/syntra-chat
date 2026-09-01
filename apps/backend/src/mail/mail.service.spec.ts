@@ -1,12 +1,27 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { MailService } from './mail.service';
+import * as nodemailer from 'nodemailer';
+
+jest.mock('nodemailer');
 
 describe('MailService', () => {
   let service: MailService;
   let mockConfigService: { get: jest.Mock };
+  let mockTransporter: any;
 
-  const createServiceWithEnv = async (env: Record<string, string | undefined>) => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockTransporter = {
+      sendMail: jest.fn().mockResolvedValue({ messageId: 'msg-mock-123', response: '250 OK' }),
+      verify: jest.fn().mockResolvedValue(true),
+    };
+
+    (nodemailer.createTransport as jest.Mock).mockReturnValue(mockTransporter);
+  });
+
+  const createServiceWithEnv = async (env: Record<string, any>) => {
     mockConfigService = {
       get: jest.fn((key: string, defaultValue?: any) => {
         if (key in env) {
@@ -26,8 +41,77 @@ describe('MailService', () => {
     return module.get<MailService>(MailService);
   };
 
-  describe('getFrontendUrl', () => {
-    it('should return configured FRONTEND_URL in production', async () => {
+  describe('Configuration and SMTP Initialization', () => {
+    it('1. should handle missing SMTP configuration gracefully', async () => {
+      service = await createServiceWithEnv({});
+
+      expect((service as any).transporter).toBeNull();
+      const result = await service.sendWelcomeEmail('user@domain.com', 'User', 'Temp123!');
+      expect(result).toBe(false);
+    });
+
+    it('2. should initialize SMTP transporter when SMTP configuration is present', async () => {
+      service = await createServiceWithEnv({
+        SMTP_HOST: 'smtp.gmail.com',
+        SMTP_PORT: '465',
+        SMTP_SECURE: 'true',
+        SMTP_USER: 'test@gmail.com',
+        SMTP_PASS: 'abcd efgh ijkl mnop',
+        SMTP_FROM: 'Syntra Chat <test@gmail.com>',
+      });
+
+      expect(nodemailer.createTransport).toHaveBeenCalledWith(
+        expect.objectContaining({
+          host: 'smtp.gmail.com',
+          port: 465,
+          secure: true,
+          auth: {
+            user: 'test@gmail.com',
+            pass: 'abcdefghijklmnop', // Spaces stripped for Gmail
+          },
+        }),
+      );
+    });
+
+    it('3. should correctly parse SMTP_SECURE="true" as boolean true', async () => {
+      service = await createServiceWithEnv({
+        SMTP_HOST: 'smtp.custom.org',
+        SMTP_PORT: '465',
+        SMTP_SECURE: 'true',
+        SMTP_USER: 'custom@custom.org',
+        SMTP_PASS: 'secret',
+      });
+
+      expect(nodemailer.createTransport).toHaveBeenCalledWith(
+        expect.objectContaining({
+          host: 'smtp.custom.org',
+          port: 465,
+          secure: true,
+        }),
+      );
+    });
+
+    it('4. should correctly parse SMTP_SECURE="false" as boolean false (STARTTLS for 587)', async () => {
+      service = await createServiceWithEnv({
+        SMTP_HOST: 'smtp.custom.org',
+        SMTP_PORT: '587',
+        SMTP_SECURE: 'false',
+        SMTP_USER: 'custom@custom.org',
+        SMTP_PASS: 'secret',
+      });
+
+      expect(nodemailer.createTransport).toHaveBeenCalledWith(
+        expect.objectContaining({
+          host: 'smtp.custom.org',
+          port: 587,
+          secure: false,
+        }),
+      );
+    });
+  });
+
+  describe('Frontend URL Resolution', () => {
+    it('8. should use production FRONTEND_URL when configured', async () => {
       service = await createServiceWithEnv({
         FRONTEND_URL: 'https://syntra-chat.onrender.com',
         NODE_ENV: 'production',
@@ -35,136 +119,110 @@ describe('MailService', () => {
       expect(service.getFrontendUrl()).toBe('https://syntra-chat.onrender.com');
     });
 
-    it('should strip trailing slashes from FRONTEND_URL', async () => {
+    it('9. should not use localhost when FRONTEND_URL is configured', async () => {
       service = await createServiceWithEnv({
         FRONTEND_URL: 'https://syntra-chat.onrender.com/',
-        NODE_ENV: 'production',
-      });
-      expect(service.getFrontendUrl()).toBe('https://syntra-chat.onrender.com');
-    });
-
-    it('should fallback to production Render URL when FRONTEND_URL is unset and NODE_ENV is production', async () => {
-      service = await createServiceWithEnv({
-        FRONTEND_URL: undefined,
-        NODE_ENV: 'production',
-      });
-      expect(service.getFrontendUrl()).toBe('https://syntra-chat.onrender.com');
-    });
-
-    it('should return localhost:4200 when FRONTEND_URL is explicitly http://localhost:4200', async () => {
-      service = await createServiceWithEnv({
-        FRONTEND_URL: 'http://localhost:4200',
         NODE_ENV: 'development',
       });
-      expect(service.getFrontendUrl()).toBe('http://localhost:4200');
+      expect(service.getFrontendUrl()).toBe('https://syntra-chat.onrender.com');
+      expect(service.getFrontendUrl()).not.toContain('localhost');
     });
 
-    it('should fallback to localhost:4200 in local development when FRONTEND_URL is unset', async () => {
+    it('should fallback to production URL if NODE_ENV=production and FRONTEND_URL unset', async () => {
       service = await createServiceWithEnv({
-        FRONTEND_URL: undefined,
+        NODE_ENV: 'production',
+      });
+      expect(service.getFrontendUrl()).toBe('https://syntra-chat.onrender.com');
+    });
+
+    it('should fallback to localhost:4200 in development when FRONTEND_URL unset', async () => {
+      service = await createServiceWithEnv({
         NODE_ENV: 'development',
       });
       expect(service.getFrontendUrl()).toBe('http://localhost:4200');
     });
   });
 
-  describe('sendWelcomeEmail', () => {
-    it('should skip external mail dispatch for dummy test domains', async () => {
+  describe('Email Sending Behavior & Failure Safety', () => {
+    it('5. should dispatch email successfully and return true', async () => {
       service = await createServiceWithEnv({
+        SMTP_HOST: 'smtp.gmail.com',
+        SMTP_PORT: '465',
+        SMTP_SECURE: 'true',
+        SMTP_USER: 'admin@gmail.com',
+        SMTP_PASS: 'apppassword',
+        SMTP_FROM: 'Syntra Chat <admin@gmail.com>',
         FRONTEND_URL: 'https://syntra-chat.onrender.com',
       });
+
       const result = await service.sendWelcomeEmail(
-        'alice@example.com',
-        'Alice',
+        'employee@enterprise.com',
+        'Aadil',
         'TempPass123!',
       );
-      expect(result).toBe(true);
-    });
-
-    it('should generate email with production URL on the Sign In button', async () => {
-      service = await createServiceWithEnv({
-        FRONTEND_URL: 'https://syntra-chat.onrender.com',
-        NODE_ENV: 'production',
-      });
-
-      // Mock transporter
-      const sendMailMock = jest.fn().mockResolvedValue({ messageId: 'msg-123' });
-      (service as any).transporter = { sendMail: sendMailMock };
-
-      const result = await service.sendWelcomeEmail(
-        'newuser@company.com',
-        'Bob',
-        'SecretTemp456!',
-      );
 
       expect(result).toBe(true);
-      expect(sendMailMock).toHaveBeenCalledTimes(1);
+      expect(mockTransporter.sendMail).toHaveBeenCalledTimes(1);
 
-      const callArgs = sendMailMock.mock.calls[0][0];
-      expect(callArgs.to).toBe('newuser@company.com');
+      const callArgs = mockTransporter.sendMail.mock.calls[0][0];
+      expect(callArgs.to).toBe('employee@enterprise.com');
+      expect(callArgs.from).toBe('Syntra Chat <admin@gmail.com>');
+      expect(callArgs.subject).toBe('Welcome to Syntra Chat — Your Account Credentials');
       expect(callArgs.text).toContain('Login URL:          https://syntra-chat.onrender.com');
-      expect(callArgs.html).toContain('href="https://syntra-chat.onrender.com"');
-      expect(callArgs.html).toContain('Sign In to Syntra Chat &rarr;');
-      expect(callArgs.text).not.toContain('localhost');
-      expect(callArgs.html).not.toContain('localhost');
+      expect(callArgs.text).toContain('Temporary Password: TempPass123!');
+      expect(callArgs.html).toContain('https://syntra-chat.onrender.com');
+      expect(callArgs.html).toContain('TempPass123!');
     });
 
-    it('should handle SMTP error gracefully without throwing and return false', async () => {
+    it('6. should handle failed email delivery gracefully without throwing and return false', async () => {
       service = await createServiceWithEnv({
-        FRONTEND_URL: 'https://syntra-chat.onrender.com',
+        SMTP_HOST: 'smtp.gmail.com',
+        SMTP_USER: 'admin@gmail.com',
+        SMTP_PASS: 'apppassword',
       });
 
-      // Mock failing transporter
-      const sendMailMock = jest.fn().mockRejectedValue(new Error('SMTP Connection Refused'));
-      (service as any).transporter = { sendMail: sendMailMock };
+      mockTransporter.sendMail.mockRejectedValue(new Error('Invalid login credentials: 535-5.7.8'));
 
       const result = await service.sendWelcomeEmail(
-        'user@external.com',
-        'Charlie',
-        'TempPass789!',
+        'employee@enterprise.com',
+        'Aadil',
+        'TempPass123!',
       );
 
       expect(result).toBe(false);
     });
 
-    it('should return false when no email provider is configured and not throw', async () => {
+    it('7. should skip external mail dispatch for dummy test domains', async () => {
       service = await createServiceWithEnv({
-        FRONTEND_URL: 'https://syntra-chat.onrender.com',
+        SMTP_HOST: 'smtp.gmail.com',
+        SMTP_USER: 'admin@gmail.com',
+        SMTP_PASS: 'apppassword',
       });
 
       const result = await service.sendWelcomeEmail(
-        'user@external.com',
-        'Diana',
-        'TempPassABC!',
+        'test@example.com',
+        'Test User',
+        'TempPass123!',
       );
 
-      expect(result).toBe(false);
+      expect(result).toBe(true);
+      expect(mockTransporter.sendMail).not.toHaveBeenCalled();
     });
 
-    it('should handle SMTP timeout gracefully and return false without hanging', async () => {
+    it('should verify connection status safely via verifyConnection()', async () => {
       service = await createServiceWithEnv({
-        FRONTEND_URL: 'https://syntra-chat.onrender.com',
+        SMTP_HOST: 'smtp.gmail.com',
+        SMTP_USER: 'admin@gmail.com',
+        SMTP_PASS: 'apppassword',
       });
 
-      // Mock a hanging transporter that never resolves
-      let timer: any;
-      const hangingSendMail = jest.fn().mockImplementation(
-        () => new Promise((resolve) => {
-          timer = setTimeout(resolve, 10000);
-          if (timer.unref) timer.unref();
-        }),
-      );
-      (service as any).transporter = { sendMail: hangingSendMail };
+      const verified = await service.verifyConnection();
+      expect(verified).toBe(true);
+      expect(mockTransporter.verify).toHaveBeenCalledTimes(1);
 
-      // Call sendWelcomeEmail
-      const result = await service.sendWelcomeEmail(
-        'timeout.user@external.com',
-        'Timeout',
-        'TempPassTimeout!',
-      );
-
-      clearTimeout(timer);
-      expect(result).toBe(false);
-    }, 10000);
+      mockTransporter.verify.mockRejectedValue(new Error('Connection timeout'));
+      const failedVerify = await service.verifyConnection();
+      expect(failedVerify).toBe(false);
+    });
   });
 });

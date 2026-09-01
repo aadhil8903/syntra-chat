@@ -1,111 +1,127 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
-import { Resend } from 'resend';
+
+/**
+ * Safely parses a string/boolean/number value into a boolean with a fallback.
+ */
+function parseBoolean(val: any, defaultVal: boolean): boolean {
+  if (val === undefined || val === null || val === '') return defaultVal;
+  if (typeof val === 'boolean') return val;
+  const str = String(val).trim().toLowerCase();
+  if (str === 'true' || str === '1' || str === 'yes') return true;
+  if (str === 'false' || str === '0' || str === 'no') return false;
+  return defaultVal;
+}
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private transporter: nodemailer.Transporter | null = null;
-  private resendClient: Resend | null = null;
 
   constructor(private readonly configService: ConfigService) {
     this.initMailClients();
   }
 
+  /**
+   * Initializes the standard SMTP transporter using configured environment variables.
+   * Supports standard SMTP and Gmail SMTP with Google App Passwords.
+   */
   private initMailClients(): void {
-    // 1. Initialize Resend API client if RESEND_API_KEY is configured
-    const resendApiKey =
-      this.configService.get<string>('RESEND_API_KEY') ||
-      (this.configService.get<string>('SMTP_PASS')?.startsWith('re_')
-        ? this.configService.get<string>('SMTP_PASS')
-        : undefined);
-
-    if (resendApiKey) {
-      try {
-        this.resendClient = new Resend(resendApiKey);
-        this.logger.log('Resend API client initialized successfully.');
-      } catch (err: any) {
-        this.logger.error(`Failed to initialize Resend client: ${err.message}`);
-      }
-    }
-
-    // 2. Initialize Standard SMTP configuration (e.g. Gmail, Outlook, Brevo, custom SMTP)
-    const rawUser =
-      this.configService.get<string>('SMTP_USER') ||
-      this.configService.get<string>('GMAIL_USER') ||
-      this.configService.get<string>('MAIL_USER') ||
-      '';
-    const rawPass =
-      this.configService.get<string>('SMTP_PASS') ||
-      this.configService.get<string>('GMAIL_APP_PASSWORD') ||
-      this.configService.get<string>('GMAIL_PASS') ||
-      this.configService.get<string>('MAIL_PASS') ||
-      '';
+    const rawUser = this.configService.get<string>('SMTP_USER') || '';
+    const rawPass = this.configService.get<string>('SMTP_PASS') || '';
+    const rawHost = this.configService.get<string>('SMTP_HOST');
+    const rawPort = this.configService.get<any>('SMTP_PORT');
+    const rawSecure = this.configService.get<any>('SMTP_SECURE');
 
     let user = rawUser.replace(/^["']|["']$/g, '').trim();
     let pass = rawPass.replace(/^["']|["']$/g, '').trim();
 
-    let host =
-      this.configService.get<string>('SMTP_HOST')?.trim() ||
-      this.configService.get<string>('MAIL_HOST')?.trim();
+    let host = rawHost ? rawHost.replace(/^["']|["']$/g, '').trim() : '';
     if (!host && user.toLowerCase().endsWith('@gmail.com')) {
       host = 'smtp.gmail.com';
     }
 
-    const isGmailHost = host?.toLowerCase().includes('gmail.com');
-    // Strip spaces for Gmail app passwords (e.g., 'xxxx xxxx xxxx xxxx' -> 'xxxxxxxxxxxxxxxx')
-    if (isGmailHost) {
+    const isGmail = host.toLowerCase().includes('gmail.com');
+    if (isGmail) {
+      // Strip spaces from Gmail 16-character App Passwords (e.g. 'xxxx xxxx xxxx xxxx' -> 'xxxxxxxxxxxxxxxx')
       pass = pass.replace(/\s+/g, '');
     }
 
-    const port = Number(this.configService.get<number>('SMTP_PORT', isGmailHost ? 465 : 587));
-    const secureConfig = this.configService.get<string>('SMTP_SECURE');
-    const isSecure = secureConfig !== undefined ? String(secureConfig).trim() === 'true' : port === 465;
+    const port = rawPort ? Number(rawPort) : isGmail ? 465 : 587;
+    const isSecure = parseBoolean(rawSecure, port === 465);
 
     if (host && user && pass) {
       try {
-        if (isGmailHost) {
-          this.transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: { user, pass },
-            connectionTimeout: 5000,
-            greetingTimeout: 5000,
-            socketTimeout: 8000,
-          });
-          this.logger.log(`Gmail SMTP Transporter initialized for ${user}`);
-        } else {
-          this.transporter = nodemailer.createTransport({
-            host,
-            port,
-            secure: isSecure,
-            auth: { user, pass },
-            tls: {
-              rejectUnauthorized: false,
-            },
-            connectionTimeout: 5000,
-            greetingTimeout: 5000,
-            socketTimeout: 8000,
-          });
-          this.logger.log(`SMTP Transporter initialized: ${host}:${port} (secure: ${isSecure}, user: ${user})`);
-        }
+        this.transporter = nodemailer.createTransport({
+          host,
+          port,
+          secure: isSecure,
+          auth: {
+            user,
+            pass,
+          },
+          tls: {
+            rejectUnauthorized: false,
+          },
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 15000,
+        });
+
+        this.logger.log(
+          `[MAIL] SMTP configuration detected: host=${host}, port=${port}, secure=${isSecure}, user=${this.maskEmail(user)}`,
+        );
       } catch (err: any) {
-        this.logger.error(`Failed to initialize SMTP transporter: ${err.message}`);
+        this.logger.error(`[MAIL] Failed to initialize SMTP transporter: ${err.message}`);
         this.transporter = null;
       }
-    }
-
-    if (!this.resendClient && !this.transporter) {
-      this.logger.log(
-        'Email provider not configured in .env (set RESEND_API_KEY or SMTP credentials). Welcome credentials will be logged and surfaced in the admin UI fallback modal.',
+    } else {
+      this.logger.warn(
+        `[MAIL] Incomplete SMTP credentials detected. host=${host || 'MISSING'}, user=${user ? this.maskEmail(user) : 'MISSING'}, pass=${pass ? 'CONFIGURED' : 'MISSING'}. Email delivery will be skipped with credentials surfaced in admin modal.`,
       );
+    }
+  }
+
+  /**
+   * Safely masks an email address for logging without leaking full credentials.
+   */
+  private maskEmail(email: string): string {
+    if (!email) return 'N/A';
+    const parts = email.split('@');
+    if (parts.length === 2) {
+      const [name, domain] = parts;
+      const maskedName = name.length > 2 ? `${name.substring(0, 2)}***` : `${name}***`;
+      return `${maskedName}@${domain}`;
+    }
+    return `${email.substring(0, 2)}***`;
+  }
+
+  /**
+   * Safely verifies SMTP connection without throwing.
+   */
+  async verifyConnection(): Promise<boolean> {
+    if (!this.transporter) {
+      this.logger.warn('[MAIL] Cannot verify connection: SMTP transporter is not initialized.');
+      return false;
+    }
+    try {
+      this.logger.log('[MAIL] Verifying SMTP connection to server...');
+      await this.executeWithTimeout(this.transporter.verify(), 8000, 'SMTP connection verification');
+      this.logger.log('[MAIL] SMTP connection verified successfully.');
+      return true;
+    } catch (err: any) {
+      this.logger.error(
+        `[MAIL] SMTP connection verification failed | Error code: ${err.code || 'UNKNOWN'} | Error message: ${err.message} | Response: ${err.response || 'N/A'}`,
+      );
+      return false;
     }
   }
 
   /**
    * Resolves the frontend URL to use in emails.
    * Priority:
-   * 1. Configured FRONTEND_URL environment variable (e.g. 'https://syntra-chat.onrender.com' or 'http://localhost:4200')
+   * 1. Configured FRONTEND_URL environment variable (e.g. 'https://syntra-chat.onrender.com')
    * 2. Production fallback: 'https://syntra-chat.onrender.com' (when NODE_ENV is 'production')
    * 3. Local development fallback: 'http://localhost:4200'
    */
@@ -126,32 +142,45 @@ export class MailService {
     return 'http://localhost:4200';
   }
 
+  /**
+   * Dispatches the enterprise welcome email with temporary sign-in credentials.
+   * Never throws exceptions; returns true on successful delivery, false on failure or missing setup.
+   */
   async sendWelcomeEmail(
     toEmail: string,
     firstName: string,
     temporaryPassword: string,
   ): Promise<boolean> {
     // Skip external delivery for dummy test domains to avoid bouncing back to sender inbox
-    if (toEmail.endsWith('@example.com') || toEmail.endsWith('@test.local') || toEmail.endsWith('@example.org')) {
-      this.logger.log(`Skipping external mail dispatch for mock test email: ${toEmail}`);
+    if (
+      toEmail.endsWith('@example.com') ||
+      toEmail.endsWith('@test.local') ||
+      toEmail.endsWith('@example.org')
+    ) {
+      this.logger.log(`[MAIL] Skipping external mail dispatch for mock test email: ${toEmail}`);
       return true;
+    }
+
+    if (!this.transporter) {
+      this.logger.warn(
+        `[MAIL] Email delivery skipped for ${toEmail}: No active SMTP transporter initialized. Surfacing temporary credentials in administrator UI.`,
+      );
+      return false;
     }
 
     let fromAddress: string;
     const configuredFrom = this.configService.get<string>('SMTP_FROM');
     if (configuredFrom) {
-      fromAddress = configuredFrom.replace(/^["']|["']$/g, '');
-    } else if (this.transporter && this.configService.get<string>('SMTP_USER')) {
-      fromAddress = `Syntra Chat <${this.configService.get<string>('SMTP_USER')}>`;
-    } else if (this.resendClient) {
-      fromAddress = this.configService.get<string>('RESEND_FROM') || 'onboarding@resend.dev';
+      fromAddress = configuredFrom.replace(/^["']|["']$/g, '').trim();
+    } else if (this.configService.get<string>('SMTP_USER')) {
+      const userEmail = this.configService.get<string>('SMTP_USER')!.replace(/^["']|["']$/g, '').trim();
+      fromAddress = `Syntra Chat <${userEmail}>`;
     } else {
       fromAddress = 'Syntra Chat Security <no-reply@syntrachat.internal>';
     }
 
     const signInUrl = this.getFrontendUrl();
     const displayName = firstName ? firstName.trim() : 'there';
-
     const subject = 'Welcome to Syntra Chat — Your Account Credentials';
 
     const textContent = `Hello ${displayName},
@@ -282,61 +311,31 @@ The Syntra Chat Platform Team`;
 </html>
 `;
 
-    // 1. Try sending via Resend API (with strict 5s timeout)
-    if (this.resendClient) {
-      try {
-        const { data, error } = await this.executeWithTimeout(
-          this.resendClient.emails.send({
-            from: fromAddress,
-            to: toEmail,
-            subject,
-            text: textContent,
-            html: htmlContent,
-          }),
-          5000,
-          'Resend dispatch',
-        );
+    try {
+      this.logger.log(`[MAIL] Attempting welcome email dispatch for ${toEmail} from ${fromAddress}`);
 
-        if (!error && data?.id) {
-          this.logger.log(`Welcome email successfully sent to ${toEmail} via Resend (ID: ${data.id})`);
-          return true;
-        }
-        if (error) {
-          this.logger.warn(`Resend API error sending email to ${toEmail}: ${error.message}. Trying fallback transport...`);
-        }
-      } catch (err: any) {
-        this.logger.warn(`Resend dispatch exception to ${toEmail}: ${err.message}. Trying fallback transport...`);
-      }
+      const info = await this.executeWithTimeout(
+        this.transporter.sendMail({
+          from: fromAddress,
+          to: toEmail,
+          subject,
+          text: textContent,
+          html: htmlContent,
+        }),
+        10000,
+        'SMTP dispatch',
+      );
+
+      this.logger.log(
+        `[MAIL] Welcome email sent successfully to ${toEmail} (messageId: ${info?.messageId || 'N/A'}, response: ${info?.response || 'OK'})`,
+      );
+      return true;
+    } catch (err: any) {
+      this.logger.error(
+        `[MAIL] Welcome email failed for ${toEmail} | Error code: ${err.code || 'UNKNOWN'} | Error message: ${err.message} | Response: ${err.response || 'N/A'} | Command: ${err.command || 'N/A'}`,
+      );
+      return false;
     }
-
-    // 2. Try sending via SMTP (Nodemailer with strict 5s timeout)
-    if (this.transporter) {
-      try {
-        await this.executeWithTimeout(
-          this.transporter.sendMail({
-            from: fromAddress,
-            to: toEmail,
-            subject,
-            text: textContent,
-            html: htmlContent,
-          }),
-          5000,
-          'SMTP dispatch',
-        );
-        this.logger.log(`Welcome email successfully sent to ${toEmail} via SMTP`);
-        return true;
-      } catch (err: any) {
-        this.logger.error(`SMTP dispatch exception to ${toEmail}: ${err.message}`);
-        // Do not throw; return false so admin fallback modal handles credentials gracefully
-        return false;
-      }
-    }
-
-    // 3. Development Fallback
-    this.logger.warn(
-      `[DEVELOPMENT FALLBACK] Welcome credentials generated for ${toEmail}. Mail delivery unavailable (no RESEND_API_KEY or SMTP credentials configured).`,
-    );
-    return false;
   }
 
   private async executeWithTimeout<T>(
