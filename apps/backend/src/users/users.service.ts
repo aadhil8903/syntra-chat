@@ -17,8 +17,12 @@ import { UserDocument } from './schemas/user.schema';
 import { MailService } from '../mail/mail.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 
+import { Logger } from '@nestjs/common';
+
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly mailService: MailService,
@@ -237,6 +241,8 @@ export class UsersService {
     const temporaryPassword = this.generateTemporaryPassword();
     const passwordHash = await argon2.hash(temporaryPassword);
 
+    this.logger.log(`[MAIL TRACE] createUserByAdmin() started for email=${email}`);
+
     const user = await this.usersRepository.create({
       email,
       passwordHash,
@@ -252,11 +258,16 @@ export class UsersService {
       settings: {},
     });
 
+    this.logger.log(`[MAIL TRACE] User created successfully (id=${user._id || user.id})`);
+    this.logger.log(`[MAIL TRACE] About to call sendWelcomeEmail() for ${user.email}`);
+
     const emailSent = await this.mailService.sendWelcomeEmail(
       user.email,
       user.firstName,
       temporaryPassword,
     );
+
+    this.logger.log(`[MAIL TRACE] sendWelcomeEmail() returned emailSent=${emailSent}`);
 
     return {
       user: this.toIUser(user),

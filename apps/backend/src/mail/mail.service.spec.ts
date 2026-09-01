@@ -110,13 +110,14 @@ describe('MailService', () => {
     });
   });
 
-  describe('Frontend URL Resolution', () => {
-    it('8. should use production FRONTEND_URL when configured', async () => {
+  describe('Frontend & Dashboard URL Resolution', () => {
+    it('8. should use production FRONTEND_URL and resolve /dashboard URL', async () => {
       service = await createServiceWithEnv({
         FRONTEND_URL: 'https://syntra-chat.onrender.com',
         NODE_ENV: 'production',
       });
       expect(service.getFrontendUrl()).toBe('https://syntra-chat.onrender.com');
+      expect(service.getDashboardUrl()).toBe('https://syntra-chat.onrender.com/dashboard');
     });
 
     it('9. should not use localhost when FRONTEND_URL is configured', async () => {
@@ -125,26 +126,30 @@ describe('MailService', () => {
         NODE_ENV: 'development',
       });
       expect(service.getFrontendUrl()).toBe('https://syntra-chat.onrender.com');
-      expect(service.getFrontendUrl()).not.toContain('localhost');
+      expect(service.getDashboardUrl()).toBe('https://syntra-chat.onrender.com/dashboard');
+      expect(service.getDashboardUrl()).not.toContain('localhost');
     });
 
-    it('should fallback to production URL if NODE_ENV=production and FRONTEND_URL unset', async () => {
+    it('should avoid duplicating /dashboard if FRONTEND_URL already includes it', async () => {
       service = await createServiceWithEnv({
+        FRONTEND_URL: 'https://syntra-chat.onrender.com/dashboard',
         NODE_ENV: 'production',
       });
-      expect(service.getFrontendUrl()).toBe('https://syntra-chat.onrender.com');
+      expect(service.getDashboardUrl()).toBe('https://syntra-chat.onrender.com/dashboard');
     });
 
-    it('should fallback to localhost:4200 in development when FRONTEND_URL unset', async () => {
+    it('should resolve local dashboard URL when running in development with localhost FRONTEND_URL', async () => {
       service = await createServiceWithEnv({
+        FRONTEND_URL: 'http://localhost:4200',
         NODE_ENV: 'development',
       });
       expect(service.getFrontendUrl()).toBe('http://localhost:4200');
+      expect(service.getDashboardUrl()).toBe('http://localhost:4200/dashboard');
     });
   });
 
   describe('Email Sending Behavior & Failure Safety', () => {
-    it('5. should dispatch email successfully and return true', async () => {
+    it('5. should dispatch email successfully with /dashboard button URL and return true', async () => {
       service = await createServiceWithEnv({
         SMTP_HOST: 'smtp.gmail.com',
         SMTP_PORT: '465',
@@ -168,10 +173,50 @@ describe('MailService', () => {
       expect(callArgs.to).toBe('employee@enterprise.com');
       expect(callArgs.from).toBe('Syntra Chat <admin@gmail.com>');
       expect(callArgs.subject).toBe('Welcome to Syntra Chat — Your Account Credentials');
-      expect(callArgs.text).toContain('Login URL:          https://syntra-chat.onrender.com');
+      expect(callArgs.text).toContain('Login URL:          https://syntra-chat.onrender.com/dashboard');
       expect(callArgs.text).toContain('Temporary Password: TempPass123!');
-      expect(callArgs.html).toContain('https://syntra-chat.onrender.com');
+      expect(callArgs.html).toContain('href="https://syntra-chat.onrender.com/dashboard"');
+      expect(callArgs.html).toContain('Sign In to Syntra Chat &rarr;');
       expect(callArgs.html).toContain('TempPass123!');
+    });
+
+    it('should dispatch email successfully with local Gmail port 587 and localhost dashboard URL', async () => {
+      service = await createServiceWithEnv({
+        SMTP_HOST: 'smtp.gmail.com',
+        SMTP_PORT: '587',
+        SMTP_SECURE: 'false',
+        SMTP_USER: 'localadmin@gmail.com',
+        SMTP_PASS: 'app pass word 1234',
+        SMTP_FROM: 'Syntra Chat <localadmin@gmail.com>',
+        FRONTEND_URL: 'http://localhost:4200',
+      });
+
+      expect(nodemailer.createTransport).toHaveBeenCalledWith(
+        expect.objectContaining({
+          host: 'smtp.gmail.com',
+          port: 587,
+          secure: false,
+          auth: {
+            user: 'localadmin@gmail.com',
+            pass: 'apppassword1234',
+          },
+        }),
+      );
+
+      const result = await service.sendWelcomeEmail(
+        'recipient@enterprise.com',
+        'Developer',
+        'LocalTemp789!',
+      );
+
+      expect(result).toBe(true);
+      expect(mockTransporter.sendMail).toHaveBeenCalledTimes(1);
+
+      const callArgs = mockTransporter.sendMail.mock.calls[0][0];
+      expect(callArgs.to).toBe('recipient@enterprise.com');
+      expect(callArgs.from).toBe('Syntra Chat <localadmin@gmail.com>');
+      expect(callArgs.text).toContain('Login URL:          http://localhost:4200/dashboard');
+      expect(callArgs.html).toContain('href="http://localhost:4200/dashboard"');
     });
 
     it('6. should handle failed email delivery gracefully without throwing and return false', async () => {

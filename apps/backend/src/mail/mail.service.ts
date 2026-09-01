@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
@@ -15,7 +15,7 @@ function parseBoolean(val: any, defaultVal: boolean): boolean {
 }
 
 @Injectable()
-export class MailService {
+export class MailService implements OnModuleInit {
   private readonly logger = new Logger(MailService.name);
   private transporter: nodemailer.Transporter | null = null;
 
@@ -23,21 +23,33 @@ export class MailService {
     this.initMailClients();
   }
 
+  async onModuleInit(): Promise<void> {
+    if (this.transporter) {
+      await this.verifyConnection();
+    }
+  }
+
   /**
    * Initializes the standard SMTP transporter using configured environment variables.
    * Supports standard SMTP and Gmail SMTP with Google App Passwords.
    */
   private initMailClients(): void {
-    const rawUser = this.configService.get<string>('SMTP_USER') || '';
-    const rawPass = this.configService.get<string>('SMTP_PASS') || '';
-    const rawHost = this.configService.get<string>('SMTP_HOST');
-    const rawPort = this.configService.get<any>('SMTP_PORT');
-    const rawSecure = this.configService.get<any>('SMTP_SECURE');
+    this.logger.log('[MAIL DEBUG] MailService initialized');
 
-    let user = rawUser.replace(/^["']|["']$/g, '').trim();
-    let pass = rawPass.replace(/^["']|["']$/g, '').trim();
+    // Read raw variables from ConfigService or fallback to process.env
+    const rawUser = this.configService.get<string>('SMTP_USER') || process.env.SMTP_USER || '';
+    const rawPass = this.configService.get<string>('SMTP_PASS') || process.env.SMTP_PASS || '';
+    const rawHost = this.configService.get<string>('SMTP_HOST') || process.env.SMTP_HOST || '';
+    const rawPort = this.configService.get<any>('SMTP_PORT') ?? process.env.SMTP_PORT;
+    const rawSecure = this.configService.get<any>('SMTP_SECURE') ?? process.env.SMTP_SECURE;
+    const rawFrom = this.configService.get<string>('SMTP_FROM') || process.env.SMTP_FROM || '';
+    const rawFrontendUrl = this.configService.get<string>('FRONTEND_URL') || process.env.FRONTEND_URL || '';
 
-    let host = rawHost ? rawHost.replace(/^["']|["']$/g, '').trim() : '';
+    let user = String(rawUser).replace(/^["']|["']$/g, '').trim();
+    let pass = String(rawPass).replace(/^["']|["']$/g, '').trim();
+    let host = String(rawHost).replace(/^["']|["']$/g, '').trim();
+    let from = String(rawFrom).replace(/^["']|["']$/g, '').trim();
+
     if (!host && user.toLowerCase().endsWith('@gmail.com')) {
       host = 'smtp.gmail.com';
     }
@@ -48,11 +60,23 @@ export class MailService {
       pass = pass.replace(/\s+/g, '');
     }
 
-    const port = rawPort ? Number(rawPort) : isGmail ? 465 : 587;
-    const isSecure = parseBoolean(rawSecure, port === 465);
+    const cleanPortStr = rawPort !== undefined && rawPort !== null ? String(rawPort).replace(/^["']|["']$/g, '').trim() : '';
+    const port = cleanPortStr ? Number(cleanPortStr) : (isGmail ? 465 : 587);
+
+    const cleanSecureStr = rawSecure !== undefined && rawSecure !== null ? String(rawSecure).replace(/^["']|["']$/g, '').trim() : undefined;
+    const isSecure = parseBoolean(cleanSecureStr, port === 465);
+
+    this.logger.log(`[MAIL DEBUG] SMTP_HOST=${host || '<not set>'}`);
+    this.logger.log(`[MAIL DEBUG] SMTP_PORT=${port}`);
+    this.logger.log(`[MAIL DEBUG] SMTP_SECURE=${isSecure}`);
+    this.logger.log(`[MAIL DEBUG] SMTP_USER=${this.maskEmail(user)}`);
+    this.logger.log(`[MAIL DEBUG] SMTP_FROM=${from ? this.maskEmail(from) : '<not set>'}`);
+    this.logger.log(`[MAIL DEBUG] SMTP_PASS=${pass ? '<configured>' : '<not configured>'}`);
+    this.logger.log(`[MAIL DEBUG] FRONTEND_URL=${rawFrontendUrl || '<not set>'}`);
 
     if (host && user && pass) {
       try {
+        this.logger.log('[MAIL DEBUG] Creating SMTP transporter...');
         this.transporter = nodemailer.createTransport({
           host,
           port,
@@ -70,15 +94,15 @@ export class MailService {
         });
 
         this.logger.log(
-          `[MAIL] SMTP configuration detected: host=${host}, port=${port}, secure=${isSecure}, user=${this.maskEmail(user)}`,
+          `[MAIL DEBUG] SMTP transporter configured:\nhost=${host}\nport=${port}\nsecure=${isSecure}\nuser=${this.maskEmail(user)}`,
         );
       } catch (err: any) {
-        this.logger.error(`[MAIL] Failed to initialize SMTP transporter: ${err.message}`);
+        this.logger.error(`[MAIL DEBUG] Failed to initialize SMTP transporter: ${err.message}`);
         this.transporter = null;
       }
     } else {
       this.logger.warn(
-        `[MAIL] Incomplete SMTP credentials detected. host=${host || 'MISSING'}, user=${user ? this.maskEmail(user) : 'MISSING'}, pass=${pass ? 'CONFIGURED' : 'MISSING'}. Email delivery will be skipped with credentials surfaced in admin modal.`,
+        `[MAIL DEBUG] SMTP not configured. Missing required variables (host=${host || 'MISSING'}, user=${user ? this.maskEmail(user) : 'MISSING'}, pass=${pass ? 'CONFIGURED' : 'MISSING'}). Welcome emails will be skipped.`,
       );
     }
   }
@@ -98,21 +122,21 @@ export class MailService {
   }
 
   /**
-   * Safely verifies SMTP connection without throwing.
+   * Safely verifies SMTP connection.
    */
   async verifyConnection(): Promise<boolean> {
     if (!this.transporter) {
-      this.logger.warn('[MAIL] Cannot verify connection: SMTP transporter is not initialized.');
+      this.logger.warn('[MAIL DEBUG] Cannot verify connection: SMTP transporter is not initialized.');
       return false;
     }
     try {
-      this.logger.log('[MAIL] Verifying SMTP connection to server...');
+      this.logger.log('[MAIL DEBUG] Calling transporter.verify()...');
       await this.executeWithTimeout(this.transporter.verify(), 8000, 'SMTP connection verification');
-      this.logger.log('[MAIL] SMTP connection verified successfully.');
+      this.logger.log('[MAIL DEBUG] SMTP verification SUCCESS');
       return true;
     } catch (err: any) {
       this.logger.error(
-        `[MAIL] SMTP connection verification failed | Error code: ${err.code || 'UNKNOWN'} | Error message: ${err.message} | Response: ${err.response || 'N/A'}`,
+        `[MAIL DEBUG] SMTP verification FAILED\ncode=${err.code || 'UNKNOWN'}\nmessage=${err.message}\nresponse=${err.response || 'N/A'}\ncommand=${err.command || 'N/A'}`,
       );
       return false;
     }
@@ -120,13 +144,9 @@ export class MailService {
 
   /**
    * Resolves the frontend URL to use in emails.
-   * Priority:
-   * 1. Configured FRONTEND_URL environment variable (e.g. 'https://syntra-chat.onrender.com')
-   * 2. Production fallback: 'https://syntra-chat.onrender.com' (when NODE_ENV is 'production')
-   * 3. Local development fallback: 'http://localhost:4200'
    */
   getFrontendUrl(): string {
-    const configured = this.configService.get<string>('FRONTEND_URL');
+    const configured = this.configService.get<string>('FRONTEND_URL') || process.env.FRONTEND_URL;
     if (configured && configured.trim()) {
       return configured.trim().replace(/\/+$/, '');
     }
@@ -143,6 +163,17 @@ export class MailService {
   }
 
   /**
+   * Resolves the full dashboard sign-in URL for welcome emails.
+   */
+  getDashboardUrl(): string {
+    const baseUrl = this.getFrontendUrl();
+    if (baseUrl.endsWith('/dashboard')) {
+      return baseUrl;
+    }
+    return `${baseUrl}/dashboard`;
+  }
+
+  /**
    * Dispatches the enterprise welcome email with temporary sign-in credentials.
    * Never throws exceptions; returns true on successful delivery, false on failure or missing setup.
    */
@@ -151,35 +182,40 @@ export class MailService {
     firstName: string,
     temporaryPassword: string,
   ): Promise<boolean> {
+    this.logger.log(`[MAIL TRACE] sendWelcomeEmail() ENTERED for toEmail=${this.maskEmail(toEmail)}`);
+
     // Skip external delivery for dummy test domains to avoid bouncing back to sender inbox
     if (
       toEmail.endsWith('@example.com') ||
       toEmail.endsWith('@test.local') ||
       toEmail.endsWith('@example.org')
     ) {
-      this.logger.log(`[MAIL] Skipping external mail dispatch for mock test email: ${toEmail}`);
+      this.logger.log(`[MAIL DEBUG] Skipping external mail dispatch for mock test domain: ${this.maskEmail(toEmail)}`);
       return true;
     }
 
+    const transporterExists = !!this.transporter;
+    this.logger.log(`[MAIL DEBUG] SMTP transporter exists=${transporterExists}`);
+
     if (!this.transporter) {
       this.logger.warn(
-        `[MAIL] Email delivery skipped for ${toEmail}: No active SMTP transporter initialized. Surfacing temporary credentials in administrator UI.`,
+        `[MAIL DEBUG] Email delivery skipped for ${this.maskEmail(toEmail)}: No active SMTP transporter. Returning emailSent=false.`,
       );
       return false;
     }
 
     let fromAddress: string;
-    const configuredFrom = this.configService.get<string>('SMTP_FROM');
-    if (configuredFrom) {
+    const configuredFrom = this.configService.get<string>('SMTP_FROM') || process.env.SMTP_FROM;
+    if (configuredFrom && configuredFrom.trim()) {
       fromAddress = configuredFrom.replace(/^["']|["']$/g, '').trim();
-    } else if (this.configService.get<string>('SMTP_USER')) {
-      const userEmail = this.configService.get<string>('SMTP_USER')!.replace(/^["']|["']$/g, '').trim();
+    } else if (this.configService.get<string>('SMTP_USER') || process.env.SMTP_USER) {
+      const userEmail = (this.configService.get<string>('SMTP_USER') || process.env.SMTP_USER)!.replace(/^["']|["']$/g, '').trim();
       fromAddress = `Syntra Chat <${userEmail}>`;
     } else {
       fromAddress = 'Syntra Chat Security <no-reply@syntrachat.internal>';
     }
 
-    const signInUrl = this.getFrontendUrl();
+    const dashboardUrl = this.getDashboardUrl();
     const displayName = firstName ? firstName.trim() : 'there';
     const subject = 'Welcome to Syntra Chat — Your Account Credentials';
 
@@ -189,7 +225,7 @@ Welcome to Syntra Chat, your private enterprise knowledge and analytics platform
 
 Here are your initial sign-in credentials:
 --------------------------------------------------
-Login URL:          ${signInUrl}
+Login URL:          ${dashboardUrl}
 Email Address:      ${toEmail}
 Temporary Password: ${temporaryPassword}
 --------------------------------------------------
@@ -282,7 +318,7 @@ The Syntra Chat Platform Team`;
               <table role="presentation" border="0" cellspacing="0" cellpadding="0">
                 <tr>
                   <td align="center" style="border-radius: 10px; background-color: #ffffff;">
-                    <a href="${signInUrl}" target="_blank" style="font-size: 14px; font-weight: 600; color: #000000; text-decoration: none; padding: 12px 28px; display: inline-block; border-radius: 10px;">
+                    <a href="${dashboardUrl}" target="_blank" style="font-size: 14px; font-weight: 600; color: #000000; text-decoration: none; padding: 12px 28px; display: inline-block; border-radius: 10px;">
                       Sign In to Syntra Chat &rarr;
                     </a>
                   </td>
@@ -312,7 +348,7 @@ The Syntra Chat Platform Team`;
 `;
 
     try {
-      this.logger.log(`[MAIL] Attempting welcome email dispatch for ${toEmail} from ${fromAddress}`);
+      this.logger.log(`[MAIL TRACE] About to call transporter.sendMail() to ${this.maskEmail(toEmail)}`);
 
       const info = await this.executeWithTimeout(
         this.transporter.sendMail({
@@ -327,13 +363,16 @@ The Syntra Chat Platform Team`;
       );
 
       this.logger.log(
-        `[MAIL] Welcome email sent successfully to ${toEmail} (messageId: ${info?.messageId || 'N/A'}, response: ${info?.response || 'OK'})`,
+        `[MAIL TRACE] transporter.sendMail() SUCCESS\nmessageId=${info?.messageId || 'N/A'}\nresponse=${info?.response || 'OK'}`,
       );
+      this.logger.log('[MAIL TRACE] EMAIL ACCEPTED BY SMTP');
+      this.logger.log('[MAIL TRACE] sendWelcomeEmail() returning true');
       return true;
     } catch (err: any) {
       this.logger.error(
-        `[MAIL] Welcome email failed for ${toEmail} | Error code: ${err.code || 'UNKNOWN'} | Error message: ${err.message} | Response: ${err.response || 'N/A'} | Command: ${err.command || 'N/A'}`,
+        `[MAIL TRACE] transporter.sendMail() FAILED\ncode=${err.code || 'UNKNOWN'}\ncommand=${err.command || 'N/A'}\nresponse=${err.response || 'N/A'}\nmessage=${err.message}`,
       );
+      this.logger.log('[MAIL TRACE] sendWelcomeEmail() returning false');
       return false;
     }
   }
