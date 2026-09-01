@@ -31,19 +31,41 @@ export class MailService {
     }
 
     // 2. Initialize Standard SMTP configuration (e.g. Gmail, Outlook, Brevo, custom SMTP)
-    const host = this.configService.get<string>('SMTP_HOST')?.trim();
-    const port = Number(this.configService.get<number>('SMTP_PORT', 587));
-    const rawUser = this.configService.get<string>('SMTP_USER') || '';
-    const rawPass = this.configService.get<string>('SMTP_PASS') || '';
+    const rawUser =
+      this.configService.get<string>('SMTP_USER') ||
+      this.configService.get<string>('GMAIL_USER') ||
+      this.configService.get<string>('MAIL_USER') ||
+      '';
+    const rawPass =
+      this.configService.get<string>('SMTP_PASS') ||
+      this.configService.get<string>('GMAIL_APP_PASSWORD') ||
+      this.configService.get<string>('GMAIL_PASS') ||
+      this.configService.get<string>('MAIL_PASS') ||
+      '';
 
-    const user = rawUser.replace(/^["']|["']$/g, '').trim();
-    const pass = rawPass.replace(/^["']|["']$/g, '').trim();
+    let user = rawUser.replace(/^["']|["']$/g, '').trim();
+    let pass = rawPass.replace(/^["']|["']$/g, '').trim();
+
+    let host =
+      this.configService.get<string>('SMTP_HOST')?.trim() ||
+      this.configService.get<string>('MAIL_HOST')?.trim();
+    if (!host && user.toLowerCase().endsWith('@gmail.com')) {
+      host = 'smtp.gmail.com';
+    }
+
+    const isGmailHost = host?.toLowerCase().includes('gmail.com');
+    // Strip spaces for Gmail app passwords (e.g., 'xxxx xxxx xxxx xxxx' -> 'xxxxxxxxxxxxxxxx')
+    if (isGmailHost) {
+      pass = pass.replace(/\s+/g, '');
+    }
+
+    const port = Number(this.configService.get<number>('SMTP_PORT', isGmailHost ? 465 : 587));
     const secureConfig = this.configService.get<string>('SMTP_SECURE');
     const isSecure = secureConfig !== undefined ? String(secureConfig).trim() === 'true' : port === 465;
 
     if (host && user && pass) {
       try {
-        if (host.toLowerCase().includes('gmail.com')) {
+        if (isGmailHost) {
           this.transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: { user, pass },
