@@ -35,6 +35,7 @@ import { TextSelectionToolbarComponent, ISelectionActionEvent } from '../../shar
 import { PdfReportService } from '../../core/services/pdf-report.service';
 import { CitationBadgeComponent } from '../../shared/components/citation-badge/citation-badge.component';
 import { MarkdownPipe } from '../../shared/pipes/markdown.pipe';
+import { ChatDraftService, TEMPORARY_NEW_CHAT_ID } from '../../core/services/chat-draft.service';
 import jsPDF from 'jspdf';
 import hljs from 'highlight.js';
 
@@ -709,6 +710,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   private authService = inject(AuthService);
   private modal = inject(ModalDialogService);
   chatState = inject(ChatStateService);
+  chatDraftService = inject(ChatDraftService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private pdfReportService = inject(PdfReportService);
@@ -726,11 +728,34 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   searchQuery = '';
   localError = '';
   private searchDebounceTimer?: any;
+  private draftDebounceTimer?: any;
 
   inputText = '';
   private shouldScroll = false;
   generatingPhaseIndex = 0;
   private generatingInterval: any = null;
+
+  triggerDraftAutosave(): void {
+    if (this.draftDebounceTimer) {
+      clearTimeout(this.draftDebounceTimer);
+    }
+    this.draftDebounceTimer = setTimeout(() => {
+      this.persistActiveDraft();
+    }, 300);
+  }
+
+  private persistActiveDraft(): void {
+    const convId = this.activeConversation?.id || TEMPORARY_NEW_CHAT_ID;
+    this.chatDraftService.saveDraft(convId, this.inputText, this.attachedResources);
+  }
+
+  private restoreDraftForConversation(convId?: string): void {
+    const targetId = convId || this.activeConversation?.id || TEMPORARY_NEW_CHAT_ID;
+    const draft = this.chatDraftService.getDraft(targetId);
+    this.inputText = draft?.text || '';
+    this.attachedResources = draft?.attachedResources ? [...draft.attachedResources] : [];
+    this.adjustTextareaHeight();
+  }
 
   get isCurrentGenerating(): boolean {
     const isGen = this.chatState.isGenerating(this.activeConversation?.id);
@@ -865,7 +890,16 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.generatingPhaseIndex = 0;
   }
 
+  @HostListener('window:beforeunload')
+  onBeforeUnload(): void {
+    this.persistActiveDraft();
+  }
+
   ngOnDestroy(): void {
+    if (this.draftDebounceTimer) {
+      clearTimeout(this.draftDebounceTimer);
+    }
+    this.persistActiveDraft();
     this.stopGeneratingTimer();
     if (this.searchDebounceTimer) {
       clearTimeout(this.searchDebounceTimer);
@@ -1054,6 +1088,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       if (res.transcript) {
         this.inputText = this.voiceBaseText ? `${this.voiceBaseText} ${res.transcript}` : res.transcript;
         this.adjustTextareaHeight();
+        this.triggerDraftAutosave();
       }
     });
 
@@ -1404,9 +1439,15 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       const routeId = this.route.snapshot.paramMap.get('id');
       if (routeId) {
         const found = convs.find((c) => c.id === routeId);
-        if (found) this.selectConversation(found);
+        if (found) {
+          this.selectConversation(found);
+        } else {
+          this.restoreDraftForConversation(routeId);
+        }
       } else if (convs.length > 0 && !this.activeConversation) {
         this.selectConversation(convs[0]);
+      } else if (!this.activeConversation) {
+        this.restoreDraftForConversation(TEMPORARY_NEW_CHAT_ID);
       }
     });
   }
@@ -1445,8 +1486,15 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   selectConversation(conv: IConversation): void {
+    if (this.activeConversation && this.activeConversation.id !== conv.id) {
+      this.persistActiveDraft();
+    }
+
     this.activeConversation = conv;
     this.dismissError();
+
+    // Immediately restore draft for target chat
+    this.restoreDraftForConversation(conv.id);
 
     // Check if messages already in chatState cache
     if (!this.chatState.getCachedMessages(conv.id)) {
@@ -1462,6 +1510,8 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   createNewConversation(collectionId?: string | null): void {
+    this.persistActiveDraft();
+
     this.api.createConversation({ title: 'New Conversation', collectionId: collectionId || undefined }).subscribe((newConv) => {
       this.conversations.unshift(newConv);
       if (collectionId) {
@@ -1482,6 +1532,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     if (!confirmed) return;
 
     this.api.deleteConversation(id).subscribe(() => {
+      this.chatDraftService.clearDraft(id);
       this.chatState.deleteConversationState(id);
       this.conversations = this.conversations.filter((c) => c.id !== id);
       this.filteredConversations = this.filteredConversations.filter((c) => c.id !== id);
@@ -1489,6 +1540,8 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
         this.activeConversation = this.conversations[0] || null;
         if (this.activeConversation) {
           this.selectConversation(this.activeConversation);
+        } else {
+          this.restoreDraftForConversation(TEMPORARY_NEW_CHAT_ID);
         }
       }
     });
@@ -1524,6 +1577,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   onInputChange(event: Event): void {
     this.adjustTextareaHeight();
+    this.triggerDraftAutosave();
 
     const target = event.target as HTMLTextAreaElement;
     const val = target.value;
@@ -1567,6 +1621,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       this.inputText = cleanBefore && cleanAfter ? `${cleanBefore} ${cleanAfter}` : `${cleanBefore}${cleanAfter}`;
     }
     this.isMentionOpen = false;
+    this.triggerDraftAutosave();
     setTimeout(() => {
       this.focusInput();
       if (this.inputArea?.nativeElement) {
@@ -1578,6 +1633,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   removeAttachedResource(id: string): void {
     this.attachedResources = this.attachedResources.filter((r) => r.id !== id);
+    this.triggerDraftAutosave();
   }
 
   sendUserMessage(): void {
@@ -1589,11 +1645,17 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     }
 
     if (!this.activeConversation) {
-      this.api.createConversation({ title: this.inputText.slice(0, 30) || 'New Chat' }).subscribe((newConv) => {
-        this.conversations.unshift(newConv);
-        this.clearSearch();
-        this.activeConversation = newConv;
-        this.executeSendMessage();
+      this.api.createConversation({ title: this.inputText.slice(0, 30) || 'New Chat' }).subscribe({
+        next: (newConv) => {
+          this.chatDraftService.migrateDraft(TEMPORARY_NEW_CHAT_ID, newConv.id);
+          this.conversations.unshift(newConv);
+          this.clearSearch();
+          this.activeConversation = newConv;
+          this.executeSendMessage();
+        },
+        error: () => {
+          this.localError = 'Failed to create new conversation. Please check your connection.';
+        },
       });
     } else {
       this.executeSendMessage();
@@ -1606,9 +1668,12 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     const convId = this.activeConversation.id;
     const content = this.inputText.trim();
     const resourceIds = this.attachedResources.map((r) => r.id);
+    const sentAttachedResources = [...this.attachedResources];
 
+    // Clear draft from storage and reset UI
     this.inputText = '';
     this.attachedResources = [];
+    this.chatDraftService.clearDraft(convId);
     this.dismissError();
     this.shouldScroll = true;
 
@@ -1635,7 +1700,14 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
           this.shouldScroll = true;
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        // If message sending failed, restore draft so unsent input is preserved
+        this.chatDraftService.saveDraft(convId, content, sentAttachedResources);
+        if (this.activeConversation?.id === convId && !this.inputText) {
+          this.inputText = content;
+          this.attachedResources = sentAttachedResources;
+          this.adjustTextareaHeight();
+        }
         if (this.activeConversation?.id === convId) {
           this.shouldScroll = true;
         }
