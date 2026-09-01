@@ -15,3 +15,9 @@ async def health_check():
         "bge_model": settings.BGE_MODEL,
     }
 
+
+@router.get("/")
+async def root_check():
+    return {"status": "ok", "service": "ai-service"}
+
+

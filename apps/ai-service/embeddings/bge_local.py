@@ -15,10 +15,10 @@ class BGELocalEmbeddingProvider(EmbeddingProvider):
 
     def _get_model(self):
         if self._model is None:
-            logger.info(f"Loading local BGE embedding model: {self.model_name}")
+            logger.info(f"Loading local BGE embedding model: {self.model_name} (CPU mode)")
             from sentence_transformers import SentenceTransformer
 
-            self._model = SentenceTransformer(self.model_name)
+            self._model = SentenceTransformer(self.model_name, device="cpu")
             logger.info(f"BGE embedding model loaded successfully. Dimension: {self._dim}")
         return self._model
 
