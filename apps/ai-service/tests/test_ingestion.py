@@ -1,7 +1,10 @@
 import pytest
 import tempfile
 import os
+from docx import Document
+from pypdf import PdfWriter
 from rag.ingestion import extract_text_from_file
+from core.gridfs_storage import get_gridfs_temp_file, fetch_gridfs_bytes
 
 def test_extract_text_from_txt_file():
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
@@ -12,6 +15,24 @@ def test_extract_text_from_txt_file():
         results = extract_text_from_file(temp_path, "txt")
         assert len(results) >= 1
         assert "sample document" in results[0][0]
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+def test_extract_text_from_docx_file():
+    doc = Document()
+    doc.add_heading("Employee Benefits", level=1)
+    doc.add_paragraph("Employees are eligible for health insurance starting on day one.")
+    
+    with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as f:
+        temp_path = f.name
+        doc.save(temp_path)
+
+    try:
+        results = extract_text_from_file(temp_path, "docx")
+        assert len(results) >= 1
+        full_text = " ".join([r[0] for r in results])
+        assert "health insurance" in full_text
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
@@ -29,3 +50,4 @@ def test_extract_text_from_csv_file():
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
+

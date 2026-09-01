@@ -1,4 +1,5 @@
 export const environment = {
   production: true,
-  apiBaseUrl: '',
+  apiBaseUrl: 'https://syntra-chat-backend.onrender.com/api',
 };
+

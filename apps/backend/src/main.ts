@@ -19,12 +19,49 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 3000);
   const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:4200');
 
-  // Enable CORS
+  // Build list of allowed origins from config and defaults
+  const staticAllowedOrigins = [
+    'http://localhost:4200',
+    'http://127.0.0.1:4200',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+  ];
+
+  if (frontendUrl) {
+    const configured = frontendUrl.split(',').map((u) => u.trim()).filter(Boolean);
+    staticAllowedOrigins.push(...configured);
+  }
+
+  // Enable CORS with secure credentials and flexible origin matching
   app.enableCors({
-    origin: [frontendUrl, 'http://localhost:4200', 'http://127.0.0.1:4200'],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      const normalizedOrigin = origin.toLowerCase().trim();
+
+      const isExplicitlyAllowed = staticAllowedOrigins.some(
+        (allowed) => allowed.toLowerCase() === normalizedOrigin,
+      );
+
+      const isDeployDomain =
+        normalizedOrigin.endsWith('.trycloudflare.com') ||
+        normalizedOrigin.includes('trycloudflare.com') ||
+        normalizedOrigin.endsWith('.onrender.com') ||
+        normalizedOrigin.includes('onrender.com');
+
+      if (isExplicitlyAllowed || isDeployDomain) {
+        return callback(null, true);
+      }
+
+      logger.warn(`CORS blocked request from origin: ${origin}`);
+      return callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type, Accept, Authorization',
+    allowedHeaders: 'Content-Type, Accept, Authorization, X-Requested-With',
   });
 
   // Global prefix

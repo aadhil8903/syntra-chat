@@ -1,39 +1,86 @@
 import { environment } from '../../../environments/environment';
 
+export interface AppConfig {
+  apiBaseUrl?: string;
+}
+
+declare global {
+  interface Window {
+    __APP_CONFIG__?: AppConfig;
+  }
+}
+
+/**
+ * Normalizes an API URL ensuring the correct `/api` suffix and handling Docker internal hostnames.
+ */
+function normalizeApiUrl(rawUrl: string): string {
+  const trimmed = rawUrl.trim().replace(/\/+$/, '');
+  if (!trimmed) {
+    return '/api';
+  }
+
+  // Handle internal Docker Compose hostname when accessed from a host browser
+  if (trimmed.includes('://backend:') || trimmed.includes('://backend/')) {
+    return '/api';
+  }
+
+  // If it's a relative path, ensure it starts with /
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+    return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  }
+
+  // Absolute URL (e.g. https://syntra-chat-backend.onrender.com)
+  if (!trimmed.endsWith('/api')) {
+    return `${trimmed}/api`;
+  }
+
+  return trimmed;
+}
+
 /**
  * Returns the resolved API base URL.
  * Resolution priority:
  * 1. Runtime window.__APP_CONFIG__.apiBaseUrl (injected dynamically via /config.js)
  * 2. Runtime localStorage override ('SYNTRA_API_BASE_URL' or 'API_BASE_URL')
- * 3. Relative '/api' when accessed from public domain or in production
- * 4. Localhost fallback for local development with ng serve (http://localhost:3000/api)
+ * 3. Compile-time environment configuration (Render production backend URL in prod, localhost:3000 in dev)
  */
 export function getApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
-    // 1. Runtime window configuration (from /config.js or entrypoint script)
-    const windowConfig = (window as any).__APP_CONFIG__;
+    const isLocalhost =
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1';
+
+    // 1. Runtime window configuration (from /config.js)
+    const windowConfig = window.__APP_CONFIG__;
     if (windowConfig && typeof windowConfig.apiBaseUrl === 'string') {
-      const trimmed = windowConfig.apiBaseUrl.trim();
-      if (trimmed.length > 0) {
-        return trimmed.replace(/\/+$/, '');
+      const candidate = windowConfig.apiBaseUrl.trim();
+      if (candidate.length > 0) {
+        return normalizeApiUrl(candidate);
       }
-      // If explicitly empty in production, use relative /api
-      return '/api';
     }
 
-    // 2. Runtime localStorage override
-    const stored = localStorage.getItem('SYNTRA_API_BASE_URL') || localStorage.getItem('API_BASE_URL');
+    // 2. Runtime localStorage override (ignore stale localhost values on production domains)
+    const stored =
+      localStorage.getItem('SYNTRA_API_BASE_URL') ||
+      localStorage.getItem('API_BASE_URL');
     if (stored && stored.trim()) {
-      return stored.trim().replace(/\/+$/, '');
+      const candidate = stored.trim();
+      if (!isLocalhost && (candidate.includes('localhost') || candidate.includes('127.0.0.1'))) {
+        localStorage.removeItem('SYNTRA_API_BASE_URL');
+        localStorage.removeItem('API_BASE_URL');
+      } else {
+        return normalizeApiUrl(candidate);
+      }
     }
 
-    // 3. If running on a public domain (non-localhost) or in production, always use relative /api
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    // 3. If running on a public domain or in production, use production backend URL
     if (!isLocalhost || environment.production) {
-      return '/api';
+      return normalizeApiUrl(environment.apiBaseUrl || 'https://syntra-chat-backend.onrender.com/api');
     }
   }
 
-  // 4. Default for local development with ng serve on localhost
-  return (environment.apiBaseUrl || '/api').trim().replace(/\/+$/, '') || '/api';
+  // 4. Default fallback using environment.apiBaseUrl (dev: localhost:3000, prod: Render backend)
+  return normalizeApiUrl(environment.apiBaseUrl || '/api');
 }
+
+

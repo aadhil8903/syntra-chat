@@ -131,19 +131,15 @@ export class DocumentsService {
     filename: string,
     fileType: string,
   ): Promise<void> {
-    let cleanupFn: (() => Promise<void>) | null = null;
     const isTabular = ['csv', 'xlsx', 'xls'].includes(fileType.toLowerCase().replace('.', ''));
 
     try {
-      const { tempPath, cleanup } = await this.storageService.createTempFile(storagePath);
-      cleanupFn = cleanup;
-
       if (isTabular) {
         // 1. Inspect sheet schema, columns, and preview rows
         const inspectRes = await this.aiGatewayService.inspectDataset({
           userId,
           datasetId: documentId,
-          storagePath: tempPath,
+          storagePath,
           filename,
           fileType,
         });
@@ -152,14 +148,14 @@ export class DocumentsService {
         const ingestRes = await this.aiGatewayService.ingestDocument({
           userId,
           documentId,
-          storagePath: tempPath,
+          storagePath,
           filename,
           fileType,
         }).catch(() => ({ status: 'ready', chunkCount: 1 }));
 
         await this.documentModel.findByIdAndUpdate(documentId, {
           $set: {
-            status: inspectRes.status === 'ready' || inspectRes.sheets?.length > 0 ? DocumentStatus.READY : DocumentStatus.FAILED,
+            status: inspectRes.status === 'ready' || (inspectRes.sheets && inspectRes.sheets.length > 0) ? DocumentStatus.READY : DocumentStatus.FAILED,
             sheetNames: inspectRes.sheetNames || [],
             sheets: inspectRes.sheets || [],
             totalRows: inspectRes.totalRows || 0,
@@ -174,20 +170,32 @@ export class DocumentsService {
         const result = await this.aiGatewayService.ingestDocument({
           userId,
           documentId,
-          storagePath: tempPath,
+          storagePath,
           filename,
           fileType,
         });
 
-        await this.documentModel.findByIdAndUpdate(documentId, {
-          $set: {
-            status: result.status === 'ready' ? DocumentStatus.READY : DocumentStatus.FAILED,
-            chunkCount: result.chunkCount || 0,
-            sourceType: 'narrative',
-            errorMessage: result.errorMessage,
-          },
-        });
-        this.logger.log(`Document ${documentId} ingested successfully with ${result.chunkCount} chunks`);
+        if (result.status === 'failed' || result.chunkCount === 0) {
+          await this.documentModel.findByIdAndUpdate(documentId, {
+            $set: {
+              status: DocumentStatus.FAILED,
+              chunkCount: 0,
+              sourceType: 'narrative',
+              errorMessage: result.errorMessage || 'No text extracted from document',
+            },
+          });
+          this.logger.warn(`Document ${documentId} ingestion failed: ${result.errorMessage || '0 chunks extracted'}`);
+        } else {
+          await this.documentModel.findByIdAndUpdate(documentId, {
+            $set: {
+              status: DocumentStatus.READY,
+              chunkCount: result.chunkCount || 0,
+              sourceType: 'narrative',
+              errorMessage: null,
+            },
+          });
+          this.logger.log(`Document ${documentId} ingested successfully with ${result.chunkCount} chunks`);
+        }
       }
     } catch (err: any) {
       this.logger.error(`Failed to ingest document ${documentId}: ${err.message}`);
@@ -197,10 +205,6 @@ export class DocumentsService {
           errorMessage: err.message || 'Failed to ingest document',
         },
       });
-    } finally {
-      if (cleanupFn) {
-        await cleanupFn().catch(() => {});
-      }
     }
   }
 

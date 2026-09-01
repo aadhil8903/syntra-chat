@@ -133,6 +133,33 @@ async def resolve_context_node(state: AgentState) -> Dict[str, Any]:
                 if doc:
                     if user_has_resource_access(doc):
                         doc["id"] = str(doc["_id"])
+                        # If document is narrative and has 0 chunks in document_chunks, auto-heal from GridFS
+                        if doc.get("sourceType") != "tabular" and doc.get("fileType") not in ["csv", "xlsx", "xls"]:
+                            chunks_count = db["document_chunks"].count_documents({"document_id": doc["id"]})
+                            if chunks_count == 0 and doc.get("storagePath"):
+                                try:
+                                    from core.gridfs_storage import get_gridfs_temp_file
+                                    from rag.ingestion import process_and_ingest_document
+                                    temp_info = get_gridfs_temp_file(doc.get("storagePath"), filename_hint=doc.get("originalName"))
+                                    if temp_info:
+                                        tpath, cleanup_fn = temp_info
+                                        try:
+                                            new_count = process_and_ingest_document(
+                                                user_id=str(doc.get("userId")),
+                                                document_id=doc["id"],
+                                                file_path=tpath,
+                                                filename=doc.get("originalName", "doc"),
+                                                file_type=doc.get("fileType", "pdf"),
+                                            )
+                                            if new_count > 0:
+                                                docs_col.update_one({"_id": doc["_id"]}, {"$set": {"chunkCount": new_count, "status": "ready"}})
+                                                doc["chunkCount"] = new_count
+                                                doc["status"] = "ready"
+                                        finally:
+                                            cleanup_fn()
+                                except Exception as e:
+                                    logger.warning(f"Auto-heal ingestion failed for document {doc['id']}: {e}")
+
                         if not any(rd["id"] == doc["id"] for rd in resolved_docs):
                             resolved_docs.append(doc)
                     else:
@@ -252,16 +279,11 @@ async def route_intent_node(state: AgentState) -> Dict[str, Any]:
     if len(resolved_datasets) > 0 and any(k in message for k in data_keywords):
         return {"intent": AgentIntent.DATA_ANALYSIS}
 
-    is_doc_reference = any(k in message for k in [
-        "doc", "docx", "document", "chapter", "pdf", "paper", "article", "sheet", "policy", "report", "file",
-        "find", "search", "what is", "how to", "who is", "explain", "tell me about", "look up", "according to",
-        "summarize", "describe", "where is", "when is", "which"
-    ])
-    if is_doc_reference and len(resolved_docs) > 0:
+    if len(resolved_docs) > 0:
         return {"intent": AgentIntent.DOCUMENT_RAG}
 
     # If scoped datasets exist and user asked an analytical/factual question, route to data analysis
-    if len(resolved_datasets) > 0 and not is_doc_reference:
+    if len(resolved_datasets) > 0:
         return {"intent": AgentIntent.DATA_ANALYSIS}
 
     # If the user did not ask a specific document question, default to general conversational response

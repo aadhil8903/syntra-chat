@@ -118,15 +118,11 @@ export class DatasetsService {
     filename: string,
     fileType: string,
   ): Promise<void> {
-    let cleanupFn: (() => Promise<void>) | null = null;
     try {
-      const { tempPath, cleanup } = await this.storageService.createTempFile(storagePath);
-      cleanupFn = cleanup;
-
       const result = await this.aiGatewayService.inspectDataset({
         userId,
         datasetId,
-        storagePath: tempPath,
+        storagePath,
         filename,
         fileType,
       });
@@ -149,10 +145,6 @@ export class DatasetsService {
           errorMessage: err.message || 'Failed to inspect dataset',
         },
       });
-    } finally {
-      if (cleanupFn) {
-        await cleanupFn().catch(() => {});
-      }
     }
   }
 

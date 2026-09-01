@@ -68,8 +68,8 @@ def search_documents_vector(
         # Sort all by score descending
         ranked_indices = np.argsort(scores)[::-1]
 
-        # Min score threshold — only include meaningfully relevant chunks
-        MIN_SCORE = 0.55
+        # Min score threshold for general semantic filtering with BGE
+        MIN_SCORE = 0.25
 
         # Enforce source diversity: at most ceil(top_k/num_docs) chunks per document
         # so we never drown out one doc with too many chunks from another
@@ -107,8 +107,26 @@ def search_documents_vector(
                 )
             )
 
-        # If score threshold was not met:
-        # If there are no relevant chunks, return empty chosen list (do not force random documents)
+        # If user explicitly scoped specific document_ids but score threshold yielded nothing
+        # (e.g., broad prompts like "summarize this document", "overview", "what is inside"),
+        # provide the top ranked chunks of the requested documents.
+        if not chosen and document_ids and len(ranked_indices) > 0:
+            for idx in ranked_indices[:min(top_k, len(ranked_indices))]:
+                c = chunks[idx]
+                doc_id = str(c["document_id"])
+                score = float(scores[idx])
+                chosen.append(
+                    Citation(
+                        documentId=doc_id,
+                        filename=str(c.get("filename", "Document")),
+                        page=c.get("page"),
+                        chunkIndex=c.get("chunk_index"),
+                        sourceType=c.get("source_type", "narrative"),
+                        textSnippet=c.get("text", ""),
+                        score=round(score, 4),
+                    )
+                )
+
         return chosen
 
     except Exception as e:
