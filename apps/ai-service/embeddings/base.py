@@ -19,3 +19,16 @@ class EmbeddingProvider(ABC):
         """Returns the embedding vector dimensionality (e.g. 768)."""
         pass
 
+    @property
+    @abstractmethod
+    def provider_name(self) -> str:
+        """Returns the identifier of the embedding provider (e.g. 'gemini', 'bge_local')."""
+        pass
+
+    @property
+    @abstractmethod
+    def model_name(self) -> str:
+        """Returns the name of the embedding model."""
+        pass
+
+

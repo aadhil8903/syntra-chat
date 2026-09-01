@@ -25,9 +25,13 @@ class Settings(BaseSettings):
     LOCAL_LLM_MODEL: str = "llama3.2"
 
     # Embedding Settings
-    EMBEDDING_PROVIDER: str = "bge_local"  # "bge_local"
+    EMBEDDING_PROVIDER: str = "bge_local"  # "bge_local" or "gemini"
     BGE_MODEL: str = "BAAI/bge-base-en-v1.5"
     BGE_DIMENSION: int = 768  # BGE base model dimension
+
+    # Gemini Embedding Settings (Production)
+    GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"
+    GEMINI_EMBEDDING_DIMENSION: int = 768  # Configurable output dimension (default: 768)
 
     # Chunking Configuration
     CHUNK_SIZE: int = 800

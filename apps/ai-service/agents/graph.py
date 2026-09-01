@@ -133,9 +133,16 @@ async def resolve_context_node(state: AgentState) -> Dict[str, Any]:
                 if doc:
                     if user_has_resource_access(doc):
                         doc["id"] = str(doc["_id"])
-                        # If document is narrative and has 0 chunks in document_chunks, auto-heal from GridFS
+                        # If document is narrative and has 0 chunks in document_chunks for the active provider, auto-heal from GridFS
                         if doc.get("sourceType") != "tabular" and doc.get("fileType") not in ["csv", "xlsx", "xls"]:
-                            chunks_count = db["document_chunks"].count_documents({"document_id": doc["id"]})
+                            from embeddings.factory import get_embedding_provider
+                            active_embedder = get_embedding_provider()
+                            if active_embedder.provider_name == "bge_local":
+                                prov_filter = {"$or": [{"embedding_provider": "bge_local"}, {"embedding_provider": {"$exists": False}}]}
+                            else:
+                                prov_filter = {"embedding_provider": active_embedder.provider_name}
+
+                            chunks_count = db["document_chunks"].count_documents({"document_id": doc["id"], **prov_filter})
                             if chunks_count == 0 and doc.get("storagePath"):
                                 try:
                                     from core.gridfs_storage import get_gridfs_temp_file

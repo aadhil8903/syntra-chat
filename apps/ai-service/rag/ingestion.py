@@ -134,8 +134,21 @@ def process_and_ingest_document(
     clean_type = file_type.lower().replace(".", "")
     source_type = "tabular" if clean_type in ["csv", "xlsx", "xls"] else "narrative"
 
-    # 1. Clean any existing chunks for this document
-    chunks_collection.delete_many({"document_id": document_id, "user_id": user_id})
+    embedder = get_embedding_provider()
+
+    # 1. Clean any existing chunks for this document and active provider (preserve vectors of other providers)
+    if embedder.provider_name == "bge_local":
+        chunks_collection.delete_many({
+            "document_id": document_id,
+            "user_id": user_id,
+            "$or": [{"embedding_provider": "bge_local"}, {"embedding_provider": {"$exists": False}}],
+        })
+    else:
+        chunks_collection.delete_many({
+            "document_id": document_id,
+            "user_id": user_id,
+            "embedding_provider": embedder.provider_name,
+        })
 
     # 2. Extract text with page/section mappings
     extracted_pages = extract_text_from_file(file_path, file_type)
@@ -172,8 +185,7 @@ def process_and_ingest_document(
     if not all_chunk_texts:
         return 0
 
-    # 4. Generate local BGE embeddings in batches to avoid memory pressure
-    embedder = get_embedding_provider()
+    # 4. Generate embeddings using active provider
     embeddings = embedder.embed_documents(all_chunk_texts)
 
     # 5. Insert documents into MongoDB
@@ -186,6 +198,9 @@ def process_and_ingest_document(
             "filename": meta["filename"],
             "text": text,
             "embedding": embeddings[i],
+            "embedding_provider": embedder.provider_name,
+            "embedding_model": embedder.model_name,
+            "dimension": embedder.dimension,
             "page": meta["page"],
             "chunk_index": meta["chunk_index"],
             "source_type": meta.get("source_type", source_type),

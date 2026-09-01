@@ -16,7 +16,15 @@ export class AiGatewayService {
   private readonly client: AxiosInstance;
 
   constructor(private readonly configService: ConfigService) {
-    const baseURL = this.configService.get<string>('AI_SERVICE_URL', 'http://localhost:8000');
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production' ||
+      process.env.NODE_ENV === 'production';
+    const defaultAiUrl = isProduction
+      ? 'https://syntra-chat-ai.onrender.com'
+      : 'http://localhost:8000';
+    const baseURL = (
+      this.configService.get<string>('AI_SERVICE_URL') || defaultAiUrl
+    ).trim().replace(/\/+$/, '');
     const timeout = Number(this.configService.get<number>('AI_SERVICE_TIMEOUT_MS', 90000));
 
     this.client = axios.create({

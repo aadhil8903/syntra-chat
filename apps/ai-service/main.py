@@ -38,7 +38,12 @@ app.include_router(datasets.router)
 async def on_startup():
     logger.info(f"Starting {settings.SERVICE_NAME} on port {settings.PORT}")
     logger.info(f"LLM Provider: {settings.LLM_PROVIDER}")
-    logger.info(f"Embedding Provider: {settings.EMBEDDING_PROVIDER} ({settings.BGE_MODEL})")
+    model_name = (
+        settings.GEMINI_EMBEDDING_MODEL
+        if (settings.EMBEDDING_PROVIDER or "").lower() == "gemini"
+        else settings.BGE_MODEL
+    )
+    logger.info(f"Embedding Provider: {settings.EMBEDDING_PROVIDER} ({model_name})")
 
 if __name__ == "__main__":
     import uvicorn
