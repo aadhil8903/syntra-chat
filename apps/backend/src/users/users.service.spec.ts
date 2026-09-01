@@ -252,4 +252,157 @@ describe('UsersService (Security & Admin Invariant)', () => {
     expect(updated.role).toBe(UserRole.MANAGER);
     expect(systemSettings.verifyMasterPassword).not.toHaveBeenCalled();
   });
+
+  describe('User Provisioning Flow (createUserByAdmin)', () => {
+    it('should successfully provision an enterprise user with departments and allowedFolders', async () => {
+      repo.findByEmail.mockResolvedValue(null);
+      repo.create.mockImplementation(async (data: any) => ({
+        _id: '507f1f77bcf86cd799439055',
+        ...data,
+      }));
+      mail.sendWelcomeEmail.mockResolvedValue(true);
+
+      const result = await service.createUserByAdmin({
+        email: 'alice.smith@enterprise.com',
+        firstName: 'Alice',
+        lastName: 'Smith',
+        role: UserRole.USER,
+        departments: ['Engineering', 'DevOps'],
+        allowedFolders: ['Engineering/Docs', 'General'],
+      });
+
+      expect(result.user.email).toBe('alice.smith@enterprise.com');
+      expect(result.user.departments).toEqual(['Engineering', 'DevOps']);
+      expect(result.user.allowedFolders).toEqual(['Engineering/Docs', 'General']);
+      expect(result.emailSent).toBe(true);
+      expect(result.temporaryPassword).toBeDefined();
+      expect(result.message).toContain('welcome email dispatched successfully');
+      expect(mail.sendWelcomeEmail).toHaveBeenCalledWith(
+        'alice.smith@enterprise.com',
+        'Alice',
+        result.temporaryPassword,
+      );
+    });
+
+    it('should reject provisioning when email is invalid or missing', async () => {
+      await expect(
+        service.createUserByAdmin({
+          email: 'not-an-email',
+          firstName: 'Bad',
+          lastName: 'Email',
+        }),
+      ).rejects.toThrow('Please provide a valid email address.');
+
+      await expect(
+        service.createUserByAdmin({
+          email: '',
+          firstName: 'Missing',
+          lastName: 'Email',
+        }),
+      ).rejects.toThrow('Please provide a valid email address.');
+    });
+
+    it('should reject provisioning when duplicate email exists in MongoDB', async () => {
+      repo.findByEmail.mockResolvedValue({
+        _id: '507f1f77bcf86cd799439066',
+        email: 'existing@enterprise.com',
+      });
+
+      await expect(
+        service.createUserByAdmin({
+          email: 'existing@enterprise.com',
+          firstName: 'Existing',
+          lastName: 'User',
+        }),
+      ).rejects.toThrow(ConflictException);
+
+      expect(repo.create).not.toHaveBeenCalled();
+    });
+
+    it('should reject provisioning when departments format is invalid', async () => {
+      await expect(
+        service.createUserByAdmin({
+          email: 'test@enterprise.com',
+          firstName: 'Test',
+          lastName: 'User',
+          departments: 'NotAnArray' as any,
+        }),
+      ).rejects.toThrow('Departments must be a list of valid department names.');
+
+      await expect(
+        service.createUserByAdmin({
+          email: 'test@enterprise.com',
+          firstName: 'Test',
+          lastName: 'User',
+          departments: [123, 456] as any,
+        }),
+      ).rejects.toThrow('Departments must be a list of valid department names.');
+    });
+
+    it('should reject provisioning when allowedFolders format is invalid', async () => {
+      await expect(
+        service.createUserByAdmin({
+          email: 'test@enterprise.com',
+          firstName: 'Test',
+          lastName: 'User',
+          allowedFolders: 'NotAnArray' as any,
+        }),
+      ).rejects.toThrow('Allowed folders must be a list of valid folder names.');
+    });
+
+    it('should fail when MongoDB creation encounters an error', async () => {
+      repo.findByEmail.mockResolvedValue(null);
+      repo.create.mockRejectedValue(new Error('MongoDB connection failure'));
+
+      await expect(
+        service.createUserByAdmin({
+          email: 'dberror@enterprise.com',
+          firstName: 'Db',
+          lastName: 'Error',
+        }),
+      ).rejects.toThrow('MongoDB connection failure');
+
+      expect(mail.sendWelcomeEmail).not.toHaveBeenCalled();
+    });
+
+    it('should handle email failure gracefully without failing user creation', async () => {
+      repo.findByEmail.mockResolvedValue(null);
+      repo.create.mockImplementation(async (data: any) => ({
+        _id: '507f1f77bcf86cd799439077',
+        ...data,
+      }));
+      mail.sendWelcomeEmail.mockResolvedValue(false);
+
+      const result = await service.createUserByAdmin({
+        email: 'smtpdown@enterprise.com',
+        firstName: 'Smtp',
+        lastName: 'Down',
+      });
+
+      expect(result.user.email).toBe('smtpdown@enterprise.com');
+      expect(result.emailSent).toBe(false);
+      expect(result.message).toContain('Email delivery pending/unavailable');
+      expect(result.temporaryPassword).toBeDefined();
+    });
+
+    it('should handle email timeout gracefully when mail service reports timeout', async () => {
+      repo.findByEmail.mockResolvedValue(null);
+      repo.create.mockImplementation(async (data: any) => ({
+        _id: '507f1f77bcf86cd799439088',
+        ...data,
+      }));
+      // Simulating mail service catching timeout and returning false
+      mail.sendWelcomeEmail.mockResolvedValue(false);
+
+      const result = await service.createUserByAdmin({
+        email: 'timeout@enterprise.com',
+        firstName: 'Time',
+        lastName: 'Out',
+      });
+
+      expect(result.user.email).toBe('timeout@enterprise.com');
+      expect(result.emailSent).toBe(false);
+      expect(result.temporaryPassword).toBeDefined();
+    });
+  });
 });

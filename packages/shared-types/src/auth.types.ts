@@ -12,6 +12,7 @@ export interface IUser {
   firstName: string;
   lastName: string;
   role: UserRole | string;
+  roles?: string[];
   departments: string[];
   allowedFolders?: string[];
   deniedFolders?: string[];
@@ -21,6 +22,27 @@ export interface IUser {
   mustChangePassword?: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export function isAdminRole(role?: string | null, roles?: string[] | null): boolean {
+  if (role) {
+    const r = role.toString().toLowerCase().trim();
+    if (r === 'admin' || r === 'master_admin' || r === 'superadmin') {
+      return true;
+    }
+  }
+  if (Array.isArray(roles)) {
+    return roles.some((r) => {
+      const clean = (r || '').toString().toLowerCase().trim();
+      return clean === 'admin' || clean === 'master_admin' || clean === 'superadmin';
+    });
+  }
+  return false;
+}
+
+export function isUserAdmin(user?: any): boolean {
+  if (!user) return false;
+  return isAdminRole(user.role, user.roles);
 }
 
 export interface ICreateUserDto {

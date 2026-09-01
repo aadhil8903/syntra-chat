@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, timeout } from 'rxjs';
 import {
   IDocument,
   IDataset,
@@ -205,7 +205,9 @@ export class ApiService {
   }
 
   createUser(dto: any): Observable<ICreateUserResult> {
-    return this.http.post<ICreateUserResult>(`${this.baseUrl}/users`, dto);
+    return this.http.post<ICreateUserResult>(`${this.baseUrl}/users`, dto).pipe(
+      timeout(15000),
+    );
   }
 
   completeOnboarding(): Observable<IUser> {

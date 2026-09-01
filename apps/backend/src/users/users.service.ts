@@ -4,12 +4,13 @@ import {
   NotFoundException,
   UnauthorizedException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { UsersRepository } from './users.repository';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { IUser, UserRole, ICreateUserResult } from '@enter-chat/shared-types';
+import { IUser, UserRole, ICreateUserResult, isAdminRole } from '@enter-chat/shared-types';
 import * as argon2 from 'argon2';
 import * as crypto from 'crypto';
 import { UserDocument } from './schemas/user.schema';
@@ -162,14 +163,66 @@ export class UsersService {
   }
 
   async createUserByAdmin(dto: any, actingAdminId = 'admin'): Promise<ICreateUserResult> {
-    const existing = await this.usersRepository.findByEmail(dto.email);
+    if (!dto) {
+      throw new BadRequestException('User payload is required.');
+    }
+
+    if (!dto.email || typeof dto.email !== 'string') {
+      throw new BadRequestException('Please provide a valid email address.');
+    }
+    const email = dto.email.toLowerCase().trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new BadRequestException('Please provide a valid email address.');
+    }
+
+    if (!dto.firstName || typeof dto.firstName !== 'string' || !dto.firstName.trim()) {
+      throw new BadRequestException('First name is required.');
+    }
+    if (!dto.lastName || typeof dto.lastName !== 'string' || !dto.lastName.trim()) {
+      throw new BadRequestException('Last name is required.');
+    }
+
+    let departments: string[] = [];
+    if (dto.departments !== undefined && dto.departments !== null) {
+      if (!Array.isArray(dto.departments) || dto.departments.some((d: any) => typeof d !== 'string')) {
+        throw new BadRequestException('Departments must be a list of valid department names.');
+      }
+      departments = Array.from(new Set(dto.departments.map((d: string) => d.trim()).filter(Boolean)));
+    }
+
+    let allowedFolders: string[] = [];
+    if (dto.allowedFolders !== undefined && dto.allowedFolders !== null) {
+      if (!Array.isArray(dto.allowedFolders) || dto.allowedFolders.some((f: any) => typeof f !== 'string')) {
+        throw new BadRequestException('Allowed folders must be a list of valid folder names.');
+      }
+      allowedFolders = Array.from(new Set(dto.allowedFolders.map((f: string) => f.trim()).filter(Boolean)));
+    }
+
+    let deniedFolders: string[] = [];
+    if (dto.deniedFolders !== undefined && dto.deniedFolders !== null) {
+      if (!Array.isArray(dto.deniedFolders) || dto.deniedFolders.some((f: any) => typeof f !== 'string')) {
+        throw new BadRequestException('Denied folders must be a list of valid folder names.');
+      }
+      deniedFolders = Array.from(new Set(dto.deniedFolders.map((f: string) => f.trim()).filter(Boolean)));
+    }
+
+    const existing = await this.usersRepository.findByEmail(email);
     if (existing) {
-      throw new ConflictException('A user with this email already exists');
+      throw new ConflictException('A user with this email already exists.');
+    }
+
+    // Role handling
+    let targetRole: string = UserRole.USER;
+    if (dto.role) {
+      if (typeof dto.role !== 'string') {
+        throw new BadRequestException('Role must be a string value.');
+      }
+      targetRole = dto.role.toLowerCase().trim();
     }
 
     // If requested role is Administrator, require Master Admin Password
-    const targetRole = dto.role;
-    if (targetRole && (targetRole === UserRole.ADMIN || targetRole === 'admin')) {
+    if (isAdminRole(targetRole)) {
       const isValidMaster = await this.systemSettingsService.verifyMasterPassword(
         dto.masterAdminPassword,
         actingAdminId,
@@ -185,14 +238,14 @@ export class UsersService {
     const passwordHash = await argon2.hash(temporaryPassword);
 
     const user = await this.usersRepository.create({
-      email: dto.email.toLowerCase().trim(),
+      email,
       passwordHash,
       firstName: dto.firstName.trim(),
       lastName: dto.lastName.trim(),
-      role: dto.role || UserRole.USER,
-      departments: dto.departments || [],
-      allowedFolders: dto.allowedFolders || [],
-      deniedFolders: dto.deniedFolders || [],
+      role: targetRole,
+      departments,
+      allowedFolders,
+      deniedFolders,
       status: 'active',
       mustChangePassword: true,
       onboardingCompleted: false,

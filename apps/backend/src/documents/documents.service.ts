@@ -14,6 +14,7 @@ import {
   SupportedDocumentFormat,
   IUser,
   UserRole,
+  isUserAdmin,
 } from '@enter-chat/shared-types';
 import { IStorageService, STORAGE_SERVICE } from '../storage/storage.interface';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
@@ -237,7 +238,7 @@ export class DocumentsService {
   }
 
   private buildAccessQuery(user: IUser, approvedIds: string[] = []): any {
-    if (user.role === UserRole.ADMIN) {
+    if (isUserAdmin(user)) {
       return {};
     }
     const userObjId = Types.ObjectId.isValid(user.id) ? new Types.ObjectId(user.id) : null;
@@ -273,7 +274,7 @@ export class DocumentsService {
 
   async findAllAccessible(userId: string): Promise<IDocument[]> {
     const user = await this.usersService.findById(userId);
-    const isAdmin = user.role === UserRole.ADMIN;
+    const isAdmin = isUserAdmin(user);
     let approvedIds: string[] = [];
     const requestStatusMap = new Map<string, 'pending' | 'approved' | 'rejected'>();
 
@@ -289,7 +290,7 @@ export class DocumentsService {
     }
 
     const allDocs = await this.documentModel.find({}).sort({ createdAt: -1 }).exec();
-    const userDepartments = user.departments || [];
+    const userDepartments = user?.departments || [];
 
     const allFolders = await this.foldersService.findAll();
     const foldersMap = new Map<string, string[]>();
@@ -302,8 +303,12 @@ export class DocumentsService {
       const docDto = this.toIDocument(d);
       const docIdStr = d._id.toString();
 
-      if (isAdmin || d.userId.toString() === userId || approvedIds.includes(docIdStr)) {
+      if (isAdmin) {
         docDto.hasAccess = true;
+        docDto.requestStatus = null;
+      } else if (d.userId.toString() === userId || approvedIds.includes(docIdStr)) {
+        docDto.hasAccess = true;
+        docDto.requestStatus = requestStatusMap.get(docIdStr) || (d.folder ? requestStatusMap.get(d.folder) : null) || null;
       } else {
         const hasDeptAccess =
           !d.allowedDepartments ||
@@ -318,9 +323,9 @@ export class DocumentsService {
         );
 
         docDto.hasAccess = hasDeptAccess && hasFolderAccess;
+        docDto.requestStatus = requestStatusMap.get(docIdStr) || (d.folder ? requestStatusMap.get(d.folder) : null) || null;
       }
 
-      docDto.requestStatus = requestStatusMap.get(docIdStr) || (d.folder ? requestStatusMap.get(d.folder) : null) || null;
       results.push(docDto);
     }
     return results;
@@ -332,7 +337,7 @@ export class DocumentsService {
     }
 
     const user = await this.usersService.findById(userId);
-    const isAdmin = user.role === UserRole.ADMIN;
+    const isAdmin = isUserAdmin(user);
     let approvedIds: string[] = [];
 
     if (!isAdmin) {
@@ -345,15 +350,21 @@ export class DocumentsService {
       throw new NotFoundException('Document not found');
     }
 
+    if (isAdmin) {
+      const docDto = this.toIDocument(doc);
+      docDto.hasAccess = true;
+      return docDto;
+    }
+
     const isOwner = doc.userId.toString() === userId;
     const hasDeptAccess =
       !doc.allowedDepartments ||
       doc.allowedDepartments.length === 0 ||
-      doc.allowedDepartments.some((dept) => (user.departments || []).includes(dept));
+      doc.allowedDepartments.some((dept) => (user?.departments || []).includes(dept));
 
     const hasFolderAccess = await this.aclResolver.canUserAccessFolder(userId, doc.folder || '', user);
 
-    if (!isAdmin && !isOwner && !approvedIds.includes(documentId) && (!hasDeptAccess || !hasFolderAccess)) {
+    if (!isOwner && !approvedIds.includes(documentId) && (!hasDeptAccess || !hasFolderAccess)) {
       throw new NotFoundException('Document not found or access denied');
     }
 

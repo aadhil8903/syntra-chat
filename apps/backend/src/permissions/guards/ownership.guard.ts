@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { OwnershipService, ResourceCollection } from '../services/ownership.service';
+import { isUserAdmin } from '@enter-chat/shared-types';
 
 export interface OwnershipMetadata {
   collection: ResourceCollection;
@@ -39,6 +40,11 @@ export class OwnershipGuard implements CanActivate {
       return false;
     }
 
+    // Administrators possess unrestricted bypass access to all resources
+    if (isUserAdmin(user)) {
+      return true;
+    }
+
     const paramName = meta.paramName || 'id';
     const resourceId = request.params[paramName] || request.body[paramName];
 
@@ -46,7 +52,7 @@ export class OwnershipGuard implements CanActivate {
       return true;
     }
 
-    await this.ownershipService.verifyOwnership(meta.collection, resourceId, user.id);
+    await this.ownershipService.verifyOwnership(meta.collection, resourceId, user.id, user.role);
     return true;
   }
 }

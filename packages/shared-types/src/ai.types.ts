@@ -43,6 +43,7 @@ export enum AgentIntent {
 
 export interface IAiChatRequest {
   userId: string;
+  userRole?: string;
   conversationId: string;
   message: string;
   resourceIds: string[];

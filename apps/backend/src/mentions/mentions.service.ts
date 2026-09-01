@@ -11,6 +11,7 @@ import {
   IMentionQueryResult,
   MentionResourceType,
   UserRole,
+  isUserAdmin,
 } from '@enter-chat/shared-types';
 
 @Injectable()
@@ -29,7 +30,7 @@ export class MentionsService {
   async searchMentions(userId: string, query: string = ''): Promise<IMentionQueryResult> {
     const userObjectId = Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : null;
     const user = userObjectId ? await this.userModel.findById(userObjectId) : null;
-    const isAdmin = user?.role === UserRole.ADMIN;
+    const isAdmin = isUserAdmin(user);
     const userDepts = user?.departments || [];
 
     const allFolders = await this.foldersService.findAll();

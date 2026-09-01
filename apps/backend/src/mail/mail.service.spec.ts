@@ -140,5 +140,31 @@ describe('MailService', () => {
 
       expect(result).toBe(false);
     });
+
+    it('should handle SMTP timeout gracefully and return false without hanging', async () => {
+      service = await createServiceWithEnv({
+        FRONTEND_URL: 'https://syntra-chat.onrender.com',
+      });
+
+      // Mock a hanging transporter that never resolves
+      let timer: any;
+      const hangingSendMail = jest.fn().mockImplementation(
+        () => new Promise((resolve) => {
+          timer = setTimeout(resolve, 10000);
+          if (timer.unref) timer.unref();
+        }),
+      );
+      (service as any).transporter = { sendMail: hangingSendMail };
+
+      // Call sendWelcomeEmail
+      const result = await service.sendWelcomeEmail(
+        'timeout.user@external.com',
+        'Timeout',
+        'TempPassTimeout!',
+      );
+
+      clearTimeout(timer);
+      expect(result).toBe(false);
+    }, 10000);
   });
 });

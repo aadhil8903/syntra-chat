@@ -13,6 +13,7 @@ async def chat_endpoint(request: ChatRequest):
     try:
         initial_state = {
             "user_id": request.userId,
+            "user_role": request.userRole,
             "conversation_id": request.conversationId,
             "message": request.message,
             "resource_ids": request.resourceIds,
@@ -44,6 +45,7 @@ async def chat_stream_endpoint(request: ChatRequest):
         try:
             initial_state = {
                 "user_id": request.userId,
+                "user_role": request.userRole,
                 "conversation_id": request.conversationId,
                 "message": request.message,
                 "resource_ids": request.resourceIds,

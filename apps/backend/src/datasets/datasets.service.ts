@@ -14,6 +14,7 @@ import {
   SupportedDatasetFormat,
   IUser,
   UserRole,
+  isUserAdmin,
 } from '@enter-chat/shared-types';
 import { IStorageService, STORAGE_SERVICE } from '../storage/storage.interface';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
@@ -177,7 +178,7 @@ export class DatasetsService {
   }
 
   private buildAccessQuery(user: IUser, approvedIds: string[] = []): any {
-    if (user.role === UserRole.ADMIN) {
+    if (isUserAdmin(user)) {
       return {};
     }
     const userObjId = Types.ObjectId.isValid(user.id) ? new Types.ObjectId(user.id) : null;
@@ -213,7 +214,7 @@ export class DatasetsService {
 
   async findAllAccessible(userId: string): Promise<IDataset[]> {
     const user = await this.usersService.findById(userId);
-    const isAdmin = user.role === UserRole.ADMIN;
+    const isAdmin = isUserAdmin(user);
     let approvedIds: string[] = [];
     const requestStatusMap = new Map<string, 'pending' | 'approved' | 'rejected'>();
 
@@ -229,7 +230,7 @@ export class DatasetsService {
     }
 
     const allDatasets = await this.datasetModel.find({}).sort({ createdAt: -1 }).exec();
-    const userDepartments = user.departments || [];
+    const userDepartments = user?.departments || [];
 
     const allFolders = await this.foldersService.findAll();
     const foldersMap = new Map<string, string[]>();
@@ -242,8 +243,12 @@ export class DatasetsService {
       const dsDto = this.toIDataset(d);
       const dsIdStr = d._id.toString();
 
-      if (isAdmin || d.userId.toString() === userId || approvedIds.includes(dsIdStr)) {
+      if (isAdmin) {
         dsDto.hasAccess = true;
+        dsDto.requestStatus = null;
+      } else if (d.userId.toString() === userId || approvedIds.includes(dsIdStr)) {
+        dsDto.hasAccess = true;
+        dsDto.requestStatus = requestStatusMap.get(dsIdStr) || (d.folder ? requestStatusMap.get(d.folder) : null) || null;
       } else {
         const hasDeptAccess =
           !d.allowedDepartments ||
@@ -258,6 +263,7 @@ export class DatasetsService {
         );
 
         dsDto.hasAccess = hasDeptAccess && hasFolderAccess;
+        dsDto.requestStatus = requestStatusMap.get(dsIdStr) || (d.folder ? requestStatusMap.get(d.folder) : null) || null;
       }
 
       if (!dsDto.hasAccess) {
@@ -265,7 +271,6 @@ export class DatasetsService {
         dsDto.sheetNames = [];
       }
 
-      dsDto.requestStatus = requestStatusMap.get(dsIdStr) || (d.folder ? requestStatusMap.get(d.folder) : null) || null;
       results.push(dsDto);
     }
     return results;
@@ -277,7 +282,7 @@ export class DatasetsService {
     }
 
     const user = await this.usersService.findById(userId);
-    const isAdmin = user.role === UserRole.ADMIN;
+    const isAdmin = isUserAdmin(user);
     let approvedIds: string[] = [];
 
     if (!isAdmin) {
@@ -290,15 +295,21 @@ export class DatasetsService {
       throw new NotFoundException('Dataset not found');
     }
 
+    if (isAdmin) {
+      const dsDto = this.toIDataset(dataset);
+      dsDto.hasAccess = true;
+      return dsDto;
+    }
+
     const isOwner = dataset.userId.toString() === userId;
     const hasDeptAccess =
       !dataset.allowedDepartments ||
       dataset.allowedDepartments.length === 0 ||
-      dataset.allowedDepartments.some((dept) => (user.departments || []).includes(dept));
+      dataset.allowedDepartments.some((dept) => (user?.departments || []).includes(dept));
 
     const hasFolderAccess = await this.aclResolver.canUserAccessFolder(userId, dataset.folder || '', user);
 
-    if (!isAdmin && !isOwner && !approvedIds.includes(datasetId) && (!hasDeptAccess || !hasFolderAccess)) {
+    if (!isOwner && !approvedIds.includes(datasetId) && (!hasDeptAccess || !hasFolderAccess)) {
       throw new NotFoundException('Dataset not found or access denied');
     }
 

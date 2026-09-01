@@ -44,19 +44,23 @@ export class MessagesController {
 
   @Post()
   async sendMessage(
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: any,
     @Body() dto: SendMessageDto,
   ): Promise<any> {
-    return this.messagesService.sendMessage(userId, dto);
+    const userId = user?.id || user?._id?.toString();
+    const userRole = user?.role;
+    return this.messagesService.sendMessage(userId, dto, userRole);
   }
 
   @Post('stream')
   async streamMessage(
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: any,
     @Body() dto: SendMessageDto,
     @Res() res: any,
   ): Promise<void> {
-    return this.messagesService.streamMessage(userId, dto, res);
+    const userId = user?.id || user?._id?.toString();
+    const userRole = user?.role;
+    return this.messagesService.streamMessage(userId, dto, res, userRole);
   }
 
   @Post('transcribe')

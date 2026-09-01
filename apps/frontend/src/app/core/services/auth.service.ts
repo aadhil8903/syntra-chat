@@ -1,7 +1,7 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap, catchError, of, throwError } from 'rxjs';
-import { IUser, ILoginDto, IAuthResponse, APP_CONFIG } from '@enter-chat/shared-types';
+import { IUser, ILoginDto, IAuthResponse, APP_CONFIG, isUserAdmin } from '@enter-chat/shared-types';
 import { Router } from '@angular/router';
 import { getApiBaseUrl } from '../config/app-config';
 
@@ -19,7 +19,7 @@ export class AuthService {
   private currentUserSignal = signal<IUser | null>(this.getStoredUser());
   readonly currentUser = computed(() => this.currentUserSignal());
   readonly isAuthenticated = computed(() => !!this.currentUserSignal());
-  readonly isAdmin = computed(() => this.currentUserSignal()?.role === 'admin');
+  readonly isAdmin = computed(() => isUserAdmin(this.currentUserSignal()));
 
   getUserRole(): string | null {
     const user = this.currentUserSignal();

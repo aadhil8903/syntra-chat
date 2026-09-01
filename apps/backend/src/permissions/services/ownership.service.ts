@@ -2,6 +2,7 @@ import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/commo
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection, Types } from 'mongoose';
 import { AclResolverService } from './acl-resolver.service';
+import { isAdminRole, isUserAdmin } from '@enter-chat/shared-types';
 
 export type ResourceCollection = 'documents' | 'datasets' | 'conversations' | 'messages';
 
@@ -13,13 +14,15 @@ export class OwnershipService {
   ) {}
 
   /**
-   * Verifies that the given resource exists and belongs strictly to the given user.
-   * Throws NotFoundException if not found, ForbiddenException if owned by another user.
+   * Verifies that the given resource exists and belongs to the user,
+   * or allows unrestricted access if the user is an administrator.
+   * Throws NotFoundException if not found, ForbiddenException if owned by another user and not admin.
    */
   async verifyOwnership(
     collectionName: ResourceCollection,
     resourceId: string,
     userId: string,
+    userRole?: string,
   ): Promise<boolean> {
     if (!Types.ObjectId.isValid(resourceId)) {
       throw new NotFoundException(`Invalid ${collectionName.slice(0, -1)} ID format`);
@@ -35,6 +38,18 @@ export class OwnershipService {
       throw new NotFoundException(
         `${collectionName.charAt(0).toUpperCase() + collectionName.slice(1, -1)} not found`,
       );
+    }
+
+    // Check if requester is an administrator - admins have unrestricted access
+    let isAdmin = isAdminRole(userRole);
+    if (!isAdmin) {
+      const usersCollection = this.connection.collection('users');
+      const user = await usersCollection.findOne({ _id: userObjectId as any });
+      isAdmin = isUserAdmin(user);
+    }
+
+    if (isAdmin) {
+      return true;
     }
 
     const resourceUserId = resource.userId || resource.user_id || resource.owner_id;
@@ -55,6 +70,7 @@ export class OwnershipService {
   /**
    * Validates a batch of resource IDs (e.g. from @mentions or conversation attachments)
    * ensuring all are accessible by the user according to RBAC and folder permissions.
+   * Administrators automatically have access to all valid resources.
    */
   async validateUserResources(
     userId: string,
@@ -76,7 +92,7 @@ export class OwnershipService {
     const user = Types.ObjectId.isValid(userId)
       ? await usersCollection.findOne({ _id: new Types.ObjectId(userId) })
       : await usersCollection.findOne({ _id: userId as any });
-    const isAdmin = user && (user.role === 'admin' || (user.roles && user.roles.includes('admin')));
+    const isAdmin = isUserAdmin(user);
     const userDepartments: string[] = user?.departments || (user?.department ? [user.department] : []);
 
     let roleFolders: string[] = [];

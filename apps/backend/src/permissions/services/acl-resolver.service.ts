@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection, Types } from 'mongoose';
-import { UserRole } from '@enter-chat/shared-types';
+import { UserRole, isUserAdmin } from '@enter-chat/shared-types';
 
 @Injectable()
 export class AclResolverService {
@@ -55,8 +55,8 @@ export class AclResolverService {
 
     if (!user) return false;
 
-    // Admin always has access
-    if (user.role === UserRole.ADMIN || (user.roles && user.roles.includes(UserRole.ADMIN))) {
+    // Admin always has unrestricted access to all folders
+    if (isUserAdmin(user)) {
       return true;
     }
 

@@ -62,6 +62,7 @@ class ChatMessageItem(BaseModel):
 
 class ChatRequest(BaseModel):
     userId: str
+    userRole: Optional[str] = None
     conversationId: str
     message: str
     resourceIds: List[str] = Field(default_factory=list)

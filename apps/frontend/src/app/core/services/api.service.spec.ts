@@ -127,4 +127,30 @@ describe('ApiService', () => {
       });
     });
   });
+
+  describe('User Provisioning Operations', () => {
+    it('should post createUser payload to backend endpoint', (done) => {
+      const mockResult = {
+        user: { id: 'u1', email: 'alice@enterprise.com' } as any,
+        temporaryPassword: 'TempPass123!',
+        emailSent: true,
+        message: 'User created and welcome email dispatched successfully.',
+      };
+      httpClientMock.post.mockReturnValue(of(mockResult));
+
+      const payload = {
+        email: 'alice@enterprise.com',
+        firstName: 'Alice',
+        lastName: 'Smith',
+        departments: ['Engineering'],
+        allowedFolders: ['General'],
+      };
+
+      service.createUser(payload).subscribe((res) => {
+        expect(res).toEqual(mockResult);
+        expect(httpClientMock.post).toHaveBeenCalledWith('http://localhost:3000/api/users', payload);
+        done();
+      });
+    });
+  });
 });

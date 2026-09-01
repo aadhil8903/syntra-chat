@@ -6,7 +6,7 @@ import { ModalDialogService } from '../../core/services/modal-dialog.service';
 import { IUser, UserRole, ICreateUserDto } from '@enter-chat/shared-types';
 import { FolderTreePickerComponent } from '../../shared/components/folder-tree-picker/folder-tree-picker.component';
 import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-admin',
@@ -446,6 +446,7 @@ export class AdminComponent implements OnInit {
     this.newUserSelectedFolders = [];
     this.newUserSelectedDepartments = [];
     this.createUserError = '';
+    this.creatingUser = false;
     this.showCreateModal = true;
   }
 
@@ -473,35 +474,56 @@ export class AdminComponent implements OnInit {
       payload.masterAdminPassword = this.newUserMasterAdminPassword.trim();
     }
 
-    this.api.createUser(payload).subscribe({
-      next: (res: any) => {
-        const userObj = res.user || res;
-        this.users.unshift(userObj);
-        this.showCreateModal = false;
-        this.creatingUser = false;
-        this.newUserMasterAdminPassword = '';
-        this.createdUserResult = {
-          user: userObj,
-          temporaryPassword: res.temporaryPassword || '',
-          emailSent: res.emailSent ?? false,
-          message: res.message || '',
-        };
-        this.showCreatedUserModal = true;
-        this.copiedPassword = false;
-        this.loadAvailableFoldersAndDeps();
-      },
-      error: (err) => {
-        this.creatingUser = false;
-        const msg = err.error?.message;
-        if (Array.isArray(msg)) {
-          this.createUserError = msg.join(', ');
-        } else if (typeof msg === 'string') {
-          this.createUserError = msg;
-        } else {
-          this.createUserError = 'Failed to create user. A user with this email may already exist.';
-        }
-      },
-    });
+    this.api
+      .createUser(payload)
+      .pipe(
+        finalize(() => {
+          this.creatingUser = false;
+        }),
+      )
+      .subscribe({
+        next: (res: any) => {
+          const userObj = res.user || res;
+          this.users.unshift(userObj);
+          this.showCreateModal = false;
+          this.newUserMasterAdminPassword = '';
+          this.newUser = {
+            firstName: '',
+            lastName: '',
+            email: '',
+            role: UserRole.USER,
+            departments: [],
+            allowedFolders: [],
+          };
+          this.newUserSelectedFolders = [];
+          this.newUserSelectedDepartments = [];
+          this.createdUserResult = {
+            user: userObj,
+            temporaryPassword: res.temporaryPassword || '',
+            emailSent: res.emailSent ?? false,
+            message: res.message || '',
+          };
+          this.showCreatedUserModal = true;
+          this.copiedPassword = false;
+          this.loadUsers();
+          this.loadAvailableFoldersAndDeps();
+        },
+        error: (err) => {
+          if (err.name === 'TimeoutError') {
+            this.createUserError =
+              'User provisioning request timed out. Please check your network connection or refresh the page.';
+          } else {
+            const msg = err.error?.message;
+            if (Array.isArray(msg)) {
+              this.createUserError = msg.join(', ');
+            } else if (typeof msg === 'string') {
+              this.createUserError = msg;
+            } else {
+              this.createUserError = 'Failed to create user. A user with this email may already exist.';
+            }
+          }
+        },
+      });
   }
 
   copyCreatedPassword(pass: string): void {

@@ -63,6 +63,7 @@ export class MessagesService {
   async sendMessage(
     userId: string,
     dto: SendMessageDto,
+    userRole?: string,
   ): Promise<ISendMessageResponse> {
     const { conversationId, content, referencedResourceIds = [] } = dto;
 
@@ -244,6 +245,7 @@ export class MessagesService {
     // 6. Call AI Service via AiGateway
     const aiResponse = await this.aiGatewayService.chat({
       userId,
+      userRole,
       conversationId,
       message: content,
       resourceIds: combinedResourceIds,
@@ -320,6 +322,7 @@ export class MessagesService {
     userId: string,
     dto: SendMessageDto,
     res: any,
+    userRole?: string,
   ): Promise<void> {
     const { conversationId, content, referencedResourceIds = [] } = dto;
 
@@ -505,6 +508,7 @@ export class MessagesService {
       try {
         const stream = await this.aiGatewayService.streamChat({
           userId,
+          userRole,
           conversationId,
           message: content,
           resourceIds: combinedResourceIds,

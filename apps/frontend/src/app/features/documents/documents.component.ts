@@ -709,7 +709,7 @@ export class DocumentsComponent implements OnInit, OnDestroy {
   }
 
   get isAdmin(): boolean {
-    return this.currentUser?.role === 'admin';
+    return this.authService.isAdmin();
   }
 
   get availableFolderList(): string[] {

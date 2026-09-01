@@ -65,12 +65,23 @@ async def resolve_context_node(state: AgentState) -> Dict[str, Any]:
     users_col = db["users"]
     access_req_col = db["accessrequests"]
     
-    user_doc = users_col.find_one({"_id": user_obj_id})
+    user_query = [{"_id": user_obj_id}]
+    if str(user_id) != str(user_obj_id):
+        user_query.append({"_id": str(user_id)})
+    user_doc = users_col.find_one({"$or": user_query}) if user_query else None
     if user_doc and user_doc.get("status") == "suspended":
         logger.warning(f"User {user_id} is suspended. Access denied.")
         return {"resolved_documents": [], "resolved_datasets": []}
 
-    is_admin = bool(user_doc and user_doc.get("role") == "admin")
+    role_from_doc = str(user_doc.get("role", "")).lower().strip() if user_doc else ""
+    roles_from_doc = [str(r).lower().strip() for r in (user_doc.get("roles") or [])] if user_doc else []
+    payload_role = str(state.get("user_role", "")).lower().strip()
+
+    is_admin = (
+        role_from_doc in ["admin", "master_admin", "superadmin"]
+        or payload_role in ["admin", "master_admin", "superadmin"]
+        or any(r in ["admin", "master_admin", "superadmin"] for r in roles_from_doc)
+    )
     user_deps = user_doc.get("departments", []) if user_doc else []
     allowed_folders = user_doc.get("allowedFolders", []) if user_doc else []
     
@@ -129,7 +140,7 @@ async def resolve_context_node(state: AgentState) -> Dict[str, Any]:
         for r_id in resource_ids:
             try:
                 obj_id = ObjectId(r_id) if ObjectId.is_valid(r_id) else r_id
-                doc = docs_col.find_one({"_id": obj_id})
+                doc = docs_col.find_one({"_id": obj_id}) or docs_col.find_one({"_id": str(r_id)})
                 if doc:
                     if user_has_resource_access(doc):
                         doc["id"] = str(doc["_id"])
@@ -173,7 +184,7 @@ async def resolve_context_node(state: AgentState) -> Dict[str, Any]:
                         logger.info(f"User {user_id} denied access to document {r_id} due to folder ACL")
                     continue
                 
-                ds = datasets_col.find_one({"_id": obj_id})
+                ds = datasets_col.find_one({"_id": obj_id}) or datasets_col.find_one({"_id": str(r_id)})
                 if ds:
                     if user_has_resource_access(ds):
                         ds["id"] = str(ds["_id"])
@@ -218,6 +229,7 @@ async def resolve_context_node(state: AgentState) -> Dict[str, Any]:
     return {
         "resolved_documents": resolved_docs,
         "resolved_datasets": resolved_datasets,
+        "is_admin": is_admin,
     }
 
 
@@ -319,9 +331,14 @@ async def document_rag_node(state: AgentState) -> Dict[str, Any]:
     )
 
     if not resolved_docs and not citations:
+        is_admin = state.get("is_admin", False)
+        if is_admin:
+            denial_msg = "No relevant documents were found in the workspace matching your query."
+        else:
+            denial_msg = "Access to the requested document or folder is restricted for your account. Please contact an administrator to request access."
         return {
             "citations": [],
-            "final_answer": "Access to the requested document or folder is restricted for your account. Please contact an administrator to request access.",
+            "final_answer": denial_msg,
             "analysis_raw_result": "",
         }
 
@@ -382,12 +399,17 @@ async def data_analysis_node(state: AgentState) -> Dict[str, Any]:
     history = state.get("history", [])
 
     if not resolved_datasets:
+        is_admin = state.get("is_admin", False)
+        if is_admin:
+            denial_msg = "No analytical datasets were found in the workspace. Please upload or attach a CSV or Excel dataset to perform data analysis."
+        else:
+            denial_msg = "Access to the requested analytical dataset or folder is restricted for your account. Please contact an administrator to request access."
         return {
             "analysis_table": None,
             "analysis_raw_result": None,
             "python_code": None,
             "execution_output": None,
-            "final_answer": "Access to the requested analytical dataset or folder is restricted for your account. Please contact an administrator to request access.",
+            "final_answer": denial_msg,
         }
 
     all_dfs: Dict[str, Any] = {}
@@ -476,6 +498,13 @@ async def chart_builder_node(state: AgentState) -> Dict[str, Any]:
     elif table_spec is not None:
         data_context = table_spec.model_dump() if hasattr(table_spec, 'model_dump') else table_spec
     else:
+        final_answer_lower = final_answer.lower()
+        if "restricted" in final_answer_lower or "contact an administrator" in final_answer_lower or "no analytical datasets" in final_answer_lower:
+            return {
+                "chart_spec": None,
+                "chart_specs": [],
+                "final_answer": final_answer,
+            }
         data_context = final_answer
 
     # Fallback to load dataset preview directly if data_context is weak or missing
@@ -603,6 +632,11 @@ def build_agent_graph():
 
     # Build charts if intent is CHART_REQUEST or user message requests visualization
     def should_build_chart_from_analysis(state: AgentState) -> Literal["chart_builder", "__end__"]:
+        final_answer = state.get("final_answer", "").lower()
+        if "restricted" in final_answer or "contact an administrator" in final_answer or "no analytical datasets" in final_answer:
+            return "__end__"
+        if not state.get("resolved_datasets"):
+            return "__end__"
         intent = state.get("intent")
         if intent == AgentIntent.CHART_REQUEST:
             return "chart_builder"
@@ -613,6 +647,11 @@ def build_agent_graph():
         return "__end__"
 
     def should_build_chart_from_doc(state: AgentState) -> Literal["chart_builder", "__end__"]:
+        final_answer = state.get("final_answer", "").lower()
+        if "restricted" in final_answer or "contact an administrator" in final_answer:
+            return "__end__"
+        if not state.get("resolved_documents") and not state.get("citations"):
+            return "__end__"
         intent = state.get("intent")
         if intent == AgentIntent.CHART_REQUEST:
             return "chart_builder"

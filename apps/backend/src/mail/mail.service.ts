@@ -47,6 +47,9 @@ export class MailService {
           this.transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: { user, pass },
+            connectionTimeout: 5000,
+            greetingTimeout: 5000,
+            socketTimeout: 8000,
           });
           this.logger.log(`Gmail SMTP Transporter initialized for ${user}`);
         } else {
@@ -58,6 +61,9 @@ export class MailService {
             tls: {
               rejectUnauthorized: false,
             },
+            connectionTimeout: 5000,
+            greetingTimeout: 5000,
+            socketTimeout: 8000,
           });
           this.logger.log(`SMTP Transporter initialized: ${host}:${port} (secure: ${isSecure}, user: ${user})`);
         }
@@ -254,16 +260,20 @@ The Syntra Chat Platform Team`;
 </html>
 `;
 
-    // 1. Try sending via Resend API
+    // 1. Try sending via Resend API (with strict 5s timeout)
     if (this.resendClient) {
       try {
-        const { data, error } = await this.resendClient.emails.send({
-          from: fromAddress,
-          to: toEmail,
-          subject,
-          text: textContent,
-          html: htmlContent,
-        });
+        const { data, error } = await this.executeWithTimeout(
+          this.resendClient.emails.send({
+            from: fromAddress,
+            to: toEmail,
+            subject,
+            text: textContent,
+            html: htmlContent,
+          }),
+          5000,
+          'Resend dispatch',
+        );
 
         if (!error && data?.id) {
           this.logger.log(`Welcome email successfully sent to ${toEmail} via Resend (ID: ${data.id})`);
@@ -277,16 +287,20 @@ The Syntra Chat Platform Team`;
       }
     }
 
-    // 2. Try sending via SMTP (Nodemailer)
+    // 2. Try sending via SMTP (Nodemailer with strict 5s timeout)
     if (this.transporter) {
       try {
-        await this.transporter.sendMail({
-          from: fromAddress,
-          to: toEmail,
-          subject,
-          text: textContent,
-          html: htmlContent,
-        });
+        await this.executeWithTimeout(
+          this.transporter.sendMail({
+            from: fromAddress,
+            to: toEmail,
+            subject,
+            text: textContent,
+            html: htmlContent,
+          }),
+          5000,
+          'SMTP dispatch',
+        );
         this.logger.log(`Welcome email successfully sent to ${toEmail} via SMTP`);
         return true;
       } catch (err: any) {
@@ -301,5 +315,24 @@ The Syntra Chat Platform Team`;
       `[DEVELOPMENT FALLBACK] Welcome credentials generated for ${toEmail}. Mail delivery unavailable (no RESEND_API_KEY or SMTP credentials configured).`,
     );
     return false;
+  }
+
+  private async executeWithTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    operationName: string,
+  ): Promise<T> {
+    let timeoutHandle: NodeJS.Timeout;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        reject(new Error(`${operationName} timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+    });
+
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      clearTimeout(timeoutHandle!);
+    }
   }
 }

@@ -39,4 +39,22 @@ describe('RolesGuard (RBAC & Privilege Escalation Defense)', () => {
     const context = createMockContext({ role: UserRole.USER });
     expect(guard.canActivate(context)).toBe(false);
   });
+
+  it('should allow Admin user when role is uppercase "ADMIN"', () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.ADMIN]);
+    const context = createMockContext({ role: 'ADMIN' });
+    expect(guard.canActivate(context)).toBe(true);
+  });
+
+  it('should allow user when admin is in roles array', () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.ADMIN]);
+    const context = createMockContext({ roles: ['user', 'admin'] });
+    expect(guard.canActivate(context)).toBe(true);
+  });
+
+  it('should deny when context has no user', () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([UserRole.ADMIN]);
+    const context = createMockContext(null);
+    expect(guard.canActivate(context)).toBe(false);
+  });
 });

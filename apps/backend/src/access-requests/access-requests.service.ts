@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef 
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Types, Connection } from 'mongoose';
 import { AccessRequestEntity, AccessRequestDocument } from './schemas/access-request.schema';
-import { IAccessRequest, ICreateAccessRequestDto, IUpdateAccessRequestDto, AccessRequestStatus, ResourceType } from '@enter-chat/shared-types';
+import { IAccessRequest, ICreateAccessRequestDto, IUpdateAccessRequestDto, AccessRequestStatus, ResourceType, isUserAdmin } from '@enter-chat/shared-types';
 import { UsersService } from '../users/users.service';
 
 @Injectable()
@@ -16,6 +16,13 @@ export class AccessRequestsService {
   ) {}
 
   async createRequest(userId: string, dto: ICreateAccessRequestDto): Promise<IAccessRequest> {
+    const user = await this.usersService.findById(userId);
+    if (isUserAdmin(user)) {
+      throw new BadRequestException(
+        'Administrators already possess unrestricted access to all system datasets, documents, and folders',
+      );
+    }
+
     const existing = await this.accessRequestModel.findOne({
       userId: new Types.ObjectId(userId),
       resourceId: dto.resourceId.toString(),

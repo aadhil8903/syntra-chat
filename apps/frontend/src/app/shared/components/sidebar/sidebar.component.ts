@@ -154,7 +154,7 @@ export class SidebarComponent implements OnInit {
   private startWidth = 240;
 
   get isAdmin() {
-    return this.authService.getUserRole() === 'admin';
+    return this.authService.isAdmin();
   }
 
   ngOnInit(): void {

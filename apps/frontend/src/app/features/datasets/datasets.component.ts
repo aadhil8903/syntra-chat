@@ -484,7 +484,7 @@ export class DatasetsComponent implements OnInit, OnDestroy {
   private readonly STORAGE_KEY = 'syntra_chat_dataset_folders';
 
   get isAdmin(): boolean {
-    return this.auth.getUserRole() === 'admin';
+    return this.auth.isAdmin();
   }
 
   datasets: IDataset[] = [];
