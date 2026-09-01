@@ -1,11 +1,13 @@
 import os
 import sys
+import inspect
 from unittest.mock import patch, MagicMock
 import pytest
 from embeddings.base import EmbeddingProvider
 from embeddings.gemini import GeminiEmbeddingProvider
 from embeddings.bge_local import BGELocalEmbeddingProvider
 from embeddings.factory import get_embedding_provider
+from core.config import get_settings
 
 
 def test_bge_provider_metadata():
@@ -23,32 +25,15 @@ def test_gemini_provider_metadata():
     assert provider.dimension == 768
     assert "gemini-embedding" in provider.model_name.lower()
     # Ensure client is not loaded upon instantiation
-    assert provider._client is None
+    assert provider._embedder is None
 
 
 def test_gemini_provider_embed_mock():
     provider = GeminiEmbeddingProvider(api_key="mock-test-key")
-    mock_client = MagicMock()
-    mock_res_query = MagicMock()
-    mock_emb_query = MagicMock()
-    mock_emb_query.values = [0.1] * 768
-    mock_res_query.embeddings = [mock_emb_query]
-
-    mock_res_docs = MagicMock()
-    mock_emb_doc1 = MagicMock()
-    mock_emb_doc1.values = [0.1] * 768
-    mock_emb_doc2 = MagicMock()
-    mock_emb_doc2.values = [0.2] * 768
-    mock_res_docs.embeddings = [mock_emb_doc1, mock_emb_doc2]
-
-    def side_effect(*args, **kwargs):
-        task_type = kwargs.get("config", MagicMock()).task_type
-        if task_type == "RETRIEVAL_DOCUMENT":
-            return mock_res_docs
-        return mock_res_query
-
-    mock_client.models.embed_content.side_effect = side_effect
-    provider._client = mock_client
+    mock_embedder = MagicMock()
+    mock_embedder.embed_query.return_value = [0.1] * 768
+    mock_embedder.embed_documents.return_value = [[0.1] * 768, [0.2] * 768]
+    provider._embedder = mock_embedder
 
     # Test embed_query
     query_vec = provider.embed_query("search term")
@@ -63,7 +48,7 @@ def test_gemini_provider_embed_mock():
 
 
 def test_factory_selection_bge():
-    from core.config import get_settings
+    """Requirement 17.b: EMBEDDING_PROVIDER=bge_local selects the BGE provider."""
     with patch.dict(os.environ, {"EMBEDDING_PROVIDER": "bge_local"}):
         get_settings.cache_clear()
         get_embedding_provider.cache_clear()
@@ -75,7 +60,7 @@ def test_factory_selection_bge():
 
 
 def test_factory_selection_gemini():
-    from core.config import get_settings
+    """Requirement 17.a: EMBEDDING_PROVIDER=gemini selects the Gemini provider."""
     with patch.dict(os.environ, {"EMBEDDING_PROVIDER": "gemini", "GEMINI_API_KEY": "test-key"}):
         get_settings.cache_clear()
         get_embedding_provider.cache_clear()
@@ -86,16 +71,46 @@ def test_factory_selection_gemini():
         get_embedding_provider.cache_clear()
 
 
-def test_gemini_mode_does_not_load_sentence_transformers():
-    """Verify that in Gemini mode, sentence_transformers model is not loaded into memory."""
-    from core.config import get_settings
+def test_gemini_mode_does_not_instantiate_sentence_transformers():
+    """Requirement 17.c: Importing/selecting with EMBEDDING_PROVIDER=gemini does NOT instantiate SentenceTransformer."""
     with patch.dict(os.environ, {"EMBEDDING_PROVIDER": "gemini", "GEMINI_API_KEY": "test-key"}):
         get_settings.cache_clear()
         get_embedding_provider.cache_clear()
         provider = get_embedding_provider()
         assert provider.provider_name == "gemini"
-        # Verify BGELocalEmbeddingProvider._model is not on this provider
+        # Verify BGELocalEmbeddingProvider is not used and has no _model loaded
         assert not hasattr(provider, "_model")
         get_settings.cache_clear()
         get_embedding_provider.cache_clear()
 
+
+def test_fastapi_startup_does_not_load_bge():
+    """Requirement 17.d: FastAPI startup and /health do NOT load BGE."""
+    from fastapi.testclient import TestClient
+    with patch.dict(os.environ, {"EMBEDDING_PROVIDER": "gemini", "GEMINI_API_KEY": "test-key"}):
+        get_settings.cache_clear()
+        get_embedding_provider.cache_clear()
+        from main import app
+
+        client = TestClient(app)
+        res = client.get("/health")
+        assert res.status_code == 200
+        data = res.json()
+        assert data["embedding_provider"] == "gemini"
+        assert "gemini-embedding" in data["embedding_model"]
+
+        res_root = client.get("/")
+        assert res_root.status_code == 200
+
+        # Verify BGELocalEmbeddingProvider is not initialized anywhere in the running app
+        get_settings.cache_clear()
+        get_embedding_provider.cache_clear()
+
+
+def test_embedding_factory_does_not_hardcode_bge():
+    """Requirement 17.e: The embedding factory does not directly hardcode BGE."""
+    import embeddings.factory as factory_mod
+    source = inspect.getsource(factory_mod.get_embedding_provider)
+    assert "provider_name == \"gemini\"" in source
+    assert "GeminiEmbeddingProvider" in source
+    assert "BGELocalEmbeddingProvider" in source

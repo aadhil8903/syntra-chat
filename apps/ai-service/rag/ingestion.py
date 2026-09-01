@@ -5,7 +5,6 @@ from typing import List, Dict, Any, Tuple
 from bson import ObjectId
 from pypdf import PdfReader
 from docx import Document as DocxDocument
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from embeddings.factory import get_embedding_provider
 from core.database import get_database
 from core.config import get_settings
@@ -157,6 +156,7 @@ def process_and_ingest_document(
         return 0
 
     # 3. Split into chunks
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=settings.CHUNK_SIZE,
         chunk_overlap=settings.CHUNK_OVERLAP,

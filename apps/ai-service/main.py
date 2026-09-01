@@ -38,12 +38,14 @@ app.include_router(datasets.router)
 async def on_startup():
     logger.info(f"Starting {settings.SERVICE_NAME} on port {settings.PORT}")
     logger.info(f"LLM Provider: {settings.LLM_PROVIDER}")
-    model_name = (
-        settings.GEMINI_EMBEDDING_MODEL
-        if (settings.EMBEDDING_PROVIDER or "").lower() == "gemini"
-        else settings.BGE_MODEL
-    )
-    logger.info(f"Embedding Provider: {settings.EMBEDDING_PROVIDER} ({model_name})")
+    provider = (settings.EMBEDDING_PROVIDER or "bge_local").strip().strip("'\"").lower()
+    if provider == "gemini":
+        clean_model = settings.GEMINI_EMBEDDING_MODEL.replace("models/", "")
+        logger.info("Embedding provider: gemini")
+        logger.info(f"Using Gemini embedding model: {clean_model}")
+    else:
+        logger.info("Embedding provider: bge_local")
+        logger.info(f"Using local BGE embedding model: {settings.BGE_MODEL}")
 
 if __name__ == "__main__":
     import uvicorn
