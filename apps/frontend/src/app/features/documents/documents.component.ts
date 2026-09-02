@@ -1,6 +1,8 @@
 import { Component, OnInit, OnDestroy, inject, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router, ActivatedRoute } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { IDocument, DocumentStatus, ResourceType } from '@enter-chat/shared-types';
 import { AuthService } from '../../core/services/auth.service';
@@ -12,7 +14,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="relative p-6 lg:p-8 max-w-7xl mx-auto space-y-6 animate-fade-in text-zinc-200">
+    <div class="relative p-4 sm:p-6 lg:p-8 w-full max-w-7xl mx-auto space-y-6 animate-fade-in text-zinc-200">
       <!-- OS Drag & Drop Full Area Dashed Overlay Cue (Admin Only) -->
       @if (isOsDragOver && isAdmin) {
         <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-8 pointer-events-none animate-fade-in">
@@ -40,12 +42,18 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
 
       <!-- Sheet / Tabular Preview Modal -->
       @if (selectedTabularDoc) {
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div class="w-full max-w-4xl max-h-[85vh] bg-[#111114] border border-zinc-800 rounded-2xl flex flex-col overflow-hidden">
+        <div
+          class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-sm animate-fade-in"
+          (click)="closeTabularPreview()"
+        >
+          <div
+            class="w-full max-w-5xl max-h-[88vh] bg-[#111114] border border-zinc-800 rounded-2xl flex flex-col overflow-hidden shadow-2xl"
+            (click)="$event.stopPropagation()"
+          >
             <!-- Modal Header -->
-            <div class="flex items-center justify-between p-5 border-b border-zinc-800">
+            <div class="flex items-center justify-between p-4 sm:p-5 border-b border-zinc-800">
               <div class="flex items-center gap-3 truncate">
-                <div class="p-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300">
+                <div class="p-2 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 flex-shrink-0">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
@@ -59,7 +67,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                   </div>
                 </div>
               </div>
-              <button (click)="selectedTabularDoc = null" class="text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors">
+              <button (click)="closeTabularPreview()" class="text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors" title="Close (Esc)">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -82,7 +90,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
             }
 
             <!-- Sheet Data Content -->
-            <div class="flex-1 overflow-y-auto p-5 space-y-4">
+            <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
               @if (currentActiveSheet) {
                 <!-- Columns Schema Tags -->
                 <div class="space-y-1.5">
@@ -101,7 +109,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                 <div class="space-y-1.5">
                   <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Sample Data Preview</div>
                   <div class="border border-zinc-800 rounded-xl overflow-x-auto bg-[#09090b]">
-                    <table class="w-full text-left text-xs font-mono">
+                    <table class="w-full min-w-[600px] text-left text-xs font-mono">
                       <thead class="bg-[#141417] text-zinc-400 border-b border-zinc-800">
                         <tr>
                           @for (col of currentActiveSheet.columns; track col.name) {
@@ -133,8 +141,14 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
 
       <!-- In-App Access Request Modal Dialog -->
       @if (showAccessModal && targetAccessItem) {
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div class="w-full max-w-md bg-[#111114] border border-zinc-800 rounded-2xl shadow-2xl p-6 space-y-4">
+        <div
+          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+          (click)="closeAccessModal()"
+        >
+          <div
+            class="w-full max-w-md bg-[#111114] border border-zinc-800 rounded-2xl shadow-2xl p-6 space-y-4"
+            (click)="$event.stopPropagation()"
+          >
             <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
               <div class="flex items-center gap-2.5">
                 <div class="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300">
@@ -147,7 +161,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                   <p class="text-xs text-zinc-400 font-mono truncate max-w-xs">{{ targetAccessItem.name }}</p>
                 </div>
               </div>
-              <button (click)="closeAccessModal()" class="text-zinc-400 hover:text-white">
+              <button (click)="closeAccessModal()" class="text-zinc-400 hover:text-white" title="Close (Esc)">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -188,8 +202,14 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
 
       <!-- Move Document to Folder Modal -->
       @if (showMoveModal && moveTargetDoc) {
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div class="w-full max-w-md bg-[#111114] border border-zinc-800 rounded-2xl p-6 space-y-4">
+        <div
+          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+          (click)="closeMoveModal()"
+        >
+          <div
+            class="w-full max-w-md bg-[#111114] border border-zinc-800 rounded-2xl shadow-2xl p-6 space-y-4"
+            (click)="$event.stopPropagation()"
+          >
             <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
               <div class="flex items-center gap-2.5">
                 <div class="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300">
@@ -202,7 +222,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                   <p class="text-xs text-zinc-400 font-mono truncate max-w-xs">{{ moveTargetDoc.originalName }}</p>
                 </div>
               </div>
-              <button (click)="closeMoveModal()" class="text-zinc-400 hover:text-white">
+              <button (click)="closeMoveModal()" class="text-zinc-400 hover:text-white" title="Close (Esc)">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -486,18 +506,18 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
             </p>
           </div>
         } @else {
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
+          <div class="overflow-x-auto w-full">
+            <table class="w-full min-w-[880px] text-left text-xs">
               <thead class="bg-[#09090b] text-zinc-400 text-[11px] font-semibold uppercase tracking-wider border-b border-zinc-800">
                 <tr>
-                  <th class="px-5 py-3.5">File Name</th>
-                  <th class="px-4 py-3.5">Folder</th>
-                  <th class="px-3 py-3.5 text-center">Format</th>
-                  <th class="px-4 py-3.5">Status</th>
-                  <th class="px-4 py-3.5 font-mono">Chunks / Rows</th>
-                  <th class="px-4 py-3.5 font-mono">Size</th>
-                  <th class="px-4 py-3.5">Uploaded</th>
-                  <th class="px-5 py-3.5 text-right">Actions</th>
+                  <th class="px-5 py-3.5 min-w-[200px]">File Name</th>
+                  <th class="px-4 py-3.5 min-w-[110px]">Folder</th>
+                  <th class="px-3 py-3.5 text-center min-w-[75px]">Format</th>
+                  <th class="px-4 py-3.5 min-w-[105px]">Status</th>
+                  <th class="px-4 py-3.5 font-mono min-w-[110px]">Chunks / Rows</th>
+                  <th class="px-4 py-3.5 font-mono min-w-[80px]">Size</th>
+                  <th class="px-4 py-3.5 min-w-[110px]">Uploaded</th>
+                  <th class="px-5 py-3.5 text-right min-w-[150px]">Actions</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-zinc-800/60">
@@ -529,7 +549,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                             </svg>
                           </div>
                         }
-                        <div class="font-medium text-zinc-200 truncate max-w-xs group-hover:text-white transition-colors">
+                        <div class="font-medium text-zinc-200 truncate max-w-xs md:max-w-md group-hover:text-white transition-colors" [title]="doc.originalName">
                           {{ doc.originalName }}
                         </div>
                       </div>
@@ -663,6 +683,8 @@ export class DocumentsComponent implements OnInit, OnDestroy {
   private readonly apiService = inject(ApiService);
   private readonly authService = inject(AuthService);
   private readonly modal = inject(ModalDialogService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly DocumentStatus = DocumentStatus;
 
@@ -674,6 +696,7 @@ export class DocumentsComponent implements OnInit, OnDestroy {
   searchQuery = '';
 
   activeFolder: string | null = null;
+  private routeSub?: Subscription;
   showNewFolderInput = false;
   newFolderName = '';
   newFolderDepartments: string[] = [];
@@ -708,6 +731,28 @@ export class DocumentsComponent implements OnInit, OnDestroy {
 
   selectedTabularDoc: IDocument | null = null;
   activeSheetIndex = 0;
+
+  @HostListener('document:keydown.escape', ['$event'])
+  onEscapeKey(_event: KeyboardEvent): void {
+    if (this.selectedTabularDoc) {
+      this.closeTabularPreview();
+      return;
+    }
+    if (this.showMoveModal) {
+      this.closeMoveModal();
+      return;
+    }
+    if (this.showAccessModal) {
+      this.closeAccessModal();
+      return;
+    }
+    if (this.showNewFolderInput) {
+      this.showNewFolderInput = false;
+      this.newFolderName = '';
+      this.newFolderDepartments = [];
+      return;
+    }
+  }
 
   get currentUser() {
     return this.authService.currentUser();
@@ -803,10 +848,17 @@ export class DocumentsComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.routeSub = this.route.queryParams.subscribe((params) => {
+      const folderParam = params['folder'];
+      const normalized = folderParam && typeof folderParam === 'string' && folderParam.trim() ? folderParam.trim() : null;
+      this.activeFolder = normalized;
+    });
     this.loadDocuments();
   }
 
-  ngOnDestroy(): void {}
+  ngOnDestroy(): void {
+    this.routeSub?.unsubscribe();
+  }
 
   isTabular(doc: IDocument): boolean {
     const ext = (doc.fileType || '').toLowerCase();
@@ -824,6 +876,11 @@ export class DocumentsComponent implements OnInit, OnDestroy {
     this.activeSheetIndex = 0;
   }
 
+  closeTabularPreview(): void {
+    this.selectedTabularDoc = null;
+    this.activeSheetIndex = 0;
+  }
+
   loadDocuments(): void {
     this.loading = true;
     this.apiService.getDocuments().subscribe({
@@ -838,7 +895,12 @@ export class DocumentsComponent implements OnInit, OnDestroy {
   }
 
   setActiveFolder(folder: string | null): void {
-    this.activeFolder = folder;
+    const target = folder && folder.trim() ? folder.trim() : null;
+    if (this.activeFolder === target) return;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { folder: target },
+    });
   }
 
   toggleNewFolderDept(dept: string): void {
@@ -858,7 +920,7 @@ export class DocumentsComponent implements OnInit, OnDestroy {
         this.showNewFolderInput = false;
         this.newFolderName = '';
         this.newFolderDepartments = [];
-        this.activeFolder = name;
+        this.setActiveFolder(name);
         this.triggerToast(`Folder "${name}" created`);
         this.loadDocuments();
       },
@@ -877,8 +939,8 @@ export class DocumentsComponent implements OnInit, OnDestroy {
     if (!confirmed) return;
     this.apiService.deleteFolder(folder).subscribe({
       next: () => {
-        if (this.activeFolder === folder) {
-          this.activeFolder = null;
+        if (this.activeFolder === folder || (this.activeFolder && this.activeFolder.startsWith(folder + '/'))) {
+          this.setActiveFolder(null);
         }
         this.triggerToast(`Folder "${folder}" deleted`);
         this.loadDocuments();

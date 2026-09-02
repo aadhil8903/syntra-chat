@@ -13,6 +13,7 @@ import { ModalDialogService } from '../../../core/services/modal-dialog.service'
         class="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
         role="dialog"
         aria-modal="true"
+        (click)="modal.closeWithCancel()"
       >
         <div
           class="w-full max-w-md bg-[#111114] border border-[#27272a] rounded-2xl overflow-hidden p-6 space-y-4 text-zinc-200 animate-scale-up"
