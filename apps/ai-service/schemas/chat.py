@@ -60,12 +60,19 @@ class ChatMessageItem(BaseModel):
     content: str
 
 
+class ActiveScopeItem(BaseModel):
+    type: str  # "document", "folder", "dataset"
+    id: str
+    name: str
+
+
 class ChatRequest(BaseModel):
     userId: str
     userRole: Optional[str] = None
     conversationId: str
     message: str
     resourceIds: List[str] = Field(default_factory=list)
+    activeScope: Optional[ActiveScopeItem] = None
     sharedMemory: Optional[str] = None
     history: List[ChatMessageItem] = Field(default_factory=list)
 

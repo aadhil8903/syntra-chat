@@ -1,4 +1,5 @@
 import { ICitation } from './message.types';
+import { IActiveScope } from './conversation.types';
 
 export enum ChartType {
   BAR = 'bar',
@@ -47,6 +48,7 @@ export interface IAiChatRequest {
   conversationId: string;
   message: string;
   resourceIds: string[];
+  activeScope?: IActiveScope | null;
   sharedMemory?: string;
   history?: Array<{
     role: 'user' | 'assistant' | 'system';

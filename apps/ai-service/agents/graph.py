@@ -233,8 +233,11 @@ async def resolve_context_node(state: AgentState) -> Dict[str, Any]:
     }
 
 
-def format_workspace_manifest(docs: List[Dict[str, Any]], datasets: List[Dict[str, Any]]) -> str:
+def format_workspace_manifest(docs: List[Dict[str, Any]], datasets: List[Dict[str, Any]], active_scope: Optional[Dict[str, Any]] = None) -> str:
     parts = []
+    if active_scope and active_scope.get("name"):
+        parts.append(f"### Active Conversation Focus / Scope:\n- **{active_scope.get('name')}** [{str(active_scope.get('type', 'file')).upper()}]\n")
+
     if docs:
         parts.append("### Scoped / Available Knowledge Documents:")
         for d in docs:
@@ -353,7 +356,11 @@ async def document_rag_node(state: AgentState) -> Dict[str, Any]:
             f"--- Source [{source_label}: {c.filename}{page_str}] ---\n{c.textSnippet}"
         )
     context_str = "\n\n".join(context_parts)
+    active_scope = state.get("active_scope")
     sources_text = ""
+    if active_scope and active_scope.get("name"):
+        sources_text += f"--- Active Conversation Knowledge Scope ---\nActive Focus: {active_scope.get('name')} [{str(active_scope.get('type', 'file')).upper()}]\n\n"
+
     if shared_memory:
         sources_text += f"--- Source [Collection Shared Context & Sibling Chat Facts] ---\n{shared_memory}\n\n"
 
@@ -554,9 +561,10 @@ async def general_chat_node(state: AgentState) -> Dict[str, Any]:
     history = state.get("history", [])
     resolved_docs = state.get("resolved_documents", [])
     resolved_datasets = state.get("resolved_datasets", [])
+    active_scope = state.get("active_scope")
     llm = get_llm_provider()
 
-    workspace_manifest = format_workspace_manifest(resolved_docs, resolved_datasets)
+    workspace_manifest = format_workspace_manifest(resolved_docs, resolved_datasets, active_scope=active_scope)
     shared_memory = state.get("shared_memory")
     shared_mem_str = f"\nCOLLECTION SHARED MEMORY (Established facts & decisions from related chats in this collection):\n{shared_memory}\n" if shared_memory else ""
 

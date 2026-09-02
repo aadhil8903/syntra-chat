@@ -11,12 +11,14 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 @router.post("", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
     try:
+        active_scope_dict = request.activeScope.model_dump() if request.activeScope else None
         initial_state = {
             "user_id": request.userId,
             "user_role": request.userRole,
             "conversation_id": request.conversationId,
             "message": request.message,
             "resource_ids": request.resourceIds,
+            "active_scope": active_scope_dict,
             "shared_memory": request.sharedMemory,
             "history": [{"role": h.role, "content": h.content} for h in request.history],
         }
@@ -43,12 +45,14 @@ async def chat_endpoint(request: ChatRequest):
 async def chat_stream_endpoint(request: ChatRequest):
     async def event_generator():
         try:
+            active_scope_dict = request.activeScope.model_dump() if request.activeScope else None
             initial_state = {
                 "user_id": request.userId,
                 "user_role": request.userRole,
                 "conversation_id": request.conversationId,
                 "message": request.message,
                 "resource_ids": request.resourceIds,
+                "active_scope": active_scope_dict,
                 "shared_memory": request.sharedMemory,
                 "history": [{"role": h.role, "content": h.content} for h in request.history],
             }

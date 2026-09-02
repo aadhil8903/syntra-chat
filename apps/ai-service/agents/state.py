@@ -8,6 +8,7 @@ class AgentState(TypedDict, total=False):
     conversation_id: str
     message: str
     resource_ids: List[str]
+    active_scope: Optional[Dict[str, Any]]
     shared_memory: Optional[str]
     history: List[Dict[str, str]]
 

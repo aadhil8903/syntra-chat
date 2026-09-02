@@ -2,22 +2,70 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { MessageEntity, MessageEntityDocument } from './schemas/message.schema';
 import { ConversationEntity, ConversationEntityDocument } from '../conversations/schemas/conversation.schema';
 import { SendMessageDto } from './dto/send-message.dto';
-import { IMessage, MessageRole, ISendMessageResponse } from '@enter-chat/shared-types';
+import { IMessage, MessageRole, ISendMessageResponse, IActiveScope } from '@enter-chat/shared-types';
 import { OwnershipService } from '../permissions/services/ownership.service';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import { MentionsService } from '../mentions/mentions.service';
 import { CollectionsService } from '../collections/collections.service';
 
+interface IResolvedScopeData {
+  explicitMentionedIds: string[];
+  effectiveResourceIds: string[];
+  activeScope: IActiveScope | null;
+  resolutionSource: 'explicit_mention' | 'active_scope' | 'none';
+  updatedActiveScopePayload?: IActiveScope | null;
+}
+
+/**
+ * Checks if a user's prompt is a completely unrelated external topic
+ * (such as world trivia, math puzzles, poetry) that should not have
+ * the active document/folder scope injected into the LLM request.
+ */
+function isClearlyUnrelatedQuestion(content: string): boolean {
+  const trimmed = content.trim().toLowerCase();
+  if (!trimmed) return true;
+
+  // Contextual keywords that clearly reference conversation scope or document queries
+  const contextualTerms = [
+    'file', 'files', 'document', 'documents', 'doc', 'docs', 'folder', 'folders',
+    'it', 'its', 'this', 'that', 'these', 'those', 'them',
+    'inside', 'summary', 'summarize', 'explain', 'tell me more', 'elaborate',
+    'key points', 'mention', 'section', 'sections', 'page', 'pages', 'table', 'sheet', 'data',
+    'policy', 'leave', 'vacation', 'holiday', 'handbook', 'guide', 'procedure', 'rule', 'rules',
+    'what about', 'what does', 'show me', 'list', 'details', 'points', 'who is mentioned',
+    'analyze', 'breakdown', 'chart', 'graph', 'average', 'total', 'calculate', 'cagr', 'profit'
+  ];
+
+  if (contextualTerms.some((term) => new RegExp(`\\b${term}\\b`, 'i').test(trimmed))) {
+    return false;
+  }
+
+  // Pure general trivia or small talk patterns
+  const generalTriviaPatterns = [
+    /^what is the capital of/i,
+    /^(tell me a joke|tell a joke)/i,
+    /^who (was|is) (napoleon|albert einstein|george washington|shakespeare|cleopatra|newton)/i,
+    /^what is (the speed of light|the distance to the moon|pi|2\s*\+\s*2)/i,
+    /^(write a poem|write a song|write a story) about (the ocean|trees|nature|cats|dogs|spring|space)/i,
+    /^(how are you|hello|hi|hey|good morning|good evening)$/i,
+  ];
+
+  return generalTriviaPatterns.some((pattern) => pattern.test(trimmed));
+}
+
 @Injectable()
 export class MessagesService {
+  private readonly logger = new Logger(MessagesService.name);
   private readonly activeGenerationsByUser = new Map<string, Set<string>>();
   private static readonly MAX_CONCURRENT_GENERATIONS = 2;
 
@@ -58,6 +106,250 @@ export class MessagesService {
       .exec();
 
     return messages.map((m) => this.toIMessage(m));
+  }
+
+  /**
+   * Deterministically resolves explicit mentions or active conversation scope.
+   * Enforces server-side ACL on every resolution step and maintains conversation-level persistence.
+   */
+  private async resolveScopeAndResources(
+    userId: string,
+    conv: ConversationEntityDocument,
+    content: string,
+    referencedResourceIds: string[] = [],
+  ): Promise<IResolvedScopeData> {
+    const conversationId = conv._id.toString();
+
+    // 1. Check for structured mentions: @[name](type:id)
+    const structuredMatches = [...content.matchAll(/@\[([^\]]+)\]\(([^:]+):([^\)]+)\)/g)];
+    const explicitMentionedIds: string[] = [];
+    let primaryMention: { type: 'document' | 'folder' | 'dataset'; id: string; name: string } | null = null;
+
+    for (const match of structuredMatches) {
+      const name = match[1];
+      const type = match[2];
+      const targetId = match[3];
+      const resolvedId = type === 'folder' ? (targetId.startsWith('folder:') ? targetId : `folder:${targetId}`) : targetId;
+      explicitMentionedIds.push(resolvedId);
+
+      if (!primaryMention) {
+        primaryMention = {
+          type: type === 'folder' ? 'folder' : type === 'dataset' ? 'dataset' : 'document',
+          id: resolvedId,
+          name,
+        };
+      }
+    }
+
+    // 2. Check for natural text mentions: @filename
+    const naturalMatches = content.match(/@[a-zA-Z0-9_.\-]+/g);
+    if (naturalMatches && naturalMatches.length > 0) {
+      for (const rawMention of naturalMatches) {
+        if (rawMention.startsWith('@[') || rawMention.includes('](')) continue;
+        const query = rawMention.slice(1).trim();
+        if (query && query.length >= 1) {
+          try {
+            const searchRes = await this.mentionsService.searchMentions(userId, query);
+            if (searchRes.results && searchRes.results.length > 0) {
+              const exact = searchRes.results.find(
+                (r) => r.name.toLowerCase() === query.toLowerCase() || r.name.toLowerCase().startsWith(query.toLowerCase()),
+              );
+              const target = exact || searchRes.results[0];
+              explicitMentionedIds.push(target.id);
+
+              if (!primaryMention) {
+                primaryMention = {
+                  type: target.type as 'document' | 'folder' | 'dataset',
+                  id: target.id,
+                  name: target.name,
+                };
+              }
+            }
+          } catch (e) {
+            // Ignore mention lookup errors
+          }
+        }
+      }
+    }
+
+    // Include any DTO referencedResourceIds
+    for (const rId of referencedResourceIds) {
+      if (!explicitMentionedIds.includes(rId)) {
+        explicitMentionedIds.push(rId);
+      }
+    }
+
+    // ==========================================
+    // CASE 1: EXPLICIT MENTION IN CURRENT MESSAGE
+    // ==========================================
+    if (explicitMentionedIds.length > 0) {
+      const expandedResourceIds: string[] = [];
+      for (const rId of explicitMentionedIds) {
+        if (rId.startsWith('folder:')) {
+          const folderName = rId.slice('folder:'.length).replace(/^folder:/, '');
+          const folderRegex = new RegExp(`^${folderName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(/.*)?$`, 'i');
+          try {
+            const [folderDocs, folderDatasets] = await Promise.all([
+              this.documentModel.find({ folder: folderRegex }).select('_id').exec(),
+              this.datasetModel.find({ folder: folderRegex }).select('_id').exec(),
+            ]);
+            expandedResourceIds.push(...folderDocs.map((d: any) => d._id.toString()));
+            expandedResourceIds.push(...folderDatasets.map((d: any) => d._id.toString()));
+          } catch (err) {}
+        } else {
+          expandedResourceIds.push(rId);
+        }
+      }
+
+      const uniqueExpandedIds = Array.from(new Set(expandedResourceIds));
+      const validated = await this.ownershipService.validateUserResources(userId, uniqueExpandedIds);
+      const validAccessibleResourceIds = Array.from(new Set([...validated.validDocumentIds, ...validated.validDatasetIds]));
+
+      // Resolve primary mention name & type for active scope if not yet resolved
+      const firstId = explicitMentionedIds[0];
+      let scopeType: 'document' | 'folder' | 'dataset' = 'document';
+      let scopeName = 'Document';
+
+      if (firstId.startsWith('folder:')) {
+        scopeType = 'folder';
+        scopeName = firstId.slice('folder:'.length).replace(/^folder:/, '');
+      } else {
+        try {
+          const doc = await this.documentModel.findById(firstId).select('originalName title').exec();
+          if (doc) {
+            scopeType = 'document';
+            scopeName = doc.originalName || doc.title || 'Document';
+          } else {
+            const ds = await this.datasetModel.findById(firstId).select('originalName name').exec();
+            if (ds) {
+              scopeType = 'dataset';
+              scopeName = ds.originalName || ds.name || 'Dataset';
+            }
+          }
+        } catch (e) {}
+      }
+
+      const newActiveScope: IActiveScope = {
+        type: scopeType,
+        id: firstId,
+        name: scopeName,
+        updatedAt: new Date().toISOString(),
+      };
+
+      this.logger.log(
+        `[ACTIVE_SCOPE] conversationId=${conversationId} previousScope=${conv.activeScope?.name || 'none'} explicitMention=${newActiveScope.name} resolvedScope=${newActiveScope.name} resolutionSource=explicit_mention permissionCheck=passed`,
+      );
+
+      return {
+        explicitMentionedIds,
+        effectiveResourceIds: validAccessibleResourceIds,
+        activeScope: newActiveScope,
+        resolutionSource: 'explicit_mention',
+        updatedActiveScopePayload: newActiveScope,
+      };
+    }
+
+    // ==========================================
+    // CASE 2: NO EXPLICIT MENTION — REUSE ACTIVE SCOPE
+    // ==========================================
+    if (conv.activeScope) {
+      const active = conv.activeScope;
+
+      // 1. Check if resource still exists in the database
+      let resourceExists = true;
+      if (active.type === 'document') {
+        const doc = await this.documentModel.findById(active.id).select('_id').exec();
+        if (!doc) resourceExists = false;
+      } else if (active.type === 'dataset') {
+        const ds = await this.datasetModel.findById(active.id).select('_id').exec();
+        if (!ds) resourceExists = false;
+      }
+
+      if (!resourceExists) {
+        this.logger.warn(
+          `[ACTIVE_SCOPE] conversationId=${conversationId} previousScope=${active.name} stale=true (deleted/missing) -> clearing activeScope`,
+        );
+        return {
+          explicitMentionedIds: [],
+          effectiveResourceIds: [],
+          activeScope: null,
+          resolutionSource: 'none',
+          updatedActiveScopePayload: null,
+        };
+      }
+
+      // 2. Expand folder if active scope is folder
+      const expandedIds: string[] = [];
+      if (active.type === 'folder' || active.id.startsWith('folder:')) {
+        const folderName = active.id.slice('folder:'.length).replace(/^folder:/, '') || active.name;
+        const folderRegex = new RegExp(`^${folderName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(/.*)?$`, 'i');
+        try {
+          const [folderDocs, folderDatasets] = await Promise.all([
+            this.documentModel.find({ folder: folderRegex }).select('_id').exec(),
+            this.datasetModel.find({ folder: folderRegex }).select('_id').exec(),
+          ]);
+          expandedIds.push(...folderDocs.map((d: any) => d._id.toString()));
+          expandedIds.push(...folderDatasets.map((d: any) => d._id.toString()));
+        } catch (e) {}
+      } else {
+        expandedIds.push(active.id);
+      }
+
+      // 3. Strict Permission Re-Verification
+      const validated = await this.ownershipService.validateUserResources(userId, expandedIds);
+      const validAccessibleResourceIds = Array.from(new Set([...validated.validDocumentIds, ...validated.validDatasetIds]));
+
+      if (validAccessibleResourceIds.length === 0 && expandedIds.length > 0) {
+        this.logger.warn(
+          `[ACTIVE_SCOPE] conversationId=${conversationId} scope=${active.name} permissionCheck=denied`,
+        );
+        throw new ForbiddenException(
+          'Access to the requested document or folder is restricted for your account. Please contact an administrator to request access.',
+        );
+      }
+
+      const serializedActiveScope: IActiveScope = {
+        type: active.type,
+        id: active.id,
+        name: active.name,
+        updatedAt: active.updatedAt instanceof Date ? active.updatedAt.toISOString() : (active.updatedAt as any)?.toString?.() || new Date().toISOString(),
+      };
+
+      // 4. Topic relevance check: Is the user asking a clearly unrelated question?
+      if (isClearlyUnrelatedQuestion(content)) {
+        this.logger.log(
+          `[ACTIVE_SCOPE] conversationId=${conversationId} previousScope=${active.name} explicitMention=none resolvedScope=none (unrelated topic) resolutionSource=none permissionCheck=skipped`,
+        );
+        return {
+          explicitMentionedIds: [],
+          effectiveResourceIds: [],
+          activeScope: serializedActiveScope,
+          resolutionSource: 'none',
+        };
+      }
+
+      // Follow-up / contextual inquiry on active scope
+      this.logger.log(
+        `[ACTIVE_SCOPE] conversationId=${conversationId} previousScope=${active.name} explicitMention=none resolvedScope=${active.name} resolutionSource=active_scope permissionCheck=passed`,
+      );
+
+      return {
+        explicitMentionedIds: [],
+        effectiveResourceIds: validAccessibleResourceIds,
+        activeScope: serializedActiveScope,
+        resolutionSource: 'active_scope',
+      };
+    }
+
+    // ==========================================
+    // CASE 3: NO EXPLICIT MENTION & NO ACTIVE SCOPE
+    // ==========================================
+    return {
+      explicitMentionedIds: [],
+      effectiveResourceIds: [],
+      activeScope: null,
+      resolutionSource: 'none',
+    };
   }
 
   async sendMessage(
@@ -101,215 +393,130 @@ export class MessagesService {
     this.activeGenerationsByUser.set(userId, userActive);
 
     try {
-      console.log('[DEBUG-3 Backend Parsing - Start]', { conversationId, content, referencedResourceIds });
+      // 3. Resolve Active Scope and Resource IDs
+      const scopeData = await this.resolveScopeAndResources(userId, conv, content, referencedResourceIds);
 
-    // Auto-detect any structured mention tokens (e.g. "@[study.pdf](document:68a...)" or "@[Quarter results](folder:folder:Quarter results)")
-    const structuredMatches = [...content.matchAll(/@\[([^\]]+)\]\(([^:]+):([^\)]+)\)/g)];
-    const autoResolvedIds: string[] = [];
-
-    for (const match of structuredMatches) {
-      const type = match[2];
-      const targetId = match[3];
-      if (type === 'folder') {
-        autoResolvedIds.push(targetId.startsWith('folder:') ? targetId : `folder:${targetId}`);
-      } else {
-        autoResolvedIds.push(targetId);
-      }
-    }
-
-    // Also detect natural text mentions (e.g. "@portfolio.csv" or "@test_ingestion_document.pdf")
-    const naturalMatches = content.match(/@[a-zA-Z0-9_.\-]+/g);
-    if (naturalMatches && naturalMatches.length > 0) {
-      for (const rawMention of naturalMatches) {
-        if (rawMention.startsWith('@[') || rawMention.includes('](')) continue;
-        const query = rawMention.slice(1).trim();
-        if (query && query.length >= 1) {
-          try {
-            const searchRes = await this.mentionsService.searchMentions(userId, query);
-            if (searchRes.results && searchRes.results.length > 0) {
-              const exact = searchRes.results.find(
-                (r) => r.name.toLowerCase() === query.toLowerCase() || r.name.toLowerCase().startsWith(query.toLowerCase())
-              );
-              if (exact) {
-                autoResolvedIds.push(exact.id);
-              } else {
-                autoResolvedIds.push(searchRes.results[0].id);
-              }
-            }
-          } catch (e) {
-            // Ignore mention search errors
-          }
-        }
-      }
-    }
-
-    const explicitMentionedIds = Array.from(new Set([...referencedResourceIds, ...autoResolvedIds]));
-    let allMentionedIds = [...explicitMentionedIds];
-
-    // If no explicit mentions in current message, carry forward authorized resources from recent conversation messages
-    if (allMentionedIds.length === 0) {
-      try {
-        const recentUserMsgs = await this.messageModel
-          .find({
-            conversationId: new Types.ObjectId(conversationId),
-            userId: new Types.ObjectId(userId),
-            referencedResourceIds: { $exists: true, $ne: [] },
-          })
-          .sort({ createdAt: -1 })
-          .limit(3)
-          .exec();
-
-        for (const prevMsg of recentUserMsgs) {
-          if (prevMsg.referencedResourceIds && prevMsg.referencedResourceIds.length > 0) {
-            allMentionedIds.push(...prevMsg.referencedResourceIds);
-          }
-        }
-        allMentionedIds = Array.from(new Set(allMentionedIds));
-      } catch (err) {}
-    }
-
-    // Expand any folder mentions (e.g. "folder:Quarter results") to their contained file IDs
-    const expandedResourceIds: string[] = [];
-    for (const rId of allMentionedIds) {
-      if (rId.startsWith('folder:')) {
-        const folderName = rId.slice('folder:'.length).replace(/^folder:/, '');
-        const folderRegex = new RegExp(`^${folderName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(/.*)?$`, 'i');
-        try {
-          const [folderDocs, folderDatasets] = await Promise.all([
-            this.documentModel.find({ folder: folderRegex }).select('_id').exec(),
-            this.datasetModel.find({ folder: folderRegex }).select('_id').exec(),
-          ]);
-          expandedResourceIds.push(...folderDocs.map((d: any) => d._id.toString()));
-          expandedResourceIds.push(...folderDatasets.map((d: any) => d._id.toString()));
-        } catch (err) {
-          // Continue if folder query fails
-        }
-      } else {
-        expandedResourceIds.push(rId);
-      }
-    }
-
-    const uniqueExpandedIds = Array.from(new Set(expandedResourceIds));
-    console.log('[DEBUG-4 Content Resolution]', { allMentionedIds, uniqueExpandedIds, resolvedCount: uniqueExpandedIds.length });
-
-    // 2. Verify and isolate referenced resources: Strictly filter out any unauthorized resources
-    const validAccessibleResourceIds: string[] = [];
-    if (uniqueExpandedIds.length > 0) {
-      const validated = await this.ownershipService.validateUserResources(userId, uniqueExpandedIds);
-      validAccessibleResourceIds.push(...validated.validDocumentIds, ...validated.validDatasetIds);
-    }
-
-    // 3. Save User Message (ONLY save explicit user mentions to prevent unwanted UI chip badges)
-    const userMsgDoc = new this.messageModel({
-      conversationId: new Types.ObjectId(conversationId),
-      userId: new Types.ObjectId(userId),
-      role: MessageRole.USER,
-      content,
-      referencedResourceIds: explicitMentionedIds,
-    });
-    const savedUserMsg = await userMsgDoc.save();
-
-    // 4. Validate and filter ANY legacy attached resources from the conversation
-    const validConvAttachedIds: string[] = [];
-    if (conv.attachedResourceIds && conv.attachedResourceIds.length > 0) {
-      const validated = await this.ownershipService.validateUserResources(userId, conv.attachedResourceIds);
-      validConvAttachedIds.push(...validated.validDocumentIds, ...validated.validDatasetIds);
-    }
-
-    const combinedResourceIds = Array.from(
-      new Set([...validConvAttachedIds, ...validAccessibleResourceIds]),
-    );
-
-    // 5. Fetch previous conversation history (up to 50 recent messages in chronological order)
-    const pastMessages = await this.messageModel
-      .find({
+      // 4. Save User Message (ONLY save explicit user mentions to prevent unwanted UI chip badges)
+      const userMsgDoc = new this.messageModel({
         conversationId: new Types.ObjectId(conversationId),
         userId: new Types.ObjectId(userId),
-        _id: { $ne: savedUserMsg._id },
-      })
-      .sort({ createdAt: -1 })
-      .limit(50)
-      .exec();
-
-    const history = pastMessages.reverse().map((m) => ({
-      role: m.role as 'user' | 'assistant' | 'system',
-      content: m.content,
-    }));
-
-    // 5.5 Retrieve Collection Shared Memory if conversation is assigned to a collection
-    let sharedMemory = '';
-    if (conv.collectionId) {
-      sharedMemory = await this.collectionsService.getSharedMemory(userId, conv.collectionId.toString());
-    }
-
-    // 6. Call AI Service via AiGateway
-    const aiResponse = await this.aiGatewayService.chat({
-      userId,
-      userRole,
-      conversationId,
-      message: content,
-      resourceIds: combinedResourceIds,
-      sharedMemory: sharedMemory || undefined,
-      history,
-    });
-
-    // 7. Save Assistant Message
-    const assistantMsgDoc = new this.messageModel({
-      conversationId: new Types.ObjectId(conversationId),
-      userId: new Types.ObjectId(userId),
-      role: MessageRole.ASSISTANT,
-      content: aiResponse.answer || 'No response generated.',
-      referencedResourceIds: combinedResourceIds,
-      citations: aiResponse.citations || [],
-      generatedChart: aiResponse.generatedChart,
-      generatedCharts: (aiResponse as any).generatedCharts || (aiResponse.generatedChart ? [aiResponse.generatedChart] : []),
-      generatedTable: aiResponse.generatedTable,
-      pythonCode: aiResponse.pythonCode,
-      executionOutput: aiResponse.executionOutput,
-    });
-    const savedAssistantMsg = await assistantMsgDoc.save();
-
-    // 7.5 Update Collection Shared Memory if collection assigned
-    if (conv.collectionId && aiResponse.answer) {
-      const summaryCandidate = `Chat "${conv.title}": Q: "${content.slice(0, 120)}" -> A: ${aiResponse.answer.slice(0, 250).replace(/[\r\n]+/g, ' ')}`;
-      this.collectionsService.updateSharedMemory(userId, conv.collectionId.toString(), summaryCandidate).catch((err) => {
-        console.error('Failed to update collection shared memory:', err);
+        role: MessageRole.USER,
+        content,
+        referencedResourceIds: scopeData.explicitMentionedIds,
       });
-    }
+      const savedUserMsg = await userMsgDoc.save();
 
-    // 8. Update conversation timestamp and optionally generate title
-    const updatePayload: any = { lastMessageAt: new Date() };
-
-    if (pastMessages.length === 0 || conv.title === 'New Conversation' || !conv.title || conv.title.startsWith('New Conversation')) {
-      try {
-        const title = await this.aiGatewayService.generateTitle(content);
-        if (title && title !== 'New Conversation') {
-          updatePayload.title = title;
-        }
-      } catch (e) {
-        console.error('Auto-naming failed:', e);
+      // 5. Validate and filter ANY legacy attached resources from the conversation
+      const validConvAttachedIds: string[] = [];
+      if (conv.attachedResourceIds && conv.attachedResourceIds.length > 0) {
+        const validated = await this.ownershipService.validateUserResources(userId, conv.attachedResourceIds);
+        validConvAttachedIds.push(...validated.validDocumentIds, ...validated.validDatasetIds);
       }
-    }
 
-    const updatedConv = await this.conversationModel.findByIdAndUpdate(
-      conversationId,
-      { $set: updatePayload },
-      { new: true }
-    );
+      const combinedResourceIds = Array.from(
+        new Set([...validConvAttachedIds, ...scopeData.effectiveResourceIds]),
+      );
 
-    return {
-      userMessage: this.toIMessage(savedUserMsg),
-      assistantMessage: this.toIMessage(savedAssistantMsg),
-      conversation: updatedConv ? {
-        id: updatedConv._id.toString(),
-        title: updatedConv.title,
-        userId: updatedConv.userId.toString(),
-        collectionId: updatedConv.collectionId ? updatedConv.collectionId.toString() : null,
-        attachedResourceIds: updatedConv.attachedResourceIds,
-        createdAt: updatedConv.createdAt.toISOString(),
-        updatedAt: updatedConv.updatedAt.toISOString(),
-      } : undefined
-    };
+      // 6. Fetch previous conversation history (up to 50 recent messages in chronological order)
+      const pastMessages = await this.messageModel
+        .find({
+          conversationId: new Types.ObjectId(conversationId),
+          userId: new Types.ObjectId(userId),
+          _id: { $ne: savedUserMsg._id },
+        })
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .exec();
+
+      const history = pastMessages.reverse().map((m) => ({
+        role: m.role as 'user' | 'assistant' | 'system',
+        content: m.content,
+      }));
+
+      // 7. Retrieve Collection Shared Memory if conversation is assigned to a collection
+      let sharedMemory = '';
+      if (conv.collectionId) {
+        sharedMemory = await this.collectionsService.getSharedMemory(userId, conv.collectionId.toString());
+      }
+
+      // 8. Call AI Service via AiGateway with structured activeScope
+      const aiResponse = await this.aiGatewayService.chat({
+        userId,
+        userRole,
+        conversationId,
+        message: content,
+        resourceIds: combinedResourceIds,
+        activeScope: scopeData.activeScope,
+        sharedMemory: sharedMemory || undefined,
+        history,
+      });
+
+      // 9. Save Assistant Message
+      const assistantMsgDoc = new this.messageModel({
+        conversationId: new Types.ObjectId(conversationId),
+        userId: new Types.ObjectId(userId),
+        role: MessageRole.ASSISTANT,
+        content: aiResponse.answer || 'No response generated.',
+        referencedResourceIds: combinedResourceIds,
+        citations: aiResponse.citations || [],
+        generatedChart: aiResponse.generatedChart,
+        generatedCharts: (aiResponse as any).generatedCharts || (aiResponse.generatedChart ? [aiResponse.generatedChart] : []),
+        generatedTable: aiResponse.generatedTable,
+        pythonCode: aiResponse.pythonCode,
+        executionOutput: aiResponse.executionOutput,
+      });
+      const savedAssistantMsg = await assistantMsgDoc.save();
+
+      // 10. Update Collection Shared Memory if collection assigned
+      if (conv.collectionId && aiResponse.answer) {
+        const summaryCandidate = `Chat "${conv.title}": Q: "${content.slice(0, 120)}" -> A: ${aiResponse.answer.slice(0, 250).replace(/[\r\n]+/g, ' ')}`;
+        this.collectionsService.updateSharedMemory(userId, conv.collectionId.toString(), summaryCandidate).catch((err) => {
+          console.error('Failed to update collection shared memory:', err);
+        });
+      }
+
+      // 11. Update conversation timestamp, activeScope, and title
+      const updatePayload: any = { lastMessageAt: new Date() };
+      if (scopeData.updatedActiveScopePayload !== undefined) {
+        updatePayload.activeScope = scopeData.updatedActiveScopePayload;
+      }
+
+      if (pastMessages.length === 0 || conv.title === 'New Conversation' || !conv.title || conv.title.startsWith('New Conversation')) {
+        try {
+          const title = await this.aiGatewayService.generateTitle(content);
+          if (title && title !== 'New Conversation') {
+            updatePayload.title = title;
+          }
+        } catch (e) {
+          console.error('Auto-naming failed:', e);
+        }
+      }
+
+      const updatedConv = await this.conversationModel.findByIdAndUpdate(
+        conversationId,
+        { $set: updatePayload },
+        { new: true },
+      );
+
+      return {
+        userMessage: this.toIMessage(savedUserMsg),
+        assistantMessage: this.toIMessage(savedAssistantMsg),
+        conversation: updatedConv ? {
+          id: updatedConv._id.toString(),
+          title: updatedConv.title,
+          userId: updatedConv.userId.toString(),
+          collectionId: updatedConv.collectionId ? updatedConv.collectionId.toString() : null,
+          attachedResourceIds: updatedConv.attachedResourceIds,
+          activeScope: updatedConv.activeScope ? {
+            type: updatedConv.activeScope.type,
+            id: updatedConv.activeScope.id,
+            name: updatedConv.activeScope.name,
+            updatedAt: updatedConv.activeScope.updatedAt instanceof Date ? updatedConv.activeScope.updatedAt.toISOString() : (updatedConv.activeScope.updatedAt as any)?.toString?.(),
+          } : undefined,
+          createdAt: updatedConv.createdAt.toISOString(),
+          updatedAt: updatedConv.updatedAt.toISOString(),
+        } : undefined,
+      };
     } finally {
       userActive.delete(conversationId);
       if (userActive.size === 0) {
@@ -366,107 +573,20 @@ export class MessagesService {
     res.flushHeaders?.();
 
     try {
-      // Auto-detect structured and natural mentions
-      const structuredMatches = [...content.matchAll(/@\[([^\]]+)\]\(([^:]+):([^\)]+)\)/g)];
-      const autoResolvedIds: string[] = [];
+      // 3. Resolve Active Scope and Resource IDs
+      const scopeData = await this.resolveScopeAndResources(userId, conv, content, referencedResourceIds);
 
-      for (const match of structuredMatches) {
-        const type = match[2];
-        const targetId = match[3];
-        if (type === 'folder') {
-          autoResolvedIds.push(targetId.startsWith('folder:') ? targetId : `folder:${targetId}`);
-        } else {
-          autoResolvedIds.push(targetId);
-        }
-      }
-
-      const naturalMatches = content.match(/@[a-zA-Z0-9_.\-]+/g);
-      if (naturalMatches && naturalMatches.length > 0) {
-        for (const rawMention of naturalMatches) {
-          if (rawMention.startsWith('@[') || rawMention.includes('](')) continue;
-          const query = rawMention.slice(1).trim();
-          if (query && query.length >= 1) {
-            try {
-              const searchRes = await this.mentionsService.searchMentions(userId, query);
-              if (searchRes.results && searchRes.results.length > 0) {
-                const exact = searchRes.results.find(
-                  (r) => r.name.toLowerCase() === query.toLowerCase() || r.name.toLowerCase().startsWith(query.toLowerCase())
-                );
-                if (exact) {
-                  autoResolvedIds.push(exact.id);
-                } else {
-                  autoResolvedIds.push(searchRes.results[0].id);
-                }
-              }
-            } catch (e) {}
-          }
-        }
-      }
-
-      const explicitMentionedIds = Array.from(new Set([...referencedResourceIds, ...autoResolvedIds]));
-      let allMentionedIds = [...explicitMentionedIds];
-
-      // If no explicit mentions in current message, carry forward authorized resources from recent conversation messages
-      if (allMentionedIds.length === 0) {
-        try {
-          const recentUserMsgs = await this.messageModel
-            .find({
-              conversationId: new Types.ObjectId(conversationId),
-              userId: new Types.ObjectId(userId),
-              referencedResourceIds: { $exists: true, $ne: [] },
-            })
-            .sort({ createdAt: -1 })
-            .limit(3)
-            .exec();
-
-          for (const prevMsg of recentUserMsgs) {
-            if (prevMsg.referencedResourceIds && prevMsg.referencedResourceIds.length > 0) {
-              allMentionedIds.push(...prevMsg.referencedResourceIds);
-            }
-          }
-          allMentionedIds = Array.from(new Set(allMentionedIds));
-        } catch (err) {}
-      }
-
-      // Expand folders
-      const expandedResourceIds: string[] = [];
-      for (const rId of allMentionedIds) {
-        if (rId.startsWith('folder:')) {
-          const folderName = rId.slice('folder:'.length).replace(/^folder:/, '');
-          const folderRegex = new RegExp(`^${folderName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(/.*)?$`, 'i');
-          try {
-            const [folderDocs, folderDatasets] = await Promise.all([
-              this.documentModel.find({ folder: folderRegex }).select('_id').exec(),
-              this.datasetModel.find({ folder: folderRegex }).select('_id').exec(),
-            ]);
-            expandedResourceIds.push(...folderDocs.map((d: any) => d._id.toString()));
-            expandedResourceIds.push(...folderDatasets.map((d: any) => d._id.toString()));
-          } catch (err) {}
-        } else {
-          expandedResourceIds.push(rId);
-        }
-      }
-
-      const uniqueExpandedIds = Array.from(new Set(expandedResourceIds));
-
-      // Security: Validate user resources
-      const validAccessibleResourceIds: string[] = [];
-      if (uniqueExpandedIds.length > 0) {
-        const validated = await this.ownershipService.validateUserResources(userId, uniqueExpandedIds);
-        validAccessibleResourceIds.push(...validated.validDocumentIds, ...validated.validDatasetIds);
-      }
-
-      // Save user message (ONLY save explicit user mentions to prevent unwanted UI chip badges)
+      // 4. Save User Message (ONLY save explicit user mentions to prevent unwanted UI chip badges)
       const userMsgDoc = new this.messageModel({
         conversationId: new Types.ObjectId(conversationId),
         userId: new Types.ObjectId(userId),
         role: MessageRole.USER,
         content,
-        referencedResourceIds: explicitMentionedIds,
+        referencedResourceIds: scopeData.explicitMentionedIds,
       });
       const savedUserMsg = await userMsgDoc.save();
 
-      // Legacy attached resources
+      // 5. Validate and filter ANY legacy attached resources from the conversation
       const validConvAttachedIds: string[] = [];
       if (conv.attachedResourceIds && conv.attachedResourceIds.length > 0) {
         const validated = await this.ownershipService.validateUserResources(userId, conv.attachedResourceIds);
@@ -474,10 +594,10 @@ export class MessagesService {
       }
 
       const combinedResourceIds = Array.from(
-        new Set([...validConvAttachedIds, ...validAccessibleResourceIds]),
+        new Set([...validConvAttachedIds, ...scopeData.effectiveResourceIds]),
       );
 
-      // History
+      // 6. Fetch previous conversation history (up to 50 recent messages in chronological order)
       const pastMessages = await this.messageModel
         .find({
           conversationId: new Types.ObjectId(conversationId),
@@ -493,7 +613,7 @@ export class MessagesService {
         content: m.content,
       }));
 
-      // 5.5 Retrieve Collection Shared Memory if conversation is assigned to a collection
+      // 7. Retrieve Collection Shared Memory if conversation is assigned to a collection
       let sharedMemory = '';
       if (conv.collectionId) {
         sharedMemory = await this.collectionsService.getSharedMemory(userId, conv.collectionId.toString());
@@ -512,6 +632,7 @@ export class MessagesService {
           conversationId,
           message: content,
           resourceIds: combinedResourceIds,
+          activeScope: scopeData.activeScope,
           sharedMemory: sharedMemory || undefined,
           history,
         });
@@ -554,6 +675,7 @@ export class MessagesService {
           conversationId,
           message: content,
           resourceIds: combinedResourceIds,
+          activeScope: scopeData.activeScope,
           sharedMemory: sharedMemory || undefined,
           history,
         });
@@ -579,6 +701,7 @@ export class MessagesService {
 
         res.write(`event: metadata\ndata: ${JSON.stringify(metadata)}\n\n`);
       }
+
       // Save Assistant Message
       const assistantMsgDoc = new this.messageModel({
         conversationId: new Types.ObjectId(conversationId),
@@ -603,8 +726,12 @@ export class MessagesService {
         });
       }
 
-      // Update conversation title if needed
+      // Update conversation title and activeScope if needed
       const updatePayload: any = { lastMessageAt: new Date() };
+      if (scopeData.updatedActiveScopePayload !== undefined) {
+        updatePayload.activeScope = scopeData.updatedActiveScopePayload;
+      }
+
       if (pastMessages.length === 0 || conv.title === 'New Conversation' || !conv.title || conv.title.startsWith('New Conversation')) {
         try {
           const title = await this.aiGatewayService.generateTitle(content);
@@ -617,7 +744,7 @@ export class MessagesService {
       const updatedConv = await this.conversationModel.findByIdAndUpdate(
         conversationId,
         { $set: updatePayload },
-        { new: true }
+        { new: true },
       );
 
       // Send completion message
@@ -629,6 +756,12 @@ export class MessagesService {
           userId: updatedConv.userId.toString(),
           collectionId: updatedConv.collectionId ? updatedConv.collectionId.toString() : null,
           attachedResourceIds: updatedConv.attachedResourceIds,
+          activeScope: updatedConv.activeScope ? {
+            type: updatedConv.activeScope.type,
+            id: updatedConv.activeScope.id,
+            name: updatedConv.activeScope.name,
+            updatedAt: updatedConv.activeScope.updatedAt instanceof Date ? updatedConv.activeScope.updatedAt.toISOString() : (updatedConv.activeScope.updatedAt as any)?.toString?.(),
+          } : undefined,
           createdAt: updatedConv.createdAt.toISOString(),
           updatedAt: updatedConv.updatedAt.toISOString(),
         } : undefined,
@@ -649,17 +782,17 @@ export class MessagesService {
     }
   }
 
-  toIMessage(doc: MessageEntityDocument): IMessage {
+  private toIMessage(doc: MessageEntityDocument): IMessage {
     return {
       id: doc._id.toString(),
       conversationId: doc.conversationId.toString(),
       userId: doc.userId.toString(),
-      role: doc.role,
+      role: doc.role as MessageRole,
       content: doc.content,
       referencedResourceIds: doc.referencedResourceIds || [],
-      citations: doc.citations,
+      citations: doc.citations || [],
       generatedChart: doc.generatedChart,
-      generatedCharts: (doc as any).generatedCharts || (doc.generatedChart ? [doc.generatedChart] : undefined),
+      generatedCharts: (doc as any).generatedCharts || (doc.generatedChart ? [doc.generatedChart] : []),
       generatedTable: doc.generatedTable,
       pythonCode: doc.pythonCode,
       executionOutput: doc.executionOutput,
@@ -667,4 +800,3 @@ export class MessagesService {
     };
   }
 }
-

@@ -33,6 +33,12 @@ export class ConversationsService {
       title: dto.title || 'New Conversation',
       collectionId: dto.collectionId && Types.ObjectId.isValid(dto.collectionId) ? new Types.ObjectId(dto.collectionId) : undefined,
       attachedResourceIds: attached,
+      activeScope: dto.activeScope ? {
+        type: dto.activeScope.type,
+        id: dto.activeScope.id,
+        name: dto.activeScope.name,
+        updatedAt: dto.activeScope.updatedAt ? new Date(dto.activeScope.updatedAt) : new Date(),
+      } : undefined,
     });
 
     const saved = await conversation.save();
@@ -107,6 +113,14 @@ export class ConversationsService {
         : null;
     }
     if (dto.attachedResourceIds !== undefined) updateData.attachedResourceIds = dto.attachedResourceIds;
+    if (dto.activeScope !== undefined) {
+      updateData.activeScope = dto.activeScope ? {
+        type: dto.activeScope.type,
+        id: dto.activeScope.id,
+        name: dto.activeScope.name,
+        updatedAt: dto.activeScope.updatedAt ? new Date(dto.activeScope.updatedAt) : new Date(),
+      } : null;
+    }
 
     const conv = await this.conversationModel.findOneAndUpdate(
       { _id: new Types.ObjectId(conversationId), userId: new Types.ObjectId(userId) },
@@ -150,6 +164,14 @@ export class ConversationsService {
       title: doc.title,
       collectionId: doc.collectionId ? doc.collectionId.toString() : null,
       attachedResourceIds: doc.attachedResourceIds || [],
+      activeScope: doc.activeScope ? {
+        type: doc.activeScope.type,
+        id: doc.activeScope.id,
+        name: doc.activeScope.name,
+        updatedAt: doc.activeScope.updatedAt instanceof Date
+          ? doc.activeScope.updatedAt.toISOString()
+          : (doc.activeScope.updatedAt as any)?.toString?.(),
+      } : undefined,
       lastMessageAt: doc.lastMessageAt?.toISOString(),
       createdAt: doc.createdAt?.toISOString() || new Date().toISOString(),
       updatedAt: doc.updatedAt?.toISOString() || new Date().toISOString(),

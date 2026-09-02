@@ -3,6 +3,23 @@ import { Document as MongoDocument, Types } from 'mongoose';
 
 export type ConversationEntityDocument = ConversationEntity & MongoDocument;
 
+@Schema({ _id: false })
+export class ActiveScopeEntity {
+  @Prop({ required: true, enum: ['document', 'folder', 'dataset'] })
+  type: 'document' | 'folder' | 'dataset';
+
+  @Prop({ required: true })
+  id: string;
+
+  @Prop({ required: true })
+  name: string;
+
+  @Prop({ required: false })
+  updatedAt?: Date;
+}
+
+export const ActiveScopeSchema = SchemaFactory.createForClass(ActiveScopeEntity);
+
 @Schema({ timestamps: true, collection: 'conversations' })
 export class ConversationEntity {
   _id: Types.ObjectId;
@@ -19,6 +36,9 @@ export class ConversationEntity {
   @Prop({ type: [String], default: [] })
   attachedResourceIds: string[];
 
+  @Prop({ type: ActiveScopeSchema, required: false, default: null })
+  activeScope?: ActiveScopeEntity | null;
+
   @Prop({ required: false })
   lastMessageAt?: Date;
 
@@ -29,4 +49,3 @@ export class ConversationEntity {
 export const ConversationSchema = SchemaFactory.createForClass(ConversationEntity);
 ConversationSchema.index({ userId: 1, updatedAt: -1 });
 ConversationSchema.index({ userId: 1, collectionId: 1, updatedAt: -1 });
-
