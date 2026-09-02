@@ -3,6 +3,7 @@ import {
   Inject,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -18,12 +19,11 @@ import {
 } from '@enter-chat/shared-types';
 import { IStorageService, STORAGE_SERVICE } from '../storage/storage.interface';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
-import * as path from 'path';
-
 import { UsersService } from '../users/users.service';
 import { AccessRequestsService } from '../access-requests/access-requests.service';
 import { AclResolverService } from '../permissions/services/acl-resolver.service';
 import { FoldersService } from '../folders/folders.service';
+import * as path from 'path';
 import {
   resolveUniqueFilenameForModel,
   normalizeFolder,
@@ -65,7 +65,7 @@ export class DatasetsService {
     userId: string,
     file: Express.Multer.File,
     folder: string = '',
-    allowedDepartments: string[] = []
+    allowedDepartments: string[] = [],
   ): Promise<IDataset> {
     if (!file) {
       throw new BadRequestException('No file provided');
@@ -73,16 +73,17 @@ export class DatasetsService {
 
     const ext = path.extname(file.originalname);
     const fileType = this.mapFileType(ext);
-    const targetFolder = normalizeFolder(folder);
 
-    // Dynamically resolve unique filename in target folder
+    const targetFolder = (folder || '').trim();
+
+    // Compute unique filename dynamically to prevent duplicates
     const uniqueOriginalName = await resolveUniqueFilenameForModel(
       this.datasetModel,
       file.originalname,
       targetFolder,
     );
 
-    // Save to user-isolated folder
+    // Save physical file with canonical unique name
     const destinationSubdir = `users/${userId}/datasets`;
     const saveResult = await this.storageService.saveFile(
       file.buffer,
@@ -111,6 +112,80 @@ export class DatasetsService {
 
     // Trigger AI inspect asynchronously with canonical unique originalName
     this.triggerInspection(userId, datasetId, saveResult.storagePath, saved.originalName, fileType);
+
+    return this.toIDataset(saved);
+  }
+
+  async replaceDataset(
+    userId: string,
+    datasetId: string,
+    file: Express.Multer.File,
+  ): Promise<IDataset> {
+    if (!file) {
+      throw new BadRequestException('No replacement file provided');
+    }
+    if (!Types.ObjectId.isValid(datasetId)) {
+      throw new NotFoundException('Dataset not found');
+    }
+
+    const existingDs = await this.datasetModel.findById(datasetId).exec();
+    if (!existingDs) {
+      throw new NotFoundException('Dataset not found');
+    }
+
+    // Permission check: User must be admin or dataset owner
+    const user = await this.usersService.findById(userId);
+    const isAdmin = isUserAdmin(user);
+    const isOwner = existingDs.userId ? existingDs.userId.toString() === userId : false;
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException('You do not have permission to replace this dataset');
+    }
+
+    // Validate replacement format (must be csv/xlsx/xls)
+    const newExt = path.extname(file.originalname);
+    const newFileType = this.mapFileType(newExt);
+
+    const oldStoragePath = existingDs.storagePath;
+
+    // Save replacement file into user's storage with existing canonical originalName
+    const destinationSubdir = `users/${existingDs.userId}/datasets`;
+    const saveResult = await this.storageService.saveFile(
+      file.buffer,
+      destinationSubdir,
+      existingDs.originalName,
+    );
+
+    // Update dataset record while preserving ID, folder, originalName, allowedDepartments, ownership
+    existingDs.filename = saveResult.filename;
+    existingDs.storagePath = saveResult.storagePath;
+    existingDs.fileSize = file.size;
+    existingDs.mimeType = file.mimetype;
+    existingDs.fileType = newFileType;
+    existingDs.status = DatasetStatus.PROCESSING;
+    existingDs.errorMessage = '';
+    existingDs.sheetNames = [];
+    existingDs.sheets = [];
+    existingDs.totalRows = 0;
+
+    const saved = await existingDs.save();
+
+    // Safely delete old physical storage file if different
+    if (oldStoragePath && oldStoragePath !== saveResult.storagePath) {
+      try {
+        await this.storageService.deleteFile(oldStoragePath);
+      } catch (err: any) {
+        this.logger.warn(`Could not delete old dataset file at ${oldStoragePath}: ${err.message}`);
+      }
+    }
+
+    // Trigger AI inspect asynchronously
+    this.triggerInspection(
+      userId,
+      datasetId,
+      saveResult.storagePath,
+      saved.originalName,
+      newFileType,
+    );
 
     return this.toIDataset(saved);
   }

@@ -38,6 +38,17 @@ export class DocumentsController {
     return this.documentsService.uploadDocument(userId, file, folder || '', deps);
   }
 
+  @Post(':id/replace')
+  @Roles(UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 100 * 1024 * 1024 } }))
+  async replaceFile(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<IDocument> {
+    return this.documentsService.replaceDocument(userId, id, file);
+  }
+
   @Post('retry/:id')
   async retryIngestion(
     @CurrentUser('id') userId: string,

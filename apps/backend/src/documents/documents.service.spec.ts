@@ -9,7 +9,7 @@ import { AccessRequestsService } from '../access-requests/access-requests.servic
 import { AclResolverService } from '../permissions/services/acl-resolver.service';
 import { FoldersService } from '../folders/folders.service';
 import { Types } from 'mongoose';
-import { DocumentStatus, SupportedDocumentFormat } from '@enter-chat/shared-types';
+import { DocumentStatus, SupportedDocumentFormat, UserRole } from '@enter-chat/shared-types';
 
 describe('DocumentsService - Dynamic Duplicate Filename Handling', () => {
   let service: DocumentsService;
@@ -26,9 +26,15 @@ describe('DocumentsService - Dynamic Duplicate Filename Handling', () => {
       const docInstance = {
         ...docData,
         _id: new Types.ObjectId(),
-        save: jest.fn().mockImplementation(async () => {
-          existingDocuments.push(docInstance);
-          return docInstance;
+        save: jest.fn().mockImplementation(async function (this: any) {
+          const self = this || docInstance;
+          const idx = existingDocuments.findIndex((d) => d._id.toString() === self._id.toString());
+          if (idx >= 0) {
+            existingDocuments[idx] = self;
+          } else {
+            existingDocuments.push(self);
+          }
+          return self;
         }),
       };
       return docInstance;
@@ -77,12 +83,16 @@ describe('DocumentsService - Dynamic Duplicate Filename Handling', () => {
       return Promise.resolve(doc);
     });
 
+    let fileCounter = 0;
     mockStorageService = {
-      saveFile: jest.fn().mockImplementation(async (_buf, _dest, filename) => ({
-        filename: `stored_${filename}`,
-        storagePath: `users/user-1/documents/stored_${filename}`,
-        fileSize: 1024,
-      })),
+      saveFile: jest.fn().mockImplementation(async (_buf, _dest, filename) => {
+        fileCounter++;
+        return {
+          filename: `stored_${fileCounter}_${filename}`,
+          storagePath: `users/user-1/documents/stored_${fileCounter}_${filename}`,
+          fileSize: 1024,
+        };
+      }),
       deleteFile: jest.fn().mockResolvedValue(undefined),
     };
 
@@ -108,7 +118,15 @@ describe('DocumentsService - Dynamic Duplicate Filename Handling', () => {
         },
         {
           provide: UsersService,
-          useValue: {},
+          useValue: {
+            findById: jest.fn().mockImplementation((id: string) =>
+              Promise.resolve({
+                _id: new Types.ObjectId(id),
+                id,
+                role: id === '507f1f77bcf86cd799439011' ? UserRole.ADMIN : UserRole.USER,
+              }),
+            ),
+          },
         },
         {
           provide: AccessRequestsService,
@@ -199,5 +217,125 @@ describe('DocumentsService - Dynamic Duplicate Filename Handling', () => {
 
     const uploaded = await service.uploadDocument('507f1f77bcf86cd799439011', mockFile, 'Finance');
     expect(uploaded.originalName).toBe('report (2).pdf');
+  });
+
+  describe('Replace File Functionality', () => {
+    it('1. should replace an existing document successfully without creating a duplicate', async () => {
+      const mockFile1: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: '11_sales_pipeline.xlsx',
+        encoding: '7bit',
+        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        size: 1024,
+        buffer: Buffer.from('initial version'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+
+      const initialDoc = await service.uploadDocument('507f1f77bcf86cd799439011', mockFile1, 'Sales');
+      expect(initialDoc.originalName).toBe('11_sales_pipeline.xlsx');
+      expect(initialDoc.folder).toBe('Sales');
+      expect(existingDocuments.length).toBe(1);
+
+      // Now replace with updated_sales_pipeline_v2.xlsx
+      const replacementFile: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'updated_sales_pipeline_v2.xlsx',
+        encoding: '7bit',
+        mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        size: 2048,
+        buffer: Buffer.from('updated version with 32 rows'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+
+      const replacedDoc = await service.replaceDocument('507f1f77bcf86cd799439011', initialDoc.id, replacementFile);
+
+      // Verify ID, originalName, folder, and count remain preserved
+      expect(replacedDoc.id).toBe(initialDoc.id);
+      expect(replacedDoc.originalName).toBe('11_sales_pipeline.xlsx');
+      expect(replacedDoc.folder).toBe('Sales');
+      expect(replacedDoc.fileSize).toBe(2048);
+      expect(replacedDoc.status).toBe(DocumentStatus.PROCESSING);
+      expect(existingDocuments.length).toBe(1); // Exactly 1 document, NO duplicate created!
+
+      // Storage cleanup should be called for old storage path
+      expect(mockStorageService.deleteFile).toHaveBeenCalled();
+    });
+
+    it('2. should reject replacement when cross-family format mismatch (e.g. tabular to PDF)', async () => {
+      const initialFile: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'sales_data.csv',
+        encoding: '7bit',
+        mimetype: 'text/csv',
+        size: 512,
+        buffer: Buffer.from('a,b,c'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      const initialDoc = await service.uploadDocument('507f1f77bcf86cd799439011', initialFile, 'Sales');
+
+      const invalidReplacement: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'handbook.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 4096,
+        buffer: Buffer.from('%PDF-1.4'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+
+      await expect(
+        service.replaceDocument('507f1f77bcf86cd799439011', initialDoc.id, invalidReplacement),
+      ).rejects.toThrow('Cannot replace a tabular dataset with a narrative document');
+
+      // Original document should remain untouched
+      expect(existingDocuments.length).toBe(1);
+      expect(existingDocuments[0].originalName).toBe('sales_data.csv');
+    });
+
+    it('3. should reject replacement when user is unauthorized', async () => {
+      const initialFile: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'confidential.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('confidential text'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      const initialDoc = await service.uploadDocument('507f1f77bcf86cd799439011', initialFile, 'Legal');
+
+      const replacementFile: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'confidential_v2.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('confidential text v2'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+
+      // User 2 is not admin and not the document owner
+      await expect(
+        service.replaceDocument('507f1f77bcf86cd799439022', initialDoc.id, replacementFile),
+      ).rejects.toThrow();
+    });
   });
 });

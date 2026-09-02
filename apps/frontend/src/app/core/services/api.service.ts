@@ -53,6 +53,12 @@ export class ApiService {
     return this.http.post<IDocument>(`${this.baseUrl}/documents/upload`, formData);
   }
 
+  replaceDocument(id: string, file: File): Observable<IDocument> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<IDocument>(`${this.baseUrl}/documents/${id}/replace`, formData);
+  }
+
   retryDocument(id: string): Observable<IDocument> {
     return this.http.post<IDocument>(`${this.baseUrl}/documents/retry/${id}`, {});
   }
@@ -81,6 +87,12 @@ export class ApiService {
       formData.append('folder', folder);
     }
     return this.http.post<IDataset>(`${this.baseUrl}/datasets/upload`, formData);
+  }
+
+  replaceDataset(id: string, file: File): Observable<IDataset> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<IDataset>(`${this.baseUrl}/datasets/${id}/replace`, formData);
   }
 
   retryDataset(id: string): Observable<IDataset> {

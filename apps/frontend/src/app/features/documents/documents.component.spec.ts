@@ -4,7 +4,7 @@ import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ModalDialogService } from '../../core/services/modal-dialog.service';
 import { Router, ActivatedRoute } from '@angular/router';
-import { of, BehaviorSubject } from 'rxjs';
+import { of, BehaviorSubject, throwError } from 'rxjs';
 import { DocumentStatus, SupportedDocumentFormat } from '@enter-chat/shared-types';
 
 describe('DocumentsComponent (Responsive Navigation & Modal UX)', () => {
@@ -79,6 +79,7 @@ describe('DocumentsComponent (Responsive Navigation & Modal UX)', () => {
       createFolder: jest.fn().mockReturnValue(of({ success: true })),
       deleteFolder: jest.fn().mockReturnValue(of({ success: true })),
       uploadDocument: jest.fn().mockReturnValue(of(mockDocuments[0])),
+      replaceDocument: jest.fn().mockReturnValue(of({ ...mockDocuments[0], fileSize: 4096 })),
       updateDocumentFolder: jest.fn().mockReturnValue(of(mockDocuments[0])),
       createAccessRequest: jest.fn().mockReturnValue(of({ success: true })),
     };
@@ -225,6 +226,52 @@ describe('DocumentsComponent (Responsive Navigation & Modal UX)', () => {
       component.onEscapeKey(new KeyboardEvent('keydown', { key: 'Escape' }));
       expect(component.showNewFolderInput).toBe(false);
       expect(component.newFolderName).toBe('');
+    });
+  });
+
+  describe('Replace File Workflow', () => {
+    it('11. should confirm and trigger file input click on triggerReplace', async () => {
+      const mockInput = { click: jest.fn() } as any;
+      await component.triggerReplace(mockDocuments[0], mockInput);
+
+      expect(mockModalService.confirmDanger).toHaveBeenCalledWith(
+        expect.stringContaining('sales_q1.xlsx'),
+        expect.stringContaining('sales_q1.xlsx'),
+        'Choose Replacement'
+      );
+      expect(component.replacingDoc).toBe(mockDocuments[0]);
+      expect(mockInput.click).toHaveBeenCalled();
+    });
+
+    it('12. should execute replacement and reload documents on file selection', () => {
+      const file = new File(['new binary data'], 'updated_sales.xlsx', {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      component.replacingDoc = mockDocuments[0];
+
+      const mockEvent = {
+        target: {
+          files: [file],
+          value: 'fake/path',
+        },
+      } as any;
+
+      component.onReplaceFileSelected(mockEvent);
+
+      expect(mockApiService.replaceDocument).toHaveBeenCalledWith(mockDocuments[0].id, file);
+      expect(mockApiService.getDocuments).toHaveBeenCalled();
+    });
+
+    it('13. should handle replacement errors and restore document list without breaking', () => {
+      mockApiService.replaceDocument.mockReturnValueOnce(
+        throwError(() => ({ error: { message: 'Replacement failed' } }))
+      );
+
+      const file = new File(['bad data'], 'bad.xlsx', { type: 'application/octet-stream' });
+      component.executeReplace(mockDocuments[0], file);
+
+      expect(component.uploadError).toBe('Replacement failed');
+      expect(mockApiService.getDocuments).toHaveBeenCalled();
     });
   });
 });

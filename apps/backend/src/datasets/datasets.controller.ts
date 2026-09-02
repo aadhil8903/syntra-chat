@@ -38,6 +38,17 @@ export class DatasetsController {
     return this.datasetsService.uploadDataset(userId, file, folder || '', deps);
   }
 
+  @Post(':id/replace')
+  @Roles(UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 100 * 1024 * 1024 } }))
+  async replaceFile(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<IDataset> {
+    return this.datasetsService.replaceDataset(userId, id, file);
+  }
+
   @Post('retry/:id')
   async retryInspection(
     @CurrentUser('id') userId: string,

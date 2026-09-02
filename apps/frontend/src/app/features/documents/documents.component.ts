@@ -634,6 +634,14 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                         }
                         <button
                           *ngIf="isAdmin"
+                          (click)="triggerReplace(doc, replaceFileInput)"
+                          class="text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700 text-xs font-medium transition-colors"
+                          title="Replace file with updated version"
+                        >
+                          Replace
+                        </button>
+                        <button
+                          *ngIf="isAdmin"
                           (click)="openMoveModal(doc)"
                           class="text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700 text-xs font-medium transition-colors"
                           title="Move file to folder"
@@ -676,6 +684,9 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
           </div>
         }
       </div>
+
+      <!-- Hidden File Picker for File Replacement -->
+      <input #replaceFileInput type="file" (change)="onReplaceFileSelected($event)" accept=".pdf,.docx,.txt,.md,.json,.csv,.xlsx,.xls" class="hidden" />
     </div>
   `,
 })
@@ -947,6 +958,53 @@ export class DocumentsComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.uploadError = err.error?.message || 'Failed to delete folder';
+      },
+    });
+  }
+
+  replacingDoc: IDocument | null = null;
+
+  async triggerReplace(doc: IDocument, fileInput: HTMLInputElement): Promise<void> {
+    const confirmed = await this.modal.confirmDanger(
+      `Your current file "${doc.originalName}" will be replaced with the selected file. Existing permissions, folder placement, and citations will be preserved.`,
+      `Replace ${doc.originalName}?`,
+      'Choose Replacement'
+    );
+    if (!confirmed) return;
+    this.replacingDoc = doc;
+    fileInput.click();
+  }
+
+  onReplaceFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0 || !this.replacingDoc) {
+      this.replacingDoc = null;
+      input.value = '';
+      return;
+    }
+    const file = input.files[0];
+    const docToReplace = this.replacingDoc;
+    this.replacingDoc = null;
+    input.value = '';
+
+    this.executeReplace(docToReplace, file);
+  }
+
+  executeReplace(doc: IDocument, file: File): void {
+    const docName = doc.originalName;
+    this.triggerToast(`Replacing "${docName}"...`);
+
+    // Optimistic status update
+    doc.status = DocumentStatus.PROCESSING;
+
+    this.apiService.replaceDocument(doc.id, file).subscribe({
+      next: () => {
+        this.triggerToast(`Successfully replaced "${docName}"`);
+        this.loadDocuments();
+      },
+      error: (err) => {
+        this.uploadError = err.error?.message || 'Replacement failed. Your existing file was not changed.';
+        this.loadDocuments();
       },
     });
   }

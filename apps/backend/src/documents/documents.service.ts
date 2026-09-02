@@ -3,6 +3,7 @@ import {
   Inject,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -124,6 +125,90 @@ export class DocumentsService {
 
     // Trigger AI RAG Ingestion asynchronously in background with canonical unique originalName
     this.triggerIngestion(userId, docId, saveResult.storagePath, savedDoc.originalName, fileType);
+
+    return this.toIDocument(savedDoc);
+  }
+
+  async replaceDocument(
+    userId: string,
+    documentId: string,
+    file: Express.Multer.File,
+  ): Promise<IDocument> {
+    if (!file) {
+      throw new BadRequestException('No replacement file provided');
+    }
+    if (!Types.ObjectId.isValid(documentId)) {
+      throw new NotFoundException('Document not found');
+    }
+
+    const existingDoc = await this.documentModel.findById(documentId).exec();
+    if (!existingDoc) {
+      throw new NotFoundException('Document not found');
+    }
+
+    // Permission check: User must be admin or document owner
+    const user = await this.usersService.findById(userId);
+    const isAdmin = isUserAdmin(user);
+    const isOwner = existingDoc.userId ? existingDoc.userId.toString() === userId : false;
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException('You do not have permission to replace this document');
+    }
+
+    // Validate replacement format
+    const newExt = path.extname(file.originalname);
+    const newFileType = this.mapFileType(newExt);
+    const isNewTabular = ['csv', 'xlsx', 'xls'].includes(newFileType);
+    const isExistingTabular = ['csv', 'xlsx', 'xls'].includes(existingDoc.fileType);
+
+    if (isNewTabular !== isExistingTabular) {
+      throw new BadRequestException(
+        `Cannot replace a ${isExistingTabular ? 'tabular dataset' : 'narrative document'} with a ${isNewTabular ? 'tabular dataset' : 'narrative document'}. Replacement must match the document format family.`,
+      );
+    }
+
+    const oldStoragePath = existingDoc.storagePath;
+
+    // Save replacement file into user's storage with existing canonical originalName
+    const destinationSubdir = `users/${existingDoc.userId}/documents`;
+    const saveResult = await this.storageService.saveFile(
+      file.buffer,
+      destinationSubdir,
+      existingDoc.originalName,
+    );
+
+    // Update document record while preserving ID, folder, originalName, allowedDepartments, ownership
+    existingDoc.filename = saveResult.filename;
+    existingDoc.storagePath = saveResult.storagePath;
+    existingDoc.fileSize = file.size;
+    existingDoc.mimeType = file.mimetype;
+    existingDoc.fileType = newFileType;
+    existingDoc.status = DocumentStatus.PROCESSING;
+    existingDoc.errorMessage = '';
+    existingDoc.sourceType = isNewTabular ? 'tabular' : 'narrative';
+    existingDoc.chunkCount = 0;
+    existingDoc.sheetNames = [];
+    existingDoc.sheets = [];
+    existingDoc.totalRows = 0;
+
+    const savedDoc = await existingDoc.save();
+
+    // Safely delete old physical storage file if different
+    if (oldStoragePath && oldStoragePath !== saveResult.storagePath) {
+      try {
+        await this.storageService.deleteFile(oldStoragePath);
+      } catch (err: any) {
+        this.logger.warn(`Could not delete old file at ${oldStoragePath}: ${err.message}`);
+      }
+    }
+
+    // Trigger AI RAG Ingestion / Inspection asynchronously in background
+    this.triggerIngestion(
+      userId,
+      documentId,
+      saveResult.storagePath,
+      savedDoc.originalName,
+      newFileType,
+    );
 
     return this.toIDocument(savedDoc);
   }

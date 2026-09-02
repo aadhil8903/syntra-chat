@@ -24,9 +24,15 @@ describe('DatasetsService - Dynamic Duplicate Filename Handling', () => {
       const dsInstance = {
         ...dsData,
         _id: new Types.ObjectId(),
-        save: jest.fn().mockImplementation(async () => {
-          existingDatasets.push(dsInstance);
-          return dsInstance;
+        save: jest.fn().mockImplementation(async function (this: any) {
+          const self = this || dsInstance;
+          const idx = existingDatasets.findIndex((d) => d._id.toString() === self._id.toString());
+          if (idx >= 0) {
+            existingDatasets[idx] = self;
+          } else {
+            existingDatasets.push(self);
+          }
+          return self;
         }),
       };
       return dsInstance;
@@ -54,9 +60,10 @@ describe('DatasetsService - Dynamic Duplicate Filename Handling', () => {
     });
 
     mockDatasetModel.findById = jest.fn().mockImplementation((id: string) => ({
-      exec: jest.fn().mockResolvedValue(
-        existingDatasets.find((d) => d._id.toString() === id.toString()) || null,
-      ),
+      exec: jest.fn().mockImplementation(() => {
+        const found = existingDatasets.find((d) => d._id.toString() === id.toString()) || null;
+        return Promise.resolve(found);
+      }),
     }));
 
     mockDatasetModel.findByIdAndUpdate = jest.fn().mockImplementation((id: string, update: any) => {
@@ -105,7 +112,15 @@ describe('DatasetsService - Dynamic Duplicate Filename Handling', () => {
         },
         {
           provide: UsersService,
-          useValue: {},
+          useValue: {
+            findById: jest.fn().mockImplementation((id: string) =>
+              Promise.resolve({
+                _id: new Types.ObjectId(id),
+                id,
+                role: id === '507f1f77bcf86cd799439011' ? 'ADMIN' : 'MEMBER',
+              }),
+            ),
+          },
         },
         {
           provide: AccessRequestsService,
@@ -131,7 +146,7 @@ describe('DatasetsService - Dynamic Duplicate Filename Handling', () => {
       originalname: '11_sales_pipeline.xlsx',
       encoding: '7bit',
       mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      size: 2048,
+      size: 1024,
       buffer: Buffer.from('mock'),
       destination: '',
       filename: '',
@@ -139,16 +154,54 @@ describe('DatasetsService - Dynamic Duplicate Filename Handling', () => {
       stream: null as any,
     };
 
-    const upload1 = await service.uploadDataset('507f1f77bcf86cd799439011', mockFile, 'Analytics');
+    const upload1 = await service.uploadDataset('507f1f77bcf86cd799439011', mockFile, 'Sales');
     expect(upload1.originalName).toBe('11_sales_pipeline.xlsx');
 
-    const upload2 = await service.uploadDataset('507f1f77bcf86cd799439011', mockFile, 'Analytics');
+    const upload2 = await service.uploadDataset('507f1f77bcf86cd799439011', mockFile, 'Sales');
     expect(upload2.originalName).toBe('11_sales_pipeline (1).xlsx');
 
-    const upload3 = await service.uploadDataset('507f1f77bcf86cd799439011', mockFile, 'Analytics');
+    const upload3 = await service.uploadDataset('507f1f77bcf86cd799439011', mockFile, 'Sales');
     expect(upload3.originalName).toBe('11_sales_pipeline (2).xlsx');
 
-    const upload4 = await service.uploadDataset('507f1f77bcf86cd799439011', mockFile, 'Analytics');
+    const upload4 = await service.uploadDataset('507f1f77bcf86cd799439011', mockFile, 'Sales');
     expect(upload4.originalName).toBe('11_sales_pipeline (3).xlsx');
+  });
+
+  it('should replace an existing dataset without creating duplicates', async () => {
+    const mockFile: Express.Multer.File = {
+      fieldname: 'file',
+      originalname: '11_sales_pipeline.xlsx',
+      encoding: '7bit',
+      mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      size: 1024,
+      buffer: Buffer.from('initial'),
+      destination: '',
+      filename: '',
+      path: '',
+      stream: null as any,
+    };
+
+    const upload1 = await service.uploadDataset('507f1f77bcf86cd799439011', mockFile, 'Sales');
+    expect(upload1.originalName).toBe('11_sales_pipeline.xlsx');
+    expect(existingDatasets.length).toBe(1);
+
+    const replacement: Express.Multer.File = {
+      fieldname: 'file',
+      originalname: 'new_pipeline.xlsx',
+      encoding: '7bit',
+      mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      size: 3048,
+      buffer: Buffer.from('updated content'),
+      destination: '',
+      filename: '',
+      path: '',
+      stream: null as any,
+    };
+
+    const replaced = await service.replaceDataset('507f1f77bcf86cd799439011', upload1.id, replacement);
+    expect(replaced.id).toBe(upload1.id);
+    expect(replaced.originalName).toBe('11_sales_pipeline.xlsx');
+    expect(replaced.fileSize).toBe(3048);
+    expect(existingDatasets.length).toBe(1);
   });
 });
