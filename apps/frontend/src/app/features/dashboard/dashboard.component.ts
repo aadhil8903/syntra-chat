@@ -21,7 +21,7 @@ export interface IQuickAction {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, MentionAutocompleteComponent],
   template: `
-    <div class="p-6 lg:p-10 max-w-5xl mx-auto space-y-10 animate-fade-in text-[#fafafa]">
+    <div class="p-4 sm:p-6 lg:p-10 max-w-5xl mx-auto space-y-6 sm:space-y-10 animate-fade-in text-[#fafafa]">
       <!-- 1. Hero Greeting Section -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
         <div class="space-y-1">

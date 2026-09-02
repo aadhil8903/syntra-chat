@@ -55,7 +55,7 @@ export interface IFolderTreeNode {
       <button
         type="button"
         (click)="toggleOpen($event)"
-        class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-[#18181b] border border-[#3f3f46] hover:border-white text-xs text-white transition-colors"
+        class="w-full min-h-[44px] flex items-center justify-between px-3 py-2 rounded-xl bg-[#18181b] border border-[#3f3f46] hover:border-white text-xs text-white transition-colors"
       >
         <span class="text-zinc-300 text-[11px] truncate">
           {{
@@ -78,7 +78,7 @@ export interface IFolderTreeNode {
       <!-- Dropdown Tree Flyout Menu (VS Code Explorer Style) -->
       @if (isOpen) {
         <div
-          class="absolute z-50 left-0 mt-1.5 w-84 bg-[#111114] border border-[#3f3f46] rounded-2xl p-3 space-y-2.5 animate-fade-in text-xs"
+          class="absolute z-50 left-0 mt-1.5 w-full sm:w-84 max-w-[calc(100vw-2rem)] bg-[#111114] border border-[#3f3f46] rounded-2xl p-3 space-y-2.5 animate-fade-in text-xs shadow-2xl"
         >
           <!-- Search and Quick Actions Bar -->
           <div class="flex items-center justify-between gap-2 pb-1.5 border-b border-[#27272a]">
@@ -124,8 +124,8 @@ export interface IFolderTreeNode {
 
             @for (node of visibleNodes; track node.fullPath) {
               <div
-                class="flex items-center gap-1.5 py-1 px-1 rounded-lg hover:bg-[#18181b] transition-colors group cursor-pointer"
-                [style.padding-left.px]="node.depth * 16 + 4"
+                class="flex items-center gap-2 py-1.5 px-1.5 min-h-[36px] rounded-lg hover:bg-[#18181b] transition-colors group cursor-pointer"
+                [style.padding-left.px]="node.depth * 14 + 4"
                 (click)="toggleExpand(node, $event)"
               >
                 <!-- Arrow / Chevron Toggle (VS Code Style) -->
@@ -133,11 +133,11 @@ export interface IFolderTreeNode {
                   <button
                     type="button"
                     (click)="toggleExpand(node, $event)"
-                    class="w-4 h-4 flex items-center justify-center text-zinc-400 hover:text-white transition-transform p-0.5 rounded"
+                    class="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white transition-transform p-1 rounded"
                     [title]="node.expanded ? 'Collapse folder' : 'Expand folder'"
                   >
                     <svg
-                      class="w-3 h-3 transition-transform duration-150"
+                      class="w-3.5 h-3.5 transition-transform duration-150"
                       [ngClass]="node.expanded ? 'rotate-90 text-white' : ''"
                       fill="currentColor"
                       viewBox="0 0 20 20"
@@ -146,7 +146,7 @@ export interface IFolderTreeNode {
                     </svg>
                   </button>
                 } @else {
-                  <span class="w-4 h-4 inline-block"></span>
+                  <span class="w-6 h-6 inline-block"></span>
                 }
 
                 <!-- Checkbox for Selection -->
@@ -154,13 +154,13 @@ export interface IFolderTreeNode {
                   type="checkbox"
                   [checked]="isFolderEffectivelyAllowed(node.fullPath)"
                   (click)="onCheckboxClick(node, $event)"
-                  class="rounded border-zinc-700 bg-zinc-900 text-white focus:ring-0 cursor-pointer w-3.5 h-3.5"
+                  class="rounded border-zinc-700 bg-zinc-900 text-white focus:ring-0 cursor-pointer w-4 h-4"
                 />
 
                 <!-- Folder Icon & Name -->
-                <span class="text-sm">📁</span>
+                <span class="text-sm flex-shrink-0">📁</span>
                 <span
-                  class="font-mono text-xs truncate max-w-[130px]"
+                  class="font-mono text-xs truncate max-w-[140px]"
                   [ngClass]="isFolderEffectivelyAllowed(node.fullPath) ? 'text-white font-medium' : 'text-zinc-400'"
                 >
                   {{ node.name }}

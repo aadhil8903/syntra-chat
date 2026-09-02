@@ -18,21 +18,21 @@ export interface IDocSection {
   template: `
     <div class="min-h-full flex flex-col bg-[#09090b] text-[#fafafa]">
       <!-- Sub-header Breadcrumb / Actions Bar -->
-      <div class="h-12 border-b border-[#27272a] bg-[#0d0d10] px-6 flex items-center justify-between sticky top-0 z-20">
-        <div class="flex items-center gap-2 text-xs text-[#a1a1aa]">
-          <a routerLink="/dashboard" class="hover:text-white transition-colors flex items-center gap-1.5 font-medium">
+      <div class="h-12 border-b border-[#27272a] bg-[#0d0d10] px-3 sm:px-6 flex items-center justify-between sticky top-0 z-20">
+        <div class="flex items-center gap-1.5 sm:gap-2 text-xs text-[#a1a1aa] truncate">
+          <a routerLink="/dashboard" class="hover:text-white transition-colors flex items-center gap-1.5 font-medium flex-shrink-0">
             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            <span>Home</span>
+            <span class="hidden sm:inline">Home</span>
           </a>
+          <span class="hidden sm:inline">/</span>
+          <span class="text-white font-medium truncate">Docs</span>
           <span>/</span>
-          <span class="text-white font-medium">Documentation</span>
-          <span>/</span>
-          <span class="text-zinc-400 font-mono text-[11px]">{{ activeSectionData()?.title }}</span>
+          <span class="text-zinc-400 font-mono text-[11px] truncate max-w-[120px] sm:max-w-xs">{{ activeSectionData()?.title }}</span>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <div class="relative hidden sm:block">
             <input
               type="text"
@@ -43,7 +43,7 @@ export interface IDocSection {
           </div>
           <a
             routerLink="/chat"
-            class="px-3 py-1 rounded-lg bg-white hover:bg-zinc-200 text-black text-xs font-semibold transition-colors flex items-center gap-1.5"
+            class="px-3 py-1.5 rounded-lg bg-white hover:bg-zinc-200 text-black text-xs font-semibold transition-colors flex items-center gap-1.5 min-h-[36px]"
           >
             <span>Open Chat</span>
             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -134,7 +134,33 @@ export interface IDocSection {
         </aside>
 
         <!-- Main Documentation Content Area -->
-        <main class="flex-1 p-6 lg:p-10 space-y-16 max-w-4xl min-w-0">
+        <main class="flex-1 p-4 sm:p-6 lg:p-10 space-y-12 sm:space-y-16 max-w-4xl min-w-0">
+          <!-- Mobile Topic Quick Jump Selector (< md) -->
+          <div class="block md:hidden bg-[#111114] border border-[#27272a] rounded-2xl p-3.5 space-y-2">
+            <label class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">Jump to Topic</label>
+            <select
+              [ngModel]="activeSection()"
+              (ngModelChange)="scrollToSection($event)"
+              class="w-full min-h-[44px] px-3 py-2 rounded-xl bg-[#18181b] border border-zinc-700 text-white text-xs focus:outline-none focus:border-white"
+            >
+              <optgroup label="Part 1 — User Guide">
+                @for (sec of userGuideSections(); track sec.id) {
+                  <option [value]="sec.id">{{ sec.title }}</option>
+                }
+              </optgroup>
+              <optgroup label="Part 2 — Admin Guide">
+                @for (sec of adminGuideSections(); track sec.id) {
+                  <option [value]="sec.id">{{ sec.title }}</option>
+                }
+              </optgroup>
+              <optgroup label="Part 3 — Architecture">
+                @for (sec of archSections(); track sec.id) {
+                  <option [value]="sec.id">{{ sec.title }}</option>
+                }
+              </optgroup>
+            </select>
+          </div>
+
           <!-- Overview Banner -->
           <div class="space-y-3 pb-8 border-b border-[#27272a]">
             <div class="flex items-center gap-2">

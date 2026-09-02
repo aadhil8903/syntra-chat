@@ -69,11 +69,18 @@ export interface IDynamicStarterCard {
         (actionTriggered)="onSelectionAction($event)"
       ></app-text-selection-toolbar>
 
-      <!-- Left Conversations Drawer (Resizable) -->
+      <!-- Left Conversations Drawer (Resizable on Desktop, Modal Drawer on Mobile) -->
       @if (!isConvCollapsed) {
+        <!-- Mobile Drawer Backdrop -->
+        <div
+          (click)="toggleConvCollapse()"
+          class="md:hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-sm animate-fade-in"
+          aria-hidden="true"
+        ></div>
+
         <div
           [style.width.px]="convWidth"
-          class="relative border-r border-[#27272a] bg-[#0d0d10] flex flex-col justify-between p-3 flex-shrink-0 select-none transition-[width] duration-75"
+          class="fixed md:relative inset-y-0 left-0 z-50 md:z-auto w-72 max-w-[85vw] md:max-w-none border-r border-[#27272a] bg-[#0d0d10] flex flex-col justify-between p-3 flex-shrink-0 select-none transition-[width] duration-75 shadow-2xl md:shadow-none"
         >
           <!-- Fixed Top Header & Search Area (Pinned) -->
           <div class="flex-shrink-0 space-y-2 pb-2 border-b border-[#27272a]/60">
@@ -350,10 +357,10 @@ export interface IDynamicStarterCard {
             </div>
           </div>
 
-          <!-- Resizing Drag Handle -->
+          <!-- Resizing Drag Handle (Desktop Only) -->
           <div
             (mousedown)="startResizeConv($event)"
-            class="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-white/50 active:bg-white transition-colors z-20"
+            class="hidden md:block absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-white/50 active:bg-white transition-colors z-20"
             title="Drag to resize conversations"
           ></div>
         </div>
@@ -363,21 +370,22 @@ export interface IDynamicStarterCard {
       <div class="flex-1 flex flex-col h-full min-w-0 bg-[#09090b] relative">
 
         <!-- Chat Header -->
-        <div class="h-12 border-b border-[#27272a] px-4 flex items-center justify-between flex-shrink-0 bg-[#09090b]">
-          <div class="flex items-center gap-3 min-w-0">
+        <div class="h-12 border-b border-[#27272a] px-3 sm:px-4 flex items-center justify-between flex-shrink-0 bg-[#09090b]">
+          <div class="flex items-center gap-2 sm:gap-3 min-w-0">
             @if (isConvCollapsed) {
               <button
                 (click)="toggleConvCollapse()"
-                class="p-1.5 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-[#18181b] transition-colors"
+                class="min-w-[40px] min-h-[40px] -ml-1 rounded-xl text-[#a1a1aa] hover:text-white hover:bg-[#18181b] flex items-center justify-center transition-colors"
                 title="Show conversations"
+                aria-label="Show conversations"
               >
                 <svg class="w-4 h-4" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                 </svg>
               </button>
             }
-            <div class="w-2 h-2 rounded-full" [ngClass]="isCurrentGenerating ? 'bg-[#38bdf8] animate-pulse' : 'bg-zinc-600'"></div>
-            <h2 class="font-medium text-white text-xs tracking-tight truncate max-w-sm sm:max-w-md">
+            <div class="w-2 h-2 rounded-full flex-shrink-0" [ngClass]="isCurrentGenerating ? 'bg-[#38bdf8] animate-pulse' : 'bg-zinc-600'"></div>
+            <h2 class="font-medium text-white text-xs tracking-tight truncate max-w-[180px] sm:max-w-md">
               {{ activeConversation?.title || 'New Workplace Session' }}
             </h2>
           </div>
@@ -392,20 +400,20 @@ export interface IDynamicStarterCard {
             @if (messages.length > 0) {
               <button
                 (click)="exportConversationPdf()"
-                class="px-2.5 py-1 rounded-lg bg-[#18181b] hover:bg-[#27272a] text-[#a1a1aa] hover:text-white text-xs font-medium border border-[#27272a] flex items-center gap-1.5 transition-colors"
+                class="min-h-[36px] px-2.5 py-1 rounded-lg bg-[#18181b] hover:bg-[#27272a] text-[#a1a1aa] hover:text-white text-xs font-medium border border-[#27272a] flex items-center gap-1.5 transition-colors"
                 title="Export as PDF"
               >
                 <svg class="w-3.5 h-3.5 text-zinc-400" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span>Export PDF</span>
+                <span class="hidden sm:inline">Export PDF</span>
               </button>
             }
           </div>
         </div>
 
         <!-- Messages Thread -->
-        <div #scrollContainer class="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-6 max-w-4xl mx-auto w-full">
+        <div #scrollContainer class="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 max-w-4xl mx-auto w-full">
           @if (messages.length === 0 && !isCurrentGenerating) {
             <div class="h-full flex flex-col items-center justify-center text-center space-y-6 py-12 animate-fade-in my-auto">
               <div class="w-12 h-12 rounded-2xl bg-[#18181b] border border-[#27272a] flex items-center justify-center p-2.5">
@@ -584,7 +592,7 @@ export interface IDynamicStarterCard {
         </div>
 
         <!-- Input Box & Mention Autocomplete -->
-        <div class="p-4 border-t border-[#27272a] bg-[#0d0d10] relative flex-shrink-0">
+        <div class="p-2 sm:p-4 border-t border-[#27272a] bg-[#0d0d10] relative flex-shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
           <div class="max-w-4xl mx-auto relative">
             <!-- Autocomplete Dropdown Component -->
             <app-mention-autocomplete
@@ -615,7 +623,7 @@ export interface IDynamicStarterCard {
             }
 
             <!-- Floating Prompt Container (Claude/ChatGPT Style) -->
-            <div data-tour="chat-input-area" class="bg-[#111114] border border-[#27272a] focus-within:border-white rounded-2xl p-2.5 transition-colors">
+            <div data-tour="chat-input-area" class="bg-[#111114] border border-[#27272a] focus-within:border-white rounded-2xl p-2 sm:p-2.5 transition-colors">
               <div class="flex items-start gap-1">
                 <textarea
                   #inputArea
@@ -625,7 +633,7 @@ export interface IDynamicStarterCard {
                   placeholder="Ask anything naturally or type @ to mention files or folders... (Shift + Enter for new line)"
                   [disabled]="isCurrentGenerating || isMaxGenerationsReached"
                   rows="1"
-                  class="w-full bg-transparent border-0 text-white text-sm px-2 py-1.5 focus:outline-none resize-none max-h-60 overflow-y-auto leading-relaxed disabled:opacity-50 transition-[height] duration-150"
+                  class="w-full bg-transparent border-0 text-white text-sm px-2 py-1.5 focus:outline-none resize-none max-h-36 sm:max-h-60 overflow-y-auto leading-relaxed disabled:opacity-50 transition-[height] duration-150"
                 ></textarea>
 
                 <!-- Voice / Microphone Button in Top-Right of Input Box -->
@@ -634,8 +642,9 @@ export interface IDynamicStarterCard {
                   (click)="toggleVoiceInput()"
                   [disabled]="isCurrentGenerating || isMaxGenerationsReached"
                   [ngClass]="voiceService.isListening ? 'bg-white text-black font-semibold border border-white' : 'text-zinc-400 hover:text-white hover:bg-[#18181b] border border-transparent hover:border-[#27272a]'"
-                  class="p-1.5 rounded-xl text-xs flex items-center justify-center transition-all flex-shrink-0 mt-0.5"
+                  class="min-w-[40px] min-h-[40px] p-2 rounded-xl text-xs flex items-center justify-center transition-all flex-shrink-0"
                   [title]="voiceService.isListening ? 'Listening... Click to stop recording' : 'Voice input (Click to speak)'"
+                  aria-label="Voice input"
                 >
                   <svg class="w-4 h-4" [ngClass]="voiceService.isListening ? 'text-black' : 'text-zinc-400 hover:text-white'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
@@ -643,14 +652,14 @@ export interface IDynamicStarterCard {
                 </button>
               </div>
 
-              <div class="flex items-center justify-between pt-1 border-t border-[#27272a] mt-1">
+              <div class="flex items-center justify-between pt-1.5 border-t border-[#27272a] mt-1">
                 <div class="flex items-center gap-1.5">
                   <button
                     type="button"
                     (click)="triggerMentionMenu()"
                     data-tour="chat-mention-btn"
                     [disabled]="isCurrentGenerating || isMaxGenerationsReached"
-                    class="px-2.5 py-1 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-[#18181b] border border-[#27272a] text-xs flex items-center gap-1.5 transition-colors disabled:opacity-40"
+                    class="min-h-[36px] px-3 py-1.5 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-[#18181b] border border-[#27272a] text-xs flex items-center gap-1.5 transition-colors disabled:opacity-40"
                     title="Attach & mention document or dataset"
                   >
                     <span class="text-white font-bold">&#64;</span>
@@ -662,7 +671,7 @@ export interface IDynamicStarterCard {
                 <button
                   (click)="sendUserMessage()"
                   [disabled]="isCurrentGenerating || isMaxGenerationsReached || (!inputText.trim() && attachedResources.length === 0)"
-                  class="px-3.5 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0"
+                  class="min-h-[38px] px-4 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0"
                   title="Send (Enter)"
                 >
                   <span>Send</span>
@@ -673,7 +682,7 @@ export interface IDynamicStarterCard {
               </div>
             </div>
 
-            <div class="flex items-center justify-between mt-2 px-1 text-[11px] text-[#71717a]">
+            <div class="hidden sm:flex items-center justify-between mt-2 px-1 text-[11px] text-[#71717a]">
               <span>Press <kbd class="px-1 py-0.5 rounded bg-[#18181b] text-zinc-300 font-mono text-[10px]">Enter</kbd> to send, <kbd class="px-1 py-0.5 rounded bg-[#18181b] text-zinc-300 font-mono text-[10px]">Shift + Enter</kbd> for a new line</span>
               <span>AI can make mistakes. Verify critical facts.</span>
             </div>
@@ -1489,6 +1498,10 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   selectConversation(conv: IConversation): void {
     if (this.activeConversation && this.activeConversation.id !== conv.id) {
       this.persistActiveDraft();
+    }
+
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      this.isConvCollapsed = true;
     }
 
     this.activeConversation = conv;

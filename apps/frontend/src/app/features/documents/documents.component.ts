@@ -506,7 +506,8 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
             </p>
           </div>
         } @else {
-          <div class="overflow-x-auto w-full">
+          <!-- Desktop Documents Table (>= 768px) -->
+          <div class="hidden md:block overflow-x-auto w-full">
             <table class="w-full min-w-[880px] text-left text-xs">
               <thead class="bg-[#09090b] text-zinc-400 text-[11px] font-semibold uppercase tracking-wider border-b border-zinc-800">
                 <tr>
@@ -681,6 +682,131 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                 }
               </tbody>
             </table>
+          </div>
+
+          <!-- Mobile Documents Card List (< 768px) -->
+          <div class="block md:hidden divide-y divide-zinc-800/80">
+            @for (doc of filteredDocuments; track doc.id) {
+              <div
+                class="p-4 space-y-3 transition-colors"
+                [ngClass]="!doc.hasAccess ? 'opacity-60 bg-black/20' : 'hover:bg-zinc-800/20'"
+                (click)="onRowClick(doc)"
+              >
+                <!-- Header: Icon, Name, Format -->
+                <div class="flex items-start justify-between gap-2.5">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/70 flex items-center justify-center text-zinc-300 flex-shrink-0">
+                      @if (!doc.hasAccess) {
+                        <svg class="w-4 h-4 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                      } @else {
+                        <svg class="w-4 h-4 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      }
+                    </div>
+                    <div class="truncate">
+                      <div class="font-medium text-white text-sm truncate" [title]="doc.originalName">
+                        {{ doc.originalName }}
+                      </div>
+                      <div class="flex items-center gap-1.5 text-[11px] text-zinc-400 font-mono mt-0.5">
+                        <span>📁 {{ doc.folder ? doc.folder : 'Root' }}</span>
+                        <span>•</span>
+                        <span>{{ (doc.fileSize / 1024).toFixed(1) }} KB</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700 font-medium flex-shrink-0">
+                    {{ doc.fileType }}
+                  </span>
+                </div>
+
+                <!-- Status & Chunks/Rows Row -->
+                <div class="flex items-center justify-between text-xs font-mono pt-1">
+                  <div>
+                    @if (doc.status === DocumentStatus.READY) {
+                      <span class="inline-flex items-center gap-1 text-[11px] text-zinc-200">
+                        <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+                        Ready
+                      </span>
+                    } @else if (doc.status === DocumentStatus.PROCESSING) {
+                      <span class="inline-flex items-center gap-1 text-[11px] text-zinc-300">
+                        <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                        Processing
+                      </span>
+                    } @else {
+                      <span class="inline-flex items-center gap-1 text-[11px] text-zinc-400">
+                        <span class="w-1.5 h-1.5 rounded-full border border-zinc-500"></span>
+                        Failed
+                      </span>
+                    }
+                  </div>
+
+                  <div class="text-zinc-400">
+                    @if (isTabular(doc)) {
+                      <span>{{ doc.totalRows || 0 }} rows</span>
+                    } @else {
+                      <span>{{ doc.chunkCount || 0 }} chunks</span>
+                    }
+                  </div>
+                </div>
+
+                <!-- Actions Grid for Mobile -->
+                <div class="pt-2 border-t border-zinc-800/80 flex items-center gap-2 flex-wrap" (click)="$event.stopPropagation()">
+                  @if (doc.hasAccess) {
+                    @if (isTabular(doc) && doc.sheets && doc.sheets.length > 0) {
+                      <button
+                        (click)="openTabularPreview(doc)"
+                        class="min-h-[40px] px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700 flex items-center justify-center gap-1 flex-1"
+                      >
+                        Preview
+                      </button>
+                    }
+                    @if (isAdmin) {
+                      <button
+                        (click)="triggerReplace(doc, replaceFileInput)"
+                        class="min-h-[40px] px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700 flex items-center justify-center gap-1 flex-1"
+                      >
+                        Replace
+                      </button>
+                      <button
+                        (click)="openMoveModal(doc)"
+                        class="min-h-[40px] px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700 flex items-center justify-center gap-1 flex-1"
+                      >
+                        Move
+                      </button>
+                      <button
+                        (click)="deleteDoc(doc.id)"
+                        class="min-w-[40px] min-h-[40px] p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 flex items-center justify-center"
+                        title="Delete file"
+                      >
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    }
+                  } @else {
+                    @if (doc.requestStatus === 'pending') {
+                      <span class="w-full text-center py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-400 font-mono">
+                        Access Request Pending
+                      </span>
+                    } @else {
+                      <button
+                        (click)="openAccessModal(doc)"
+                        class="w-full min-h-[44px] px-4 py-2 bg-white hover:bg-zinc-200 text-black rounded-xl text-xs font-semibold flex items-center justify-center gap-2"
+                      >
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <span>Request Access</span>
+                      </button>
+                    }
+                  }
+                </div>
+              </div>
+            }
           </div>
         }
       </div>

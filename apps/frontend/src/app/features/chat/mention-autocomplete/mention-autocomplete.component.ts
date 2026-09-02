@@ -18,42 +18,42 @@ import { IMentionOption, MentionResourceType } from '@enter-chat/shared-types';
   template: `
     @if (isOpen) {
       <div
-        class="absolute bottom-full left-0 mb-3 w-96 max-w-[calc(100vw-2rem)] bg-[#111114] border border-[#27272a] rounded-2xl overflow-hidden z-50 animate-fade-in"
+        class="absolute bottom-full left-0 mb-3 w-full sm:w-96 max-w-[calc(100vw-2rem)] bg-[#111114] border border-[#27272a] rounded-2xl overflow-hidden z-50 animate-fade-in shadow-2xl"
       >
         <!-- Header & Tabs -->
-        <div class="p-3 bg-[#141417] border-b border-[#27272a] flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-semibold text-white flex items-center gap-1.5">
+        <div class="p-2.5 sm:p-3 bg-[#141417] border-b border-[#27272a] flex items-center justify-between gap-1 flex-wrap">
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs font-semibold text-white flex items-center gap-1">
               <span class="text-white font-bold">&#64;</span>
-              <span>Mention File or Folder</span>
+              <span>Mention</span>
             </span>
           </div>
-          <div class="flex items-center gap-1 text-[11px]">
+          <div class="flex items-center gap-1 text-[11px] flex-wrap">
             <button
               (click)="activeTab = 'all'"
               [ngClass]="activeTab === 'all' ? 'bg-white text-black font-semibold' : 'text-[#a1a1aa] hover:text-white'"
-              class="px-2 py-0.5 rounded-md transition-colors"
+              class="min-h-[32px] px-2.5 py-1 rounded-md transition-colors"
             >
               All ({{ options.length }})
             </button>
             <button
               (click)="activeTab = 'folders'"
               [ngClass]="activeTab === 'folders' ? 'bg-white text-black font-semibold' : 'text-[#a1a1aa] hover:text-white'"
-              class="px-2 py-0.5 rounded-md transition-colors"
+              class="min-h-[32px] px-2.5 py-1 rounded-md transition-colors"
             >
               Folders
             </button>
             <button
               (click)="activeTab = 'docs'"
               [ngClass]="activeTab === 'docs' ? 'bg-white text-black font-semibold' : 'text-[#a1a1aa] hover:text-white'"
-              class="px-2 py-0.5 rounded-md transition-colors"
+              class="min-h-[32px] px-2.5 py-1 rounded-md transition-colors"
             >
               Docs
             </button>
             <button
               (click)="activeTab = 'data'"
               [ngClass]="activeTab === 'data' ? 'bg-white text-black font-semibold' : 'text-[#a1a1aa] hover:text-white'"
-              class="px-2 py-0.5 rounded-md transition-colors"
+              class="min-h-[32px] px-2.5 py-1 rounded-md transition-colors"
             >
               Datasets
             </button>
@@ -68,9 +68,9 @@ import { IMentionOption, MentionResourceType } from '@enter-chat/shared-types';
                 (click)="selectOption(opt)"
                 (mouseenter)="selectedIndex = idx"
                 [ngClass]="{ 'bg-[#1f1f23] text-white': selectedIndex === idx }"
-                class="px-3 py-2.5 rounded-xl cursor-pointer hover:bg-[#18181b] transition-colors flex items-center justify-between gap-2.5"
+                class="min-h-[44px] px-3 py-2 rounded-xl cursor-pointer hover:bg-[#18181b] transition-colors flex items-center justify-between gap-2.5"
               >
-                <div class="flex items-center gap-2.5 min-w-0">
+                <div class="flex items-center gap-2.5 min-w-0 flex-1">
                   @if (opt.type === MentionResourceType.FOLDER) {
                     <div class="w-7 h-7 rounded-lg bg-[#18181b] text-white border border-[#3f3f46] flex items-center justify-center flex-shrink-0">
                       <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -90,8 +90,8 @@ import { IMentionOption, MentionResourceType } from '@enter-chat/shared-types';
                       </svg>
                     </div>
                   }
-                  <div class="truncate">
-                    <div class="text-xs font-medium text-white truncate">{{ opt.name }}</div>
+                  <div class="truncate flex-1 min-w-0">
+                    <div class="text-xs font-medium text-white truncate max-w-[170px] sm:max-w-[230px]">{{ opt.name }}</div>
                     @if (opt.detail) {
                       <div class="text-[10px] text-[#a1a1aa] truncate mt-0.5">{{ opt.detail }}</div>
                     }

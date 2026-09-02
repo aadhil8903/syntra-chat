@@ -11,18 +11,18 @@ import { IUser } from '@enter-chat/shared-types';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="p-8 max-w-4xl mx-auto space-y-6 animate-fade-in">
-      <div class="flex items-center justify-between gap-4">
+    <div class="p-4 sm:p-8 max-w-4xl mx-auto space-y-6 animate-fade-in">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 class="text-2xl font-bold text-white tracking-tight">Platform Settings</h1>
-          <p class="text-sm text-[#a1a1aa] mt-1">
+          <p class="text-xs sm:text-sm text-[#a1a1aa] mt-1">
             Review your account profile, manage password security, and check active AI infrastructure.
           </p>
         </div>
         <button
           type="button"
           (click)="replayWalkthrough()"
-          class="px-3.5 py-2 rounded-xl bg-[#18181b] hover:bg-[#27272a] text-white border border-[#27272a] hover:border-zinc-700 text-xs font-semibold flex items-center gap-2 transition-colors flex-shrink-0"
+          class="min-h-[44px] px-4 py-2 rounded-xl bg-[#18181b] hover:bg-[#27272a] text-white border border-[#27272a] hover:border-zinc-700 text-xs font-semibold flex items-center justify-center gap-2 transition-colors flex-shrink-0 self-start sm:self-auto"
           title="Replay guided onboarding tour"
         >
           <svg class="w-4 h-4 text-zinc-300" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
