@@ -440,7 +440,7 @@ export interface IDynamicStarterCard {
             </div>
           }
 
-          @for (msg of messages; track $index) {
+          @for (msg of messages; track $index; let msgIdx = $index) {
             @if (msg.role === 'user' || (msg.content && msg.content.length > 0) || msg.generatedChart || (msg.generatedCharts && msg.generatedCharts.length > 0) || msg.generatedTable || msg.pythonCode) {
               <div
                 [ngClass]="msg.role === 'user' ? 'justify-end' : 'justify-start'"
@@ -526,14 +526,22 @@ export interface IDynamicStarterCard {
                   @if (msg.role !== 'user' && msg.content && msg.content.trim().length > 0) {
                     <div class="flex items-center justify-start gap-2 pt-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        (click)="copyMessageText(msg.content)"
-                        class="text-[11px] text-[#71717a] hover:text-white flex items-center gap-1 transition-colors px-2 py-1 rounded-md hover:bg-[#18181b] border border-transparent hover:border-zinc-800"
-                        title="Copy response"
+                        (click)="copyMessageText(msg.content, msgIdx)"
+                        class="text-[11px] flex items-center gap-1 transition-colors px-2 py-1 rounded-md hover:bg-[#18181b] border border-transparent hover:border-zinc-800"
+                        [ngClass]="copiedMessageIdx === msgIdx ? 'text-white font-medium bg-[#18181b] border-zinc-700' : 'text-[#71717a] hover:text-white'"
+                        [title]="copiedMessageIdx === msgIdx ? 'Copied to clipboard' : 'Copy response'"
                       >
-                        <svg class="w-3.5 h-3.5" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        <span>Copy</span>
+                        @if (copiedMessageIdx === msgIdx) {
+                          <svg class="w-3.5 h-3.5 text-white" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span>Copied</span>
+                        } @else {
+                          <svg class="w-3.5 h-3.5" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          <span>Copy</span>
+                        }
                       </button>
 
                       <button
@@ -715,6 +723,8 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   activeConversation: IConversation | null = null;
   searchQuery = '';
   localError = '';
+  copiedMessageIdx: number | null = null;
+  private copiedMessageTimer?: any;
   private searchDebounceTimer?: any;
   private draftDebounceTimer?: any;
 
@@ -891,6 +901,9 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.stopGeneratingTimer();
     if (this.searchDebounceTimer) {
       clearTimeout(this.searchDebounceTimer);
+    }
+    if (this.copiedMessageTimer) {
+      clearTimeout(this.copiedMessageTimer);
     }
     if (this.voiceService.isListening) {
       this.voiceService.stopListening();
@@ -1543,8 +1556,24 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.sendUserMessage();
   }
 
-  copyMessageText(content: string): void {
-    navigator.clipboard.writeText(content);
+  copyMessageText(content: string, msgIdx?: number): void {
+    if (!content) return;
+    navigator.clipboard
+      .writeText(content)
+      .then(() => {
+        if (msgIdx !== undefined) {
+          this.copiedMessageIdx = msgIdx;
+          if (this.copiedMessageTimer) {
+            clearTimeout(this.copiedMessageTimer);
+          }
+          this.copiedMessageTimer = setTimeout(() => {
+            this.copiedMessageIdx = null;
+          }, 2000);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to copy message text:', err);
+      });
   }
 
   onKeyDown(event: KeyboardEvent): void {
