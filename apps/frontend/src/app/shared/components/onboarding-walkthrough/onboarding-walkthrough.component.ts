@@ -96,7 +96,7 @@ interface ICardPosition {
         <!-- Contextual Compact Tour Card -->
         <div
           #tourCard
-          class="absolute z-10 w-80 sm:w-88 max-w-[calc(100vw-2rem)] bg-[#111114] border border-[#27272a] rounded-2xl shadow-2xl overflow-hidden flex flex-col p-4 space-y-3 transition-all duration-300 ease-out focus:outline-none"
+          class="absolute z-10 w-80 sm:w-88 max-w-[calc(100vw-2rem)] bg-[#111114] border border-[#27272a] rounded-2xl overflow-hidden flex flex-col p-4 space-y-3 transition-all duration-300 ease-out focus:outline-none"
           [style.top.px]="cardPosition().top"
           [style.left.px]="cardPosition().left"
           tabindex="0"
@@ -151,7 +151,7 @@ interface ICardPosition {
                 <button
                   type="button"
                   (click)="next()"
-                  class="px-3.5 py-1 text-xs font-semibold text-black bg-white hover:bg-zinc-200 rounded-xl transition-colors shadow-sm"
+                  class="px-3.5 py-1 text-xs font-semibold text-black bg-white hover:bg-zinc-200 rounded-xl transition-colors"
                   aria-label="Next step"
                 >
                   Next &rarr;
@@ -160,7 +160,7 @@ interface ICardPosition {
                 <button
                   type="button"
                   (click)="finish()"
-                  class="px-3.5 py-1 text-xs font-semibold text-black bg-white hover:bg-zinc-200 rounded-xl transition-colors shadow-sm"
+                  class="px-3.5 py-1 text-xs font-semibold text-black bg-white hover:bg-zinc-200 rounded-xl transition-colors"
                   aria-label="Finish walkthrough tour"
                 >
                   Finish

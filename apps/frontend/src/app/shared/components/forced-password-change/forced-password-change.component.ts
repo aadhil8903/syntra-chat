@@ -9,7 +9,7 @@ import { ApiService } from '../../../core/services/api.service';
   imports: [CommonModule, FormsModule],
   template: `
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div class="w-full max-w-md bg-[#111114] border border-[#27272a] rounded-2xl shadow-2xl p-6 space-y-4">
+      <div class="w-full max-w-md bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4">
         
         <div class="border-b border-[#27272a] pb-3 space-y-1">
           <h2 class="text-base font-bold text-white tracking-tight">Set Your Personal Password</h2>
@@ -19,7 +19,7 @@ import { ApiService } from '../../../core/services/api.service';
         </div>
 
         @if (errorMessage) {
-          <div class="p-3 bg-rose-950/40 border border-rose-900/60 rounded-xl text-xs text-rose-300">
+          <div class="p-3 bg-zinc-900 border border-zinc-700 rounded-xl text-xs text-zinc-200">
             {{ errorMessage }}
           </div>
         }
@@ -61,7 +61,7 @@ import { ApiService } from '../../../core/services/api.service';
             type="button"
             (click)="submitPasswordChange()"
             [disabled]="loading || !currentPassword.trim() || !newPassword.trim() || !confirmPassword.trim()"
-            class="w-full py-2.5 bg-white hover:bg-zinc-200 text-black text-xs font-semibold rounded-xl transition-colors disabled:opacity-40 shadow-sm"
+            class="w-full py-2.5 bg-white hover:bg-zinc-200 text-black text-xs font-semibold rounded-xl transition-colors disabled:opacity-40"
           >
             {{ loading ? 'Updating Password...' : 'Save and Continue' }}
           </button>

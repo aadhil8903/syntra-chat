@@ -11,9 +11,9 @@ import { WalkthroughService } from '../../../core/services/walkthrough.service';
   imports: [CommonModule, FormsModule, RouterModule],
   template: `
     <div class="min-h-screen bg-[#09090b] flex items-center justify-center p-4">
-      <div class="w-full max-w-md bg-[#111114] border border-[#27272a] rounded-2xl p-8 shadow-2xl">
+      <div class="w-full max-w-md bg-[#111114] border border-[#27272a] rounded-2xl p-8">
         <div class="text-center mb-8">
-          <div class="inline-flex w-14 h-14 rounded-2xl bg-[#18181b] border border-[#27272a] p-2.5 items-center justify-center mb-4 shadow-md">
+          <div class="inline-flex w-14 h-14 rounded-2xl bg-[#18181b] border border-[#27272a] p-2.5 items-center justify-center mb-4">
             <img src="/logo-icon.png" alt="Syntra Chat Logo" class="w-full h-full object-contain" />
           </div>
           <h1 class="text-2xl font-bold text-white tracking-tight">Welcome to Syntra Chat</h1>
@@ -21,7 +21,7 @@ import { WalkthroughService } from '../../../core/services/walkthrough.service';
         </div>
 
         @if (errorMessage) {
-          <div class="mb-4 p-3 rounded-lg bg-zinc-900 border border-rose-900/60 text-rose-300 text-xs">
+          <div class="mb-4 p-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs">
             {{ errorMessage }}
           </div>
         }
@@ -54,7 +54,7 @@ import { WalkthroughService } from '../../../core/services/walkthrough.service';
           <button
             type="submit"
             [disabled]="isLoading"
-            class="w-full py-2.5 rounded-xl bg-white text-black font-semibold text-sm hover:bg-[#e4e4e7] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm mt-2"
+            class="w-full py-2.5 rounded-xl bg-white text-black font-semibold text-sm hover:bg-[#e4e4e7] transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
           >
             {{ isLoading ? 'Signing In...' : 'Sign In' }}
           </button>

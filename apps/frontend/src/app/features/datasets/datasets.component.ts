@@ -16,8 +16,8 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
       <!-- OS Drag & Drop Full Area Dashed Overlay Cue (Admin Only) -->
       @if (isOsDragOver && isAdmin) {
         <div class="fixed inset-0 z-50 bg-[#09090b]/85 backdrop-blur-md flex flex-col items-center justify-center p-8 pointer-events-none animate-fade-in">
-          <div class="w-full max-w-2xl border-2 border-dashed border-emerald-400 rounded-3xl p-12 text-center space-y-4 bg-[#111114]/95 shadow-2xl">
-            <div class="w-16 h-16 rounded-2xl bg-emerald-500 text-black flex items-center justify-center mx-auto shadow-lg">
+          <div class="w-full max-w-2xl border-2 border-dashed border-white rounded-3xl p-12 text-center space-y-4 bg-[#111114]/95">
+            <div class="w-16 h-16 rounded-2xl bg-white text-black flex items-center justify-center mx-auto">
               <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
@@ -32,8 +32,8 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
 
       <!-- Instant Toast Notification -->
       @if (toastMessage) {
-        <div class="fixed bottom-8 right-8 z-50 px-4 py-3 rounded-2xl bg-[#111114] border border-emerald-500 text-white shadow-2xl flex items-center gap-3 animate-fade-in">
-          <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+        <div class="fixed bottom-8 right-8 z-50 px-4 py-3 rounded-2xl bg-[#111114] border border-zinc-700 text-white flex items-center gap-3 animate-fade-in">
+          <div class="w-2 h-2 rounded-full bg-white animate-pulse"></div>
           <span class="text-xs font-medium">{{ toastMessage }}</span>
         </div>
       }
@@ -52,7 +52,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
             @if (activeFolder) {
               <button
                 (click)="deleteFolder(activeFolder)"
-                class="px-3 py-2 rounded-xl bg-[#18181b] hover:bg-[#27272a] text-rose-400 border border-rose-900/40 text-xs font-medium transition-colors flex items-center gap-1.5"
+                class="px-3 py-2 rounded-xl bg-[#18181b] hover:bg-[#27272a] text-zinc-300 hover:text-white border border-zinc-800 text-xs font-medium transition-colors flex items-center gap-1.5"
                 title="Delete this folder"
               >
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -72,7 +72,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
               <span>+ New Folder</span>
             </button>
     
-            <label class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors cursor-pointer inline-flex items-center gap-2 shadow-sm">
+            <label class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors cursor-pointer inline-flex items-center gap-2">
               <svg class="w-4 h-4" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
@@ -85,7 +85,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
 
       <!-- Quick New Folder / Subfolder Input Bar (Admin Only) with Department Selection -->
       @if (showNewFolderInput && isAdmin) {
-        <div class="p-5 rounded-2xl bg-[#111114] border border-[#27272a] space-y-4 animate-fade-in shadow-xl">
+        <div class="p-5 rounded-2xl bg-[#111114] border border-[#27272a] space-y-4 animate-fade-in">
           <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div class="flex items-center gap-2 flex-1">
               <svg class="w-5 h-5 text-zinc-300 flex-shrink-0" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -100,21 +100,21 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                 type="text"
                 [(ngModel)]="newFolderName"
                 (keydown.enter)="createFolder()"
-                [placeholder]="activeFolder ? 'Enter subfolder name (e.g. Benchmarks)...' : 'Enter dataset folder name (e.g. Sales, Q3/Finance)...'"
-                class="flex-1 px-3 py-2 rounded-xl bg-[#0c0c0e] border border-[#27272a] text-sm text-white focus:outline-none focus:border-white placeholder:text-[#71717a]"
+                [placeholder]="activeFolder ? 'Enter subfolder name (e.g. Q4)...' : 'Enter folder name (e.g. Sales, Financials)...'"
+                class="flex-1 px-3 py-2 rounded-xl bg-[#09090b] border border-[#27272a] text-white text-sm focus:outline-none focus:border-white transition-colors placeholder:text-zinc-500"
               />
             </div>
             <div class="flex items-center gap-2">
               <button
                 (click)="createFolder()"
                 [disabled]="!newFolderName.trim()"
-                class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-semibold disabled:opacity-50 transition-colors shadow-sm"
+                class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-semibold disabled:opacity-50 transition-colors"
               >
                 Create Folder
               </button>
               <button
                 (click)="showNewFolderInput = false; newFolderName = ''; newFolderDepartments = []"
-                class="px-3 py-2 rounded-xl bg-[#18181b] hover:bg-[#27272a] text-[#a1a1aa] text-xs font-medium transition-colors"
+                class="px-3 py-2 rounded-xl bg-[#18181b] hover:bg-[#27272a] text-[#a1a1aa] hover:text-white text-xs font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -122,16 +122,16 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
           </div>
 
           <!-- Department Multi-Select Chips -->
-          <div class="pt-2 border-t border-[#27272a]/60 space-y-2">
+          <div class="pt-3 border-t border-[#27272a] space-y-2">
             <div class="flex items-center justify-between">
-              <label class="text-xs font-medium text-[#a1a1aa] flex items-center gap-1.5">
-                <span>Assign Department Access (multi-select)</span>
-                <span class="text-[10px] text-zinc-500 font-normal">• All members of selected departments automatically get access</span>
+              <label class="text-xs font-medium text-zinc-300 flex items-center gap-1.5">
+                <span>Assign Department Access</span>
+                <span class="text-[10px] text-[#71717a] font-normal">• Members of selected departments get access</span>
               </label>
               @if (newFolderDepartments.length > 0) {
-                <span class="text-[11px] text-emerald-400 font-medium">{{ newFolderDepartments.length }} selected</span>
+                <span class="text-[11px] text-zinc-300 font-mono">{{ newFolderDepartments.length }} selected</span>
               } @else {
-                <span class="text-[11px] text-zinc-500">Unrestricted / Open</span>
+                <span class="text-[11px] text-[#71717a]">Unrestricted</span>
               }
             </div>
             <div class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
@@ -139,7 +139,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                 <button
                   type="button"
                   (click)="toggleNewFolderDept(dept)"
-                  [ngClass]="newFolderDepartments.includes(dept) ? 'bg-white text-black font-semibold border-white shadow-sm' : 'bg-[#18181b] text-zinc-400 border-[#27272a] hover:text-white hover:border-zinc-500'"
+                  [ngClass]="newFolderDepartments.includes(dept) ? 'bg-white text-black font-semibold border-white' : 'bg-[#18181b] text-zinc-400 border-[#27272a] hover:text-white hover:border-zinc-500'"
                   class="px-2.5 py-1 rounded-lg text-xs border transition-all flex items-center gap-1"
                 >
                   <span>{{ dept }}</span>
@@ -156,7 +156,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
       }
 
       @if (uploadError) {
-        <div class="p-3 rounded-xl bg-zinc-900 border border-rose-900/60 text-rose-300 text-xs flex items-center justify-between">
+        <div class="p-3 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs flex items-center justify-between">
           <span>{{ uploadError }}</span>
           <button (click)="uploadError = ''" class="hover:underline font-bold">Dismiss</button>
         </div>
@@ -170,7 +170,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
             (dragover)="onFolderDragOver($event, '')"
             (dragleave)="onFolderDragLeave($event, '')"
             (drop)="onFolderDrop($event, '')"
-            [ngClass]="activeFolder === null ? 'text-black font-semibold bg-white' : (dragOverTargetFolder === '' ? 'border-emerald-400 bg-emerald-500/20 text-white ring-1 ring-emerald-400' : 'text-[#a1a1aa] hover:text-white')"
+            [ngClass]="activeFolder === null ? 'text-black font-semibold bg-white' : (dragOverTargetFolder === '' ? 'border-zinc-500 bg-zinc-800 text-white' : 'text-[#a1a1aa] hover:text-white')"
             class="px-2.5 py-1 rounded-lg transition-all font-medium flex items-center gap-1.5 border border-transparent"
           >
             <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -186,7 +186,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
             (dragover)="onFolderDragOver($event, '')"
             (dragleave)="onFolderDragLeave($event, '')"
             (drop)="onFolderDrop($event, '')"
-            [ngClass]="activeFolder === '' ? 'text-black font-semibold bg-white' : (dragOverTargetFolder === '' ? 'border-emerald-400 bg-emerald-500/20 text-white ring-1 ring-emerald-400' : 'text-[#a1a1aa] hover:text-white')"
+            [ngClass]="activeFolder === '' ? 'text-black font-semibold bg-white' : (dragOverTargetFolder === '' ? 'border-zinc-500 bg-zinc-800 text-white' : 'text-[#a1a1aa] hover:text-white')"
             class="px-2 py-1 rounded-lg transition-all border border-transparent"
           >
             Root
@@ -200,7 +200,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                 (dragover)="onFolderDragOver($event, b.path)"
                 (dragleave)="onFolderDragLeave($event, b.path)"
                 (drop)="onFolderDrop($event, b.path)"
-                [ngClass]="dragOverTargetFolder === b.path ? 'border-emerald-400 bg-emerald-500/20 text-white ring-1 ring-emerald-400' : 'text-[#a1a1aa] hover:text-white hover:bg-[#18181b]'"
+                [ngClass]="dragOverTargetFolder === b.path ? 'border-zinc-500 bg-zinc-800 text-white' : 'text-[#a1a1aa] hover:text-white hover:bg-[#18181b]'"
                 class="px-2 py-1 rounded-lg transition-all font-medium border border-transparent"
               >
                 {{ b.name }}
@@ -250,7 +250,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                 (dragover)="onFolderDragOver($event, sub.fullPath)"
                 (dragleave)="onFolderDragLeave($event, sub.fullPath)"
                 (drop)="onFolderDrop($event, sub.fullPath)"
-                [ngClass]="dragOverTargetFolder === sub.fullPath ? 'border-emerald-400 bg-emerald-500/15 scale-[1.03] shadow-lg ring-2 ring-emerald-400' : 'border-[#27272a] bg-[#111114] hover:border-white'"
+                [ngClass]="dragOverTargetFolder === sub.fullPath ? 'border-zinc-500 bg-zinc-800 text-white' : 'border-[#27272a] bg-[#111114] hover:border-white'"
                 class="group p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between"
               >
                 <div class="flex items-center gap-2 truncate">
@@ -266,7 +266,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                 <button
                   *ngIf="isAdmin"
                   (click)="$event.stopPropagation(); deleteFolder(sub.fullPath)"
-                  class="opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity p-1 rounded-lg hover:bg-rose-500/10 text-zinc-500"
+                  class="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity p-1 rounded-lg hover:bg-zinc-800 text-zinc-500"
                   title="Delete folder"
                 >
                   <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -301,7 +301,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                   (dragstart)="onDatasetDragStart($event, ds)"
                   (dragend)="onDatasetDragEnd()"
                   [ngClass]="[
-                    selectedDataset?.id === ds.id ? 'border-white bg-[#18181b] shadow-md' : 'border-[#27272a] bg-[#111114] hover:border-[#3f3f46]',
+                    selectedDataset?.id === ds.id ? 'border-white bg-[#18181b]' : 'border-[#27272a] bg-[#111114] hover:border-[#3f3f46]',
                     isAdmin ? 'cursor-grab active:cursor-grabbing select-none' : 'cursor-pointer'
                   ]"
                   class="p-4 rounded-2xl border transition-all flex flex-col gap-2"
@@ -325,7 +325,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                       <button
                         *ngIf="isAdmin"
                         (click)="deleteDataset(ds.id, $event)"
-                        class="text-zinc-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-500/10 transition-colors flex-shrink-0"
+                        class="text-zinc-500 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors flex-shrink-0"
                         title="Delete dataset"
                       >
                         <svg class="w-4 h-4" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -356,7 +356,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
         <!-- Dataset Schema & Preview View -->
         <div class="lg:col-span-2">
           @if (selectedDataset) {
-            <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-6 shadow-xl">
+            <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-6">
               <div class="flex items-center justify-between">
                 <div>
                   <h3 class="text-lg font-bold text-white">{{ selectedDataset.originalName }}</h3>

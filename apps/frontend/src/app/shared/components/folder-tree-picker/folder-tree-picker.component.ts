@@ -41,7 +41,7 @@ export interface IFolderTreeNode {
               <button
                 type="button"
                 (click)="toggleFolderSelection(folder, $event)"
-                class="hover:text-rose-400 font-bold ml-0.5"
+                class="hover:text-white font-bold ml-0.5"
                 title="Toggle folder access"
               >
                 ×
@@ -78,7 +78,7 @@ export interface IFolderTreeNode {
       <!-- Dropdown Tree Flyout Menu (VS Code Explorer Style) -->
       @if (isOpen) {
         <div
-          class="absolute z-50 left-0 mt-1.5 w-84 bg-[#111114] border border-[#3f3f46] rounded-2xl shadow-2xl p-3 space-y-2.5 animate-fade-in text-xs"
+          class="absolute z-50 left-0 mt-1.5 w-84 bg-[#111114] border border-[#3f3f46] rounded-2xl p-3 space-y-2.5 animate-fade-in text-xs"
         >
           <!-- Search and Quick Actions Bar -->
           <div class="flex items-center justify-between gap-2 pb-1.5 border-b border-[#27272a]">
@@ -330,14 +330,7 @@ export class FolderTreePickerComponent implements OnInit, OnChanges {
   }
 
   getBadgeClass(folderPath: string): string {
-    const label = this.getInheritanceLabel(folderPath);
-    if (label === 'role') {
-      return 'bg-blue-950/40 text-blue-300 border-blue-800/60';
-    }
-    if (label === 'dept') {
-      return 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60';
-    }
-    return 'bg-[#18181b] text-zinc-200 border-[#3f3f46]';
+    return 'bg-zinc-900 text-zinc-300 border-zinc-800';
   }
 
   private getAncestors(folderPath: string): string[] {

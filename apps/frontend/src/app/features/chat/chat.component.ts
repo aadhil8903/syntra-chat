@@ -81,7 +81,7 @@ export interface IDynamicStarterCard {
             <div class="flex items-center justify-between gap-2">
               <button
                 (click)="createNewConversation()"
-                class="flex-1 py-2 px-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm"
+                class="flex-1 py-2 px-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors flex items-center justify-center gap-2"
               >
                 <svg class="w-4 h-4" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -204,7 +204,7 @@ export interface IDynamicStarterCard {
                         <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             (click)="createNewConversation(col.id); $event.stopPropagation()"
-                            class="p-1 hover:text-emerald-400 text-zinc-400 hover:bg-zinc-800 rounded"
+                            class="p-1 hover:text-white text-zinc-400 hover:bg-zinc-800 rounded"
                             title="New chat in this collection"
                           >
                             <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -222,7 +222,7 @@ export interface IDynamicStarterCard {
                           </button>
                           <button
                             (click)="deleteCollection(col.id, $event)"
-                            class="p-1 hover:text-rose-400 text-zinc-500 hover:bg-zinc-800 rounded"
+                            class="p-1 hover:text-white text-zinc-500 hover:bg-zinc-800 rounded"
                             title="Delete collection"
                           >
                             <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -250,11 +250,11 @@ export interface IDynamicStarterCard {
                               </div>
                               <div class="flex items-center gap-1">
                                 @if (chatState.isGenerating(conv.id)) {
-                                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></span>
+                                  <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse flex-shrink-0"></span>
                                 }
                                 <button
                                   (click)="unassignFromCollection(conv, $event)"
-                                  class="opacity-0 group-hover/item:opacity-100 p-0.5 hover:text-amber-400 text-zinc-500 transition-opacity text-[10px]"
+                                  class="opacity-0 group-hover/item:opacity-100 p-0.5 hover:text-white text-zinc-500 transition-opacity text-[10px]"
                                   title="Move to Recent Chats"
                                 >
                                   &times;
@@ -300,7 +300,7 @@ export interface IDynamicStarterCard {
                   {{ searchQuery ? 'Search Results' : 'Recent Chats' }}
                 </div>
                 @if (chatState.activeGenerationsCount() > 0 && !searchQuery) {
-                  <span class="text-[10px] font-mono text-emerald-400">
+                  <span class="text-[10px] font-mono text-zinc-300">
                     {{ chatState.activeGenerationsCount() }}/2 active
                   </span>
                 }
@@ -330,14 +330,14 @@ export interface IDynamicStarterCard {
                   </div>
                   <div class="flex items-center gap-1">
                     @if (chatState.isGenerating(conv.id)) {
-                      <span class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-800 text-emerald-400 text-[9px] font-mono flex-shrink-0" title="Generating in background">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span class="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-200 text-[9px] font-mono flex-shrink-0" title="Generating in background">
+                        <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
                         <span class="hidden sm:inline">running</span>
                       </span>
                     }
                     <button
                       (click)="deleteConversation(conv.id, $event)"
-                      class="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-400 text-zinc-500 transition-opacity"
+                      class="opacity-0 group-hover:opacity-100 p-1 hover:text-white text-zinc-500 transition-opacity"
                       title="Delete chat"
                     >
                       <svg class="w-3 h-3" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -350,33 +350,21 @@ export interface IDynamicStarterCard {
             </div>
           </div>
 
-          <!-- Undo Move Toast -->
-          @if (undoToast) {
-            <div class="absolute bottom-4 left-4 right-4 z-30 p-2.5 rounded-xl bg-zinc-900 border border-zinc-700 text-white shadow-2xl flex items-center justify-between text-xs animate-fade-in">
-              <span class="truncate mr-2 text-zinc-200">{{ undoToast.message }}</span>
-              <button
-                (click)="performUndo()"
-                class="px-2.5 py-1 rounded-lg bg-white text-black font-semibold text-xs hover:bg-zinc-200 transition-colors flex-shrink-0 shadow-sm"
-              >
-                Undo
-              </button>
-            </div>
-          }
-
-          <!-- Drawer Resize Handle -->
+          <!-- Resizing Drag Handle -->
           <div
             (mousedown)="startResizeConv($event)"
             class="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-white/50 active:bg-white transition-colors z-20"
-            title="Drag to resize conversations drawer"
+            title="Drag to resize conversations"
           ></div>
         </div>
       }
 
       <!-- Main Chat Area -->
-      <div class="flex-1 flex flex-col bg-[#09090b] overflow-hidden relative">
+      <div class="flex-1 flex flex-col h-full min-w-0 bg-[#09090b] relative">
+
         <!-- Chat Header -->
-        <div class="h-12 border-b border-[#27272a] px-5 flex items-center justify-between bg-[#0d0d10] flex-shrink-0">
-          <div class="flex items-center gap-3">
+        <div class="h-12 border-b border-[#27272a] px-4 flex items-center justify-between flex-shrink-0 bg-[#09090b]">
+          <div class="flex items-center gap-3 min-w-0">
             @if (isConvCollapsed) {
               <button
                 (click)="toggleConvCollapse()"
@@ -388,7 +376,7 @@ export interface IDynamicStarterCard {
                 </svg>
               </button>
             }
-            <div class="w-2 h-2 rounded-full" [ngClass]="isCurrentGenerating ? 'bg-emerald-400 animate-pulse' : 'bg-white'"></div>
+            <div class="w-2 h-2 rounded-full" [ngClass]="isCurrentGenerating ? 'bg-[#38bdf8] animate-pulse' : 'bg-zinc-600'"></div>
             <h2 class="font-medium text-white text-xs tracking-tight truncate max-w-sm sm:max-w-md">
               {{ activeConversation?.title || 'New Workplace Session' }}
             </h2>
@@ -396,8 +384,8 @@ export interface IDynamicStarterCard {
 
           <div class="flex items-center gap-2">
             @if (chatState.activeGenerationsCount() > 0) {
-              <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-800 text-[10px] font-mono text-emerald-400">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-700 text-[10px] font-mono text-zinc-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
                 <span>{{ chatState.activeGenerationsCount() }}/2 Active Chats</span>
               </div>
             }
@@ -420,7 +408,7 @@ export interface IDynamicStarterCard {
         <div #scrollContainer class="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-6 max-w-4xl mx-auto w-full">
           @if (messages.length === 0 && !isCurrentGenerating) {
             <div class="h-full flex flex-col items-center justify-center text-center space-y-6 py-12 animate-fade-in my-auto">
-              <div class="w-12 h-12 rounded-2xl bg-[#18181b] border border-[#27272a] flex items-center justify-center p-2.5 shadow-sm">
+              <div class="w-12 h-12 rounded-2xl bg-[#18181b] border border-[#27272a] flex items-center justify-center p-2.5">
                 <img src="/logo-icon.png" alt="Syntra" class="w-full h-full object-contain" />
               </div>
               <div class="space-y-1.5">
@@ -459,7 +447,7 @@ export interface IDynamicStarterCard {
                 class="flex gap-3 animate-fade-in"
               >
                 @if (msg.role !== 'user') {
-                  <div class="w-7 h-7 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center flex-shrink-0 p-1 mt-0.5 shadow-sm">
+                  <div class="w-7 h-7 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center flex-shrink-0 p-1 mt-0.5">
                     <img src="/logo-icon.png" alt="Syntra" class="w-full h-full object-contain" />
                   </div>
                 }
@@ -553,7 +541,7 @@ export interface IDynamicStarterCard {
                         class="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1.5 transition-colors px-2 py-1 rounded-md hover:bg-[#18181b] border border-transparent hover:border-zinc-700 font-medium"
                         title="Export this calculation or analysis as a branded PDF report"
                       >
-                        <svg class="w-3.5 h-3.5 text-rose-400" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg class="w-3.5 h-3.5 text-zinc-400" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
                         <span>Export as PDF Report</span>
@@ -568,11 +556,11 @@ export interface IDynamicStarterCard {
           <!-- Live Reasoning Animation for THIS specific conversation -->
           @if (isCurrentGenerating) {
             <div class="flex gap-3 justify-start animate-fade-in">
-              <div class="w-7 h-7 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center flex-shrink-0 p-1 mt-0.5 shadow-sm">
+              <div class="w-7 h-7 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center flex-shrink-0 p-1 mt-0.5">
                 <img src="/logo-icon.png" alt="Syntra" class="w-full h-full object-contain" />
               </div>
               <div class="bg-[#111114] border border-[#27272a] rounded-xl px-4 py-2.5 text-xs flex items-center gap-2.5 text-white">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
                 <span class="font-mono text-[#a1a1aa] transition-all duration-300">{{ currentGeneratingStatus }}</span>
               </div>
             </div>
@@ -580,9 +568,9 @@ export interface IDynamicStarterCard {
 
           <!-- Per-Chat or Global Concurrency Error Banner -->
           @if (activeError) {
-            <div class="p-3 rounded-xl bg-zinc-900 border border-rose-900/60 text-rose-300 text-xs flex items-center justify-between">
+            <div class="p-3 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs flex items-center justify-between">
               <span>{{ activeError }}</span>
-              <button (click)="dismissError()" class="text-rose-400 font-bold hover:underline ml-3 flex-shrink-0">Dismiss</button>
+              <button (click)="dismissError()" class="text-white font-semibold hover:underline ml-3 flex-shrink-0">Dismiss</button>
             </div>
           }
         </div>
@@ -602,9 +590,9 @@ export interface IDynamicStarterCard {
             @if (attachedResources.length > 0) {
               <div class="flex flex-wrap gap-2 mb-2">
                 @for (res of attachedResources; track res.id) {
-                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#18181b] border border-[#3f3f46] text-white text-xs">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#18181b] border border-[#3f3f46] text-white text-xs font-mono">
                     <span>&#64;{{ res.name }}</span>
-                    <button (click)="removeAttachedResource(res.id)" class="hover:text-rose-400 ml-1">×</button>
+                    <button (click)="removeAttachedResource(res.id)" class="hover:text-white ml-1">×</button>
                   </span>
                 }
               </div>
@@ -612,8 +600,8 @@ export interface IDynamicStarterCard {
 
             <!-- Concurrency Notice when limit is reached -->
             @if (isMaxGenerationsReached) {
-              <div class="mb-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-400 text-[11px] flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+              <div class="mb-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-300 text-[11px] flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
                 <span>2 chats are currently generating in the background. Please wait for one to complete.</span>
               </div>
             }
@@ -637,11 +625,11 @@ export interface IDynamicStarterCard {
                   type="button"
                   (click)="toggleVoiceInput()"
                   [disabled]="isCurrentGenerating || isMaxGenerationsReached"
-                  [ngClass]="voiceService.isListening ? 'bg-rose-950/80 border border-rose-500/80 text-rose-300 ring-2 ring-rose-500/50 animate-pulse' : 'text-zinc-400 hover:text-white hover:bg-[#18181b] border border-transparent hover:border-[#27272a]'"
+                  [ngClass]="voiceService.isListening ? 'bg-white text-black font-semibold border border-white' : 'text-zinc-400 hover:text-white hover:bg-[#18181b] border border-transparent hover:border-[#27272a]'"
                   class="p-1.5 rounded-xl text-xs flex items-center justify-center transition-all flex-shrink-0 mt-0.5"
                   [title]="voiceService.isListening ? 'Listening... Click to stop recording' : 'Voice input (Click to speak)'"
                 >
-                  <svg class="w-4 h-4" [ngClass]="voiceService.isListening ? 'text-rose-400' : 'text-zinc-400 hover:text-white'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg class="w-4 h-4" [ngClass]="voiceService.isListening ? 'text-black' : 'text-zinc-400 hover:text-white'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                   </svg>
                 </button>
@@ -666,7 +654,7 @@ export interface IDynamicStarterCard {
                 <button
                   (click)="sendUserMessage()"
                   [disabled]="isCurrentGenerating || isMaxGenerationsReached || (!inputText.trim() && attachedResources.length === 0)"
-                  class="px-3.5 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0 shadow-sm"
+                  class="px-3.5 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0"
                   title="Send (Enter)"
                 >
                   <span>Send</span>
@@ -1825,12 +1813,12 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
           const originalText = copyTextEl ? copyTextEl.textContent : 'Copy';
 
           if (copyTextEl) copyTextEl.textContent = 'Copied!';
-          btn.classList.add('text-emerald-400', 'bg-emerald-950/40');
+          btn.classList.add('text-white', 'bg-zinc-800');
           btn.classList.remove('text-zinc-400');
 
           setTimeout(() => {
             if (copyTextEl) copyTextEl.textContent = originalText;
-            btn.classList.remove('text-emerald-400', 'bg-emerald-950/40');
+            btn.classList.remove('text-white', 'bg-zinc-800');
             btn.classList.add('text-zinc-400');
           }, 2000);
         }

@@ -22,10 +22,10 @@ import { IUser } from '@enter-chat/shared-types';
         <button
           type="button"
           (click)="replayWalkthrough()"
-          class="px-3.5 py-2 rounded-xl bg-[#18181b] hover:bg-[#27272a] text-white border border-[#27272a] hover:border-zinc-700 text-xs font-semibold flex items-center gap-2 transition-colors flex-shrink-0 shadow-sm"
+          class="px-3.5 py-2 rounded-xl bg-[#18181b] hover:bg-[#27272a] text-white border border-[#27272a] hover:border-zinc-700 text-xs font-semibold flex items-center gap-2 transition-colors flex-shrink-0"
           title="Replay guided onboarding tour"
         >
-          <svg class="w-4 h-4 text-emerald-400" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="w-4 h-4 text-zinc-300" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -34,7 +34,7 @@ import { IUser } from '@enter-chat/shared-types';
       </div>
 
       <!-- Account Info Card -->
-      <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4 shadow-sm">
+      <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4">
         <h2 class="text-base font-semibold text-white">Account Profile</h2>
         @if (user(); as u) {
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -59,7 +59,7 @@ import { IUser } from '@enter-chat/shared-types';
       </div>
 
       <!-- Security: Change Password Card -->
-      <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4 shadow-sm">
+      <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4">
         <div class="flex items-center justify-between">
           <div>
             <h2 class="text-base font-semibold text-white">Account Security & Password</h2>
@@ -68,15 +68,15 @@ import { IUser } from '@enter-chat/shared-types';
         </div>
 
         @if (passwordSuccess) {
-          <div class="p-3 bg-emerald-950/40 border border-emerald-900/60 rounded-xl text-xs text-emerald-300 flex items-center justify-between">
+          <div class="p-3 bg-zinc-900 border border-zinc-700 rounded-xl text-xs text-zinc-200 flex items-center justify-between">
             <span>{{ passwordSuccess }}</span>
-            <button (click)="passwordSuccess = ''" class="text-emerald-400 font-bold">×</button>
+            <button (click)="passwordSuccess = ''" class="text-zinc-400 hover:text-white font-bold">×</button>
           </div>
         }
         @if (passwordError) {
-          <div class="p-3 bg-rose-950/40 border border-rose-900/60 rounded-xl text-xs text-rose-300 flex items-center justify-between">
+          <div class="p-3 bg-zinc-900 border border-zinc-700 rounded-xl text-xs text-zinc-200 flex items-center justify-between">
             <span>{{ passwordError }}</span>
-            <button (click)="passwordError = ''" class="text-rose-400 font-bold">×</button>
+            <button (click)="passwordError = ''" class="text-zinc-400 hover:text-white font-bold">×</button>
           </div>
         }
 
@@ -120,7 +120,7 @@ import { IUser } from '@enter-chat/shared-types';
           <button
             (click)="updatePassword()"
             [disabled]="updatingPassword || !currentPassword.trim() || !newPassword.trim() || !confirmPassword.trim()"
-            class="px-4 py-2 bg-white hover:bg-zinc-200 text-black text-xs font-semibold rounded-xl transition-colors disabled:opacity-40 shadow-sm"
+            class="px-4 py-2 bg-white hover:bg-zinc-200 text-black text-xs font-semibold rounded-xl transition-colors disabled:opacity-40"
           >
             {{ updatingPassword ? 'Verifying & Saving...' : 'Update Password' }}
           </button>
@@ -129,27 +129,27 @@ import { IUser } from '@enter-chat/shared-types';
 
       <!-- Admin Only: Master Password Rotation Card -->
       @if (isAdmin()) {
-        <div class="bg-[#111114] border border-amber-900/40 rounded-2xl p-6 space-y-4 shadow-sm animate-fade-in">
+        <div class="bg-[#111114] border border-zinc-800 rounded-2xl p-6 space-y-4 animate-fade-in">
           <div class="flex items-center justify-between">
             <div>
               <div class="flex items-center gap-2">
                 <h2 class="text-base font-semibold text-white">Master Admin Password</h2>
-                <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono text-[10px] uppercase font-bold border border-amber-500/30">Admin Only</span>
+                <span class="px-2 py-0.5 rounded-md bg-zinc-900 text-zinc-200 font-mono text-[10px] uppercase font-bold border border-zinc-700">Admin Only</span>
               </div>
               <p class="text-xs text-[#a1a1aa] mt-0.5">Separate high-privilege secret required to create or promote users to Administrator</p>
             </div>
           </div>
 
           @if (masterPasswordSuccess) {
-            <div class="p-3 bg-emerald-950/40 border border-emerald-900/60 rounded-xl text-xs text-emerald-300 flex items-center justify-between">
+            <div class="p-3 bg-zinc-900 border border-zinc-700 rounded-xl text-xs text-zinc-200 flex items-center justify-between">
               <span>{{ masterPasswordSuccess }}</span>
-              <button (click)="masterPasswordSuccess = ''" class="text-emerald-400 font-bold">×</button>
+              <button (click)="masterPasswordSuccess = ''" class="text-zinc-400 hover:text-white font-bold">×</button>
             </div>
           }
           @if (masterPasswordError) {
-            <div class="p-3 bg-rose-950/40 border border-rose-900/60 rounded-xl text-xs text-rose-300 flex items-center justify-between">
+            <div class="p-3 bg-zinc-900 border border-zinc-700 rounded-xl text-xs text-zinc-200 flex items-center justify-between">
               <span>{{ masterPasswordError }}</span>
-              <button (click)="masterPasswordError = ''" class="text-rose-400 font-bold">×</button>
+              <button (click)="masterPasswordError = ''" class="text-zinc-400 hover:text-white font-bold">×</button>
             </div>
           }
 
@@ -160,7 +160,7 @@ import { IUser } from '@enter-chat/shared-types';
                 type="password"
                 [(ngModel)]="currentMasterPassword"
                 placeholder="Enter current master admin password"
-                class="w-full px-3 py-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-white focus:outline-none focus:border-amber-400 placeholder:text-zinc-600 font-mono"
+                class="w-full px-3 py-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-white focus:outline-none focus:border-white placeholder:text-zinc-600 font-mono"
               />
             </div>
 
@@ -171,7 +171,7 @@ import { IUser } from '@enter-chat/shared-types';
                   type="password"
                   [(ngModel)]="newMasterPassword"
                   placeholder="Min 10 chars, uppercase, digit, symbol"
-                  class="w-full px-3 py-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-white focus:outline-none focus:border-amber-400 placeholder:text-zinc-600 font-mono"
+                  class="w-full px-3 py-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-white focus:outline-none focus:border-white placeholder:text-zinc-600 font-mono"
                 />
               </div>
               <div>
@@ -180,7 +180,7 @@ import { IUser } from '@enter-chat/shared-types';
                   type="password"
                   [(ngModel)]="confirmMasterPassword"
                   placeholder="Re-enter new master password"
-                  class="w-full px-3 py-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-white focus:outline-none focus:border-amber-400 placeholder:text-zinc-600 font-mono"
+                  class="w-full px-3 py-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-white focus:outline-none focus:border-white placeholder:text-zinc-600 font-mono"
                 />
               </div>
             </div>
@@ -190,7 +190,7 @@ import { IUser } from '@enter-chat/shared-types';
             <button
               (click)="updateMasterPassword()"
               [disabled]="updatingMasterPassword || !currentMasterPassword.trim() || !newMasterPassword.trim() || !confirmMasterPassword.trim()"
-              class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold rounded-xl transition-colors disabled:opacity-40 shadow-sm"
+              class="px-4 py-2 bg-white hover:bg-zinc-200 text-black text-xs font-semibold rounded-xl transition-colors disabled:opacity-40"
             >
               {{ updatingMasterPassword ? 'Verifying & Updating...' : 'Update Master Password' }}
             </button>
@@ -199,13 +199,18 @@ import { IUser } from '@enter-chat/shared-types';
       }
 
       <!-- AI Infrastructure Info Card -->
-      <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4 shadow-sm">
+      <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4">
         <h2 class="text-base font-semibold text-white">Cloud Database & AI Infrastructure</h2>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
           <div class="p-4 bg-[#0c0c0e] rounded-xl border border-[#27272a] space-y-1">
             <div class="flex items-center justify-between">
               <span class="text-xs text-[#71717a]">Database</span>
-              <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">Connected</span>
+              <span class="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase px-2 py-0.5 rounded-md bg-zinc-900 text-zinc-200 font-bold border border-zinc-800">
+                <svg class="w-3 h-3 text-zinc-300" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                Connected
+              </span>
             </div>
             <div class="font-semibold text-white text-xs">MongoDB Atlas Cluster</div>
             <p class="text-[11px] text-[#71717a]">Encrypted cloud storage for user accounts, ACL rules, and chat history.</p>
@@ -214,7 +219,10 @@ import { IUser } from '@enter-chat/shared-types';
           <div class="p-4 bg-[#0c0c0e] rounded-xl border border-[#27272a] space-y-1">
             <div class="flex items-center justify-between">
               <span class="text-xs text-[#71717a]">LLM Provider</span>
-              <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-white text-black font-bold">Active</span>
+              <span class="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase px-2 py-0.5 rounded-md bg-zinc-900 text-zinc-200 font-bold border border-zinc-800">
+                <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                Active
+              </span>
             </div>
             <div class="font-semibold text-white text-xs">Gemini Flash (Google)</div>
             <p class="text-[11px] text-[#71717a]">High-performance neural reasoning with dataset calculation capability.</p>
@@ -223,7 +231,7 @@ import { IUser } from '@enter-chat/shared-types';
           <div class="p-4 bg-[#0c0c0e] rounded-xl border border-[#27272a] space-y-1">
             <div class="flex items-center justify-between">
               <span class="text-xs text-[#71717a]">Embedding Model</span>
-              <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-[#18181b] text-white border border-[#3f3f46]">Local</span>
+              <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded-md bg-[#18181b] text-white border border-[#3f3f46]">Local</span>
             </div>
             <div class="font-semibold text-white text-xs">BGE Base (768 Dim)</div>
             <p class="text-[11px] text-[#71717a]">Running locally with sentence-transformers for RAG chunk retrieval.</p>

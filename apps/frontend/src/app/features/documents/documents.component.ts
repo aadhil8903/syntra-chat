@@ -32,8 +32,8 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
 
       <!-- Instant Top Notification Bar -->
       @if (toastMessage) {
-        <div class="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-[#18181b] border border-zinc-700 text-white shadow-xl flex items-center gap-2.5 animate-fade-in">
-          <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+        <div class="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-[#18181b] border border-zinc-700 text-white flex items-center gap-2.5 animate-fade-in">
+          <div class="w-2 h-2 rounded-full bg-white"></div>
           <span class="text-xs font-medium tracking-wide text-zinc-200">{{ toastMessage }}</span>
         </div>
       }
@@ -41,7 +41,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
       <!-- Sheet / Tabular Preview Modal -->
       @if (selectedTabularDoc) {
         <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div class="w-full max-w-4xl max-h-[85vh] bg-[#111114] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+          <div class="w-full max-w-4xl max-h-[85vh] bg-[#111114] border border-zinc-800 rounded-2xl flex flex-col overflow-hidden">
             <!-- Modal Header -->
             <div class="flex items-center justify-between p-5 border-b border-zinc-800">
               <div class="flex items-center gap-3 truncate">
@@ -163,7 +163,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                 class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-800 text-xs text-white focus:outline-none focus:border-zinc-500 placeholder:text-zinc-600"
               ></textarea>
               @if (accessError) {
-                <p class="text-[11px] text-rose-400">{{ accessError }}</p>
+                <p class="text-[11px] text-zinc-300 font-mono">{{ accessError }}</p>
               }
             </div>
 
@@ -189,7 +189,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
       <!-- Move Document to Folder Modal -->
       @if (showMoveModal && moveTargetDoc) {
         <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div class="w-full max-w-md bg-[#111114] border border-zinc-800 rounded-2xl shadow-2xl p-6 space-y-4">
+          <div class="w-full max-w-md bg-[#111114] border border-zinc-800 rounded-2xl p-6 space-y-4">
             <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
               <div class="flex items-center gap-2.5">
                 <div class="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300">
@@ -245,7 +245,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
         <div>
           <div class="flex items-center gap-3">
             <h1 class="text-2xl font-bold text-white tracking-tight">Files & Knowledge</h1>
-            <span class="px-2.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-400">
+            <span class="px-2.5 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-400">
               {{ documents.length }} items
             </span>
           </div>
@@ -258,7 +258,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
             @if (activeFolder) {
               <button
                 (click)="deleteFolder(activeFolder)"
-                class="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-rose-400 border border-zinc-800 text-xs font-medium transition-colors flex items-center gap-1.5"
+                class="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 text-xs font-medium transition-colors flex items-center gap-1.5"
                 title="Delete this folder"
               >
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -291,7 +291,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
 
       <!-- Quick New Folder Input Bar -->
       @if (showNewFolderInput && isAdmin) {
-        <div class="p-5 rounded-2xl bg-[#111114] border border-zinc-800 space-y-4 animate-fade-in shadow-xl">
+        <div class="p-5 rounded-2xl bg-[#111114] border border-zinc-800 space-y-4 animate-fade-in">
           <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div class="flex items-center gap-2 flex-1">
               <svg class="w-5 h-5 text-zinc-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -552,22 +552,27 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                     <!-- Status -->
                     <td class="px-4 py-3.5">
                       @if (doc.status === DocumentStatus.READY) {
-                        <span class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-zinc-900 text-zinc-300 border border-zinc-800 font-medium">
-                          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Ready
+                        <span class="inline-flex items-center gap-1.5 text-[11px] font-mono px-2 py-0.5 rounded-md bg-zinc-900 text-zinc-200 border border-zinc-800 font-semibold">
+                          <svg class="w-3 h-3 text-zinc-300" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                          </svg>
+                          Ready
                         </span>
                       } @else if (doc.status === DocumentStatus.PROCESSING) {
-                        <span class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-zinc-900 text-zinc-300 border border-zinc-800 font-medium">
-                          <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-spin"></span> Processing
+                        <span class="inline-flex items-center gap-1.5 text-[11px] font-mono px-2 py-0.5 rounded-md bg-zinc-900 text-zinc-300 border border-zinc-800 font-semibold">
+                          <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                          Processing
                         </span>
                       } @else {
                         <div class="inline-flex items-center gap-1.5">
-                          <span class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-zinc-900 text-rose-400 border border-zinc-800 font-medium">
-                            <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Failed
+                          <span class="inline-flex items-center gap-1.5 text-[11px] font-mono px-2 py-0.5 rounded-md bg-zinc-900 text-zinc-400 border border-zinc-800 font-semibold">
+                            <span class="w-1.5 h-1.5 rounded-full border border-zinc-500"></span>
+                            Failed
                           </span>
                           <button
                             *ngIf="isAdmin"
                             (click)="$event.stopPropagation(); retryDoc(doc.id)"
-                            class="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] border border-zinc-700 transition-colors"
+                            class="px-2 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] border border-zinc-700 transition-colors"
                             title="Retry AI ingestion"
                           >
                             Retry
@@ -618,7 +623,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                         <button
                           *ngIf="isAdmin"
                           (click)="deleteDoc(doc.id)"
-                          class="text-zinc-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors inline-flex items-center"
+                          class="text-zinc-500 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors inline-flex items-center"
                           title="Delete file"
                         >
                           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -628,13 +633,13 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                         <span *ngIf="!isAdmin" class="text-[11px] text-zinc-500 font-mono">Granted</span>
                       } @else {
                         @if (doc.requestStatus === 'pending') {
-                          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-400 font-mono">
+                          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-400 font-mono">
                             Pending
                           </span>
                         } @else {
                           <button
                             (click)="openAccessModal(doc)"
-                            class="px-2.5 py-1 bg-white hover:bg-zinc-200 text-black rounded-lg text-xs font-semibold transition-colors shadow-sm inline-flex items-center gap-1.5"
+                            class="px-2.5 py-1 bg-white hover:bg-zinc-200 text-black rounded-lg text-xs font-semibold transition-colors inline-flex items-center gap-1.5"
                           >
                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />

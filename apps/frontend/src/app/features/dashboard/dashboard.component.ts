@@ -47,7 +47,7 @@ export interface IQuickAction {
 
       <!-- 2. Primary Action: AI Composer Box -->
       <div class="space-y-3">
-        <div class="relative bg-[#111114] border border-[#27272a] focus-within:border-white rounded-2xl p-3 sm:p-4 transition-all shadow-xl">
+        <div class="relative bg-[#111114] border border-[#27272a] focus-within:border-white rounded-2xl p-3 sm:p-4 transition-all">
           <!-- Autocomplete Dropdown Component -->
           <app-mention-autocomplete
             [isOpen]="isMentionOpen"
@@ -60,9 +60,9 @@ export interface IQuickAction {
           @if (attachedResources.length > 0) {
             <div class="flex flex-wrap gap-2 mb-2.5">
               @for (res of attachedResources; track res.id) {
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#18181b] border border-[#3f3f46] text-white text-xs">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#18181b] border border-[#3f3f46] text-white text-xs font-mono">
                   <span>&#64;{{ res.name }}</span>
-                  <button (click)="removeAttachedResource(res.id)" class="hover:text-rose-400 font-bold ml-1" title="Remove attachment">×</button>
+                  <button (click)="removeAttachedResource(res.id)" class="hover:text-white font-bold ml-1" title="Remove attachment">×</button>
                 </span>
               }
             </div>
@@ -85,11 +85,11 @@ export interface IQuickAction {
             <button
               type="button"
               (click)="toggleVoiceInput()"
-              [ngClass]="voiceService.isListening ? 'bg-rose-950/80 border border-rose-500/80 text-rose-300 ring-2 ring-rose-500/50 animate-pulse' : 'text-zinc-400 hover:text-white hover:bg-[#18181b] border border-transparent hover:border-[#27272a]'"
+              [ngClass]="voiceService.isListening ? 'bg-white text-black font-semibold border border-white' : 'text-zinc-400 hover:text-white hover:bg-[#18181b] border border-transparent hover:border-[#27272a]'"
               class="p-2 rounded-xl text-xs flex items-center justify-center transition-all flex-shrink-0 mt-0.5"
               [title]="voiceService.isListening ? 'Listening... Click to stop recording' : 'Voice input (Click to speak)'"
             >
-              <svg class="w-4 h-4" [ngClass]="voiceService.isListening ? 'text-rose-400' : 'text-zinc-400 hover:text-white'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg class="w-4 h-4" [ngClass]="voiceService.isListening ? 'text-black' : 'text-zinc-400 hover:text-white'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
               </svg>
             </button>
@@ -114,7 +114,7 @@ export interface IQuickAction {
               type="button"
               (click)="submitComposer()"
               [disabled]="isSubmitting || (!inputText.trim() && attachedResources.length === 0)"
-              class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0 shadow-sm"
+              class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0"
               title="Submit prompt (Enter)"
             >
               <span>{{ isSubmitting ? 'Starting...' : 'Ask Syntra' }}</span>
@@ -132,7 +132,7 @@ export interface IQuickAction {
             <button
               type="button"
               (click)="applyQuickAction(action)"
-              class="px-3 py-1.5 rounded-xl bg-[#111114] hover:bg-[#18181b] border border-[#27272a] hover:border-zinc-600 text-xs text-[#a1a1aa] hover:text-white transition-all flex items-center gap-1.5 shadow-sm"
+              class="px-3 py-1.5 rounded-xl bg-[#111114] hover:bg-[#18181b] border border-[#27272a] hover:border-zinc-600 text-xs text-[#a1a1aa] hover:text-white transition-all flex items-center gap-1.5"
             >
               <span>{{ action.label }}</span>
             </button>
@@ -141,7 +141,7 @@ export interface IQuickAction {
       </div>
 
       <!-- 4. Main Secondary Section: Recent Chats -->
-      <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4 shadow-sm">
+      <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <h2 class="text-base font-semibold text-white tracking-tight">Recent Chats</h2>
@@ -184,7 +184,7 @@ export interface IQuickAction {
       <!-- 5. Bottom Two-Column Grid: Collections Preview & Knowledge Preview -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Compact Collections Preview -->
-        <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4 shadow-sm flex flex-col justify-between">
+        <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4 flex flex-col justify-between">
           <div class="space-y-3">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
@@ -246,7 +246,7 @@ export interface IQuickAction {
         </div>
 
         <!-- Compact Knowledge Preview -->
-        <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4 shadow-sm flex flex-col justify-between">
+        <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4 flex flex-col justify-between">
           <div class="space-y-3">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">

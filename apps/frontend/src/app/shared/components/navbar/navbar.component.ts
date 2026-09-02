@@ -10,7 +10,7 @@ import { RouterModule } from '@angular/router';
   template: `
     <header class="h-14 border-b border-[#27272a] bg-[#0d0d10] px-5 flex items-center justify-between sticky top-0 z-30 flex-shrink-0">
       <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center p-1.5 shadow-sm">
+        <div class="w-8 h-8 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center p-1.5">
           <img src="/logo-icon.png" alt="Syntra" class="w-full h-full object-contain" onerror="this.style.display='none'" />
         </div>
         <span class="font-bold tracking-tight text-[#fafafa] text-base">Syntra Chat</span>

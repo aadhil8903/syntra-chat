@@ -18,7 +18,7 @@ import { IMentionOption, MentionResourceType } from '@enter-chat/shared-types';
   template: `
     @if (isOpen) {
       <div
-        class="absolute bottom-full left-0 mb-3 w-96 max-w-[calc(100vw-2rem)] bg-[#111114] border border-[#27272a] rounded-2xl shadow-2xl overflow-hidden z-50 animate-fade-in"
+        class="absolute bottom-full left-0 mb-3 w-96 max-w-[calc(100vw-2rem)] bg-[#111114] border border-[#27272a] rounded-2xl overflow-hidden z-50 animate-fade-in"
       >
         <!-- Header & Tabs -->
         <div class="p-3 bg-[#141417] border-b border-[#27272a] flex items-center justify-between">

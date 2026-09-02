@@ -9,7 +9,7 @@ import jsPDF from 'jspdf';
   imports: [CommonModule],
   template: `
     @if (table) {
-      <div class="my-4 rounded-2xl border border-[#27272a] bg-[#111114] overflow-hidden shadow-xl">
+      <div class="my-4 rounded-2xl border border-[#27272a] bg-[#111114] overflow-hidden">
         <div class="px-4 py-3 bg-[#141417] border-b border-[#27272a] flex items-center justify-between flex-wrap gap-2">
           <div class="flex items-center gap-2">
             <svg class="w-4 h-4 text-white" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">

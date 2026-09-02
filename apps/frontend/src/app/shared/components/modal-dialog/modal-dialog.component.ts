@@ -15,29 +15,22 @@ import { ModalDialogService } from '../../../core/services/modal-dialog.service'
         aria-modal="true"
       >
         <div
-          class="w-full max-w-md bg-[#111114] border border-[#27272a] rounded-2xl shadow-2xl overflow-hidden p-6 space-y-4 text-zinc-200 animate-scale-up"
+          class="w-full max-w-md bg-[#111114] border border-[#27272a] rounded-2xl overflow-hidden p-6 space-y-4 text-zinc-200 animate-scale-up"
           (click)="$event.stopPropagation()"
         >
           <!-- Header -->
           <div class="flex items-center gap-3">
-            <div
-              class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              [ngClass]="{
-                'bg-rose-950/60 border border-rose-800/80 text-rose-400': modal.activeModal()?.type === 'danger',
-                'bg-amber-950/60 border border-amber-800/80 text-amber-400': modal.activeModal()?.type === 'confirm' || modal.activeModal()?.type === 'prompt',
-                'bg-blue-950/60 border border-blue-800/80 text-blue-400': modal.activeModal()?.type === 'alert'
-              }"
-            >
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-zinc-900 border border-zinc-800 text-zinc-200">
               @if (modal.activeModal()?.type === 'danger') {
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="w-5 h-5 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               } @else if (modal.activeModal()?.type === 'prompt') {
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="w-5 h-5 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               } @else {
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="w-5 h-5 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               }
@@ -92,11 +85,7 @@ import { ModalDialogService } from '../../../core/services/modal-dialog.service'
             <button
               type="button"
               (click)="submitConfirm()"
-              [ngClass]="{
-                'bg-rose-600 hover:bg-rose-500 text-white font-semibold border border-rose-500': modal.activeModal()?.type === 'danger',
-                'bg-white hover:bg-zinc-200 text-black font-semibold': modal.activeModal()?.type !== 'danger'
-              }"
-              class="px-4 py-1.5 rounded-xl text-xs transition-colors shadow-none"
+              class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-zinc-200 text-black transition-colors"
             >
               {{ modal.activeModal()?.confirmText || 'OK' }}
             </button>

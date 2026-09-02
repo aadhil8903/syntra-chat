@@ -6,10 +6,17 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        slate: {
-          850: '#151e32',
-          900: '#0f172a',
-          950: '#070b14',
+        base: '#09090b',
+        foreground: '#fafafa',
+        accent: '#38bdf8',
+        surface: {
+          primary: '#09090b',
+          card: '#111114',
+          subtle: '#18181b',
+        },
+        border: {
+          subtle: '#27272a',
+          contrast: '#3f3f46',
         },
       },
       fontFamily: {
