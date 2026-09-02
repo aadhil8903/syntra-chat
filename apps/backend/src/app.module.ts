@@ -18,6 +18,7 @@ import { FoldersModule } from './folders/folders.module';
 import { MailModule } from './mail/mail.module';
 import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { CollectionsModule } from './collections/collections.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { CollectionsModule } from './collections/collections.module';
       isGlobal: true,
       envFilePath: ['.env.local', '.env', 'apps/backend/.env'],
     }),
+    HealthModule,
     DatabaseModule,
     SystemSettingsModule,
     MailModule,
