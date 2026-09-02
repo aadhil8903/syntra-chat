@@ -139,6 +139,20 @@ pre, code {
     margin-bottom: 0;
   }
 
+  a {
+    color: #f4f4f5;
+    text-decoration: underline;
+    text-decoration-color: #71717a;
+    text-underline-offset: 4px;
+    font-weight: 500;
+    transition: color 0.15s ease, text-decoration-color 0.15s ease;
+
+    &:hover {
+      color: #ffffff;
+      text-decoration-color: #ffffff;
+    }
+  }
+
   strong {
     color: var(--color-foreground);
     font-weight: 600;

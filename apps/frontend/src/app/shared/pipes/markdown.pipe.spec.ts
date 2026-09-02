@@ -43,6 +43,23 @@ describe('MarkdownPipe (XSS, Injection & Safe Rendering)', () => {
       expect(output).toContain('calculate_total');
       expect(output).toContain('copy-code-btn');
     });
+
+    it('should automatically convert plain text email addresses into mailto links', () => {
+      const input = 'His work email is aaron.bennett@solsticecloudworks.example.';
+      const output = pipe.transform(input) as string;
+
+      expect(output).toContain('href="mailto:aaron.bennett@solsticecloudworks.example"');
+      expect(output).toContain('aaron.bennett@solsticecloudworks.example</a>');
+    });
+
+    it('should not double-wrap already formatted markdown links', () => {
+      const input = 'Contact [Aaron](mailto:aaron.bennett@solsticecloudworks.example)';
+      const output = pipe.transform(input) as string;
+
+      expect(output).toContain('href="mailto:aaron.bennett@solsticecloudworks.example"');
+      expect(output).toContain('>Aaron</a>');
+      expect(output).not.toContain('mailto:mailto:');
+    });
   });
 
   describe('XSS Payload Neutralization', () => {

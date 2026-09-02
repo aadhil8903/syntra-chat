@@ -384,7 +384,7 @@ export interface IDynamicStarterCard {
                 </svg>
               </button>
             }
-            <div class="w-2 h-2 rounded-full flex-shrink-0" [ngClass]="isCurrentGenerating ? 'bg-[#e11d48] animate-pulse' : 'bg-zinc-600'"></div>
+            <div class="w-2 h-2 rounded-full flex-shrink-0" [ngClass]="isCurrentGenerating ? 'bg-zinc-300 animate-pulse' : 'bg-zinc-600'"></div>
             <h2 class="font-medium text-white text-xs tracking-tight truncate max-w-[180px] sm:max-w-md">
               {{ activeConversation?.title || 'New Workplace Session' }}
             </h2>
@@ -454,6 +454,12 @@ export interface IDynamicStarterCard {
                 [ngClass]="msg.role === 'user' ? 'justify-end' : 'justify-start'"
                 class="flex gap-3 animate-fade-in"
               >
+                @if (msg.role !== 'user') {
+                  <div class="w-7 h-7 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center flex-shrink-0 p-1 mt-0.5">
+                    <img src="/logo-icon.svg" alt="Syntra" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
+                  </div>
+                }
+
                 <div
                   [ngClass]="msg.role === 'user' ? 'bg-[#18181b] text-white rounded-2xl rounded-tr-sm px-4 py-3 border border-[#3f3f46] max-w-[85%]' : 'bg-transparent text-white flex-1 max-w-full'"
                   class="text-sm leading-relaxed group relative"
@@ -566,8 +572,11 @@ export interface IDynamicStarterCard {
           <!-- Live Reasoning Animation for THIS specific conversation -->
           @if (isCurrentGenerating) {
             <div class="flex gap-3 justify-start animate-fade-in">
+              <div class="w-7 h-7 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center flex-shrink-0 p-1 mt-0.5">
+                <img src="/logo-icon.svg" alt="Syntra" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
+              </div>
               <div class="bg-[#111114] border border-[#27272a] rounded-xl px-4 py-2.5 text-xs flex items-center gap-2.5 text-white">
-                <span class="w-2 h-2 rounded-full bg-[#e11d48] animate-pulse"></span>
+                <span class="w-2 h-2 rounded-full bg-zinc-300 animate-pulse"></span>
                 <span class="font-mono text-[#a1a1aa] transition-all duration-300">{{ currentGeneratingStatus }}</span>
               </div>
             </div>

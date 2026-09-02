@@ -40,6 +40,16 @@ export class MarkdownPipe implements PipeTransform {
       </div>`;
     };
 
+    renderer.link = function (token: any) {
+      const href = typeof token === 'object' ? token.href : arguments[0];
+      const title = typeof token === 'object' ? token.title : arguments[1];
+      const text = typeof token === 'object' ? token.text : arguments[2];
+      const titleAttr = title ? ` title="${title}"` : '';
+      const isEmail = href && href.startsWith('mailto:');
+      const targetAttr = isEmail ? '' : ' target="_blank" rel="noopener noreferrer"';
+      return `<a href="${href}"${titleAttr}${targetAttr} class="text-zinc-100 hover:text-white underline decoration-zinc-500 hover:decoration-white underline-offset-4 font-medium transition-colors">${text}</a>`;
+    };
+
     marked.use({
       gfm: true,
       breaks: true,
@@ -47,11 +57,23 @@ export class MarkdownPipe implements PipeTransform {
     });
   }
 
+  private linkifyEmails(content: string): string {
+    const codeOrLinkRegex = /(```[\s\S]*?```|`[^`\n]+`|\[[^\]]*\]\([^\)]*\))/g;
+    const parts = content.split(codeOrLinkRegex);
+    const emailRegex = /\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/g;
+
+    return parts
+      .map((part, index) => {
+        if (index % 2 === 1) return part;
+        return part.replace(emailRegex, '[$1](mailto:$1)');
+      })
+      .join('');
+  }
+
   transform(value: string | undefined | null): SafeHtml {
     if (!value) return '';
 
-    // Clean up raw LaTeX tokens so they read naturally if present
-    let clean = value
+    let clean = this.linkifyEmails(value)
       .replace(/\$\$(.*?)\$\$/gs, (_, math) => {
         return math
           .replace(/\\mathbf\{([^}]+)\}/g, '$1')
@@ -75,8 +97,8 @@ export class MarkdownPipe implements PipeTransform {
 
     const parsed = marked.parse(clean) as string;
     const sanitized = DOMPurify.sanitize(parsed, {
-      ADD_TAGS: ['div', 'span', 'pre', 'code', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'button', 'svg', 'path'],
-      ADD_ATTR: ['class', 'style', 'type', 'title', 'data-code', 'fill', 'viewBox', 'stroke', 'stroke-linecap', 'stroke-linejoin', 'stroke-width', 'd', 'width', 'height'],
+      ADD_TAGS: ['div', 'span', 'pre', 'code', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'button', 'svg', 'path', 'a'],
+      ADD_ATTR: ['class', 'style', 'type', 'title', 'data-code', 'fill', 'viewBox', 'stroke', 'stroke-linecap', 'stroke-linejoin', 'stroke-width', 'd', 'width', 'height', 'href', 'target', 'rel'],
     });
     return this.sanitizer.bypassSecurityTrustHtml(sanitized);
   }
