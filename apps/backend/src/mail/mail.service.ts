@@ -255,8 +255,8 @@ The Syntra Chat Platform Team`;
             <td style="padding-bottom: 24px; border-bottom: 1px solid #27272a;">
               <table role="presentation" border="0" cellspacing="0" cellpadding="0">
                 <tr>
-                  <td style="width: 36px; height: 36px; background-color: #18181b; border: 1px solid #27272a; border-radius: 8px; text-align: center; vertical-align: middle; color: #ffffff; font-weight: bold; font-size: 14px; font-family: monospace;">
-                    SC
+                  <td style="width: 36px; height: 36px; background-color: #18181b; border: 1px solid #e11d48; border-radius: 8px; text-align: center; vertical-align: middle;">
+                    <div style="display: inline-block; width: 14px; height: 14px; background-color: #e11d48; border: 2px solid #ffffff; transform: rotate(45deg);"></div>
                   </td>
                   <td style="padding-left: 12px;">
                     <span style="font-size: 18px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">Syntra Chat</span>
@@ -292,7 +292,7 @@ The Syntra Chat Platform Team`;
                       </tr>
                       <tr>
                         <td style="font-size: 13px; color: #a1a1aa;">Temporary Password:</td>
-                        <td style="font-size: 14px; font-weight: 700; color: #38bdf8; font-family: monospace; letter-spacing: 1px;">${temporaryPassword}</td>
+                        <td style="font-size: 14px; font-weight: 700; color: #e11d48; font-family: monospace; letter-spacing: 1px;">${temporaryPassword}</td>
                       </tr>
                     </table>
                   </td>
@@ -304,8 +304,8 @@ The Syntra Chat Platform Team`;
           <!-- Security Note -->
           <tr>
             <td style="padding-bottom: 28px;">
-              <div style="background-color: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6; padding: 12px 16px; border-radius: 4px;">
-                <p style="font-size: 12px; line-height: 18px; color: #93c5fd; margin: 0;">
+              <div style="background-color: rgba(225, 29, 72, 0.08); border-left: 3px solid #e11d48; padding: 12px 16px; border-radius: 4px;">
+                <p style="font-size: 12px; line-height: 18px; color: #fecdd3; margin: 0;">
                   <strong>Required on first sign-in:</strong> For security compliance, you will be prompted to create your own permanent password immediately upon logging in.
                 </p>
               </div>

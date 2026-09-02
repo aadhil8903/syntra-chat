@@ -28,14 +28,17 @@ export class PdfReportService {
     let y = 18;
 
     // 1. Enterprise Branded Header
-    doc.setFillColor(15, 23, 42); // Dark slate banner
-    doc.rect(0, 0, pageWidth, 28, 'F');
+    doc.setFillColor(225, 29, 72); // Brand Red Top Accent Ribbon
+    doc.rect(0, 0, pageWidth, 2.5, 'F');
+
+    doc.setFillColor(9, 9, 11); // Dark Surface Banner (#09090b)
+    doc.rect(0, 2.5, pageWidth, 26, 'F');
 
     // Title in Header
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
+    doc.setFontSize(13);
     doc.setTextColor(255, 255, 255);
-    doc.text('SYNTRA CHAT  |  EXECUTIVE INTELLIGENCE REPORT', margin, 12);
+    doc.text('SYNTRA CHAT  |  EXECUTIVE INTELLIGENCE REPORT', margin, 13);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
@@ -206,13 +209,16 @@ export class PdfReportService {
     let y = 18;
 
     // Header Banner
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, pageWidth, 28, 'F');
+    doc.setFillColor(225, 29, 72); // Brand Red Top Accent Ribbon
+    doc.rect(0, 0, pageWidth, 2.5, 'F');
+
+    doc.setFillColor(9, 9, 11); // Dark Surface Banner (#09090b)
+    doc.rect(0, 2.5, pageWidth, 26, 'F');
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
     doc.setTextColor(255, 255, 255);
-    doc.text('SYNTRA CHAT  |  CONVERSATION TRANSCRIPT', margin, 12);
+    doc.text('SYNTRA CHAT  |  CONVERSATION TRANSCRIPT', margin, 13);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);

@@ -274,4 +274,120 @@ describe('DocumentsComponent (Responsive Navigation & Modal UX)', () => {
       expect(mockApiService.getDocuments).toHaveBeenCalled();
     });
   });
+
+  describe('Filter & Sorting Controls (Client-Side)', () => {
+    const testDocList: any[] = [
+      {
+        id: 'doc-a',
+        originalName: 'zebra.pdf',
+        folder: 'Finance',
+        uploadedAt: '2026-01-01T10:00:00.000Z',
+        createdAt: '2026-01-01T10:00:00.000Z',
+      },
+      {
+        id: 'doc-b',
+        originalName: 'apple.docx',
+        folder: 'Finance',
+        uploadedAt: '2026-03-01T10:00:00.000Z',
+        createdAt: '2026-03-01T10:00:00.000Z',
+      },
+      {
+        id: 'doc-c',
+        originalName: 'BETA_REPORT.xlsx',
+        folder: 'HR',
+        uploadedAt: '2026-02-01T10:00:00.000Z',
+        createdAt: '2026-02-01T10:00:00.000Z',
+      },
+      {
+        id: 'doc-d',
+        originalName: 'alpha_guide.pdf',
+        folder: 'Finance',
+        uploadedAt: '2026-04-01T10:00:00.000Z',
+        createdAt: '2026-04-01T10:00:00.000Z',
+      },
+    ];
+
+    beforeEach(() => {
+      component.documents = [...testDocList];
+      component.activeFolder = null;
+      component.searchQuery = '';
+      component.selectedSort = 'newest';
+    });
+
+    it('14. should default to Newest first sorting (uploadedAt descending)', () => {
+      expect(component.selectedSort).toBe('newest');
+      const filtered = component.filteredDocuments;
+      expect(filtered.map((d) => d.id)).toEqual(['doc-d', 'doc-b', 'doc-c', 'doc-a']);
+    });
+
+    it('15. should sort by Oldest first (uploadedAt ascending)', () => {
+      component.selectedSort = 'oldest';
+      const filtered = component.filteredDocuments;
+      expect(filtered.map((d) => d.id)).toEqual(['doc-a', 'doc-c', 'doc-b', 'doc-d']);
+    });
+
+    it('16. should sort by Name A → Z (case-insensitive ascending)', () => {
+      component.selectedSort = 'name_asc';
+      const filtered = component.filteredDocuments;
+      expect(filtered.map((d) => d.originalName)).toEqual([
+        'alpha_guide.pdf',
+        'apple.docx',
+        'BETA_REPORT.xlsx',
+        'zebra.pdf',
+      ]);
+    });
+
+    it('17. should sort by Name Z → A (case-insensitive descending)', () => {
+      component.selectedSort = 'name_desc';
+      const filtered = component.filteredDocuments;
+      expect(filtered.map((d) => d.originalName)).toEqual([
+        'zebra.pdf',
+        'BETA_REPORT.xlsx',
+        'apple.docx',
+        'alpha_guide.pdf',
+      ]);
+    });
+
+    it('18. should apply search filtering first, then sort the results', () => {
+      component.searchQuery = 'pdf'; // matches 'zebra.pdf' and 'alpha_guide.pdf'
+      component.selectedSort = 'name_asc';
+      const filtered = component.filteredDocuments;
+
+      expect(filtered.length).toBe(2);
+      expect(filtered.map((d) => d.originalName)).toEqual(['alpha_guide.pdf', 'zebra.pdf']);
+
+      component.selectedSort = 'newest';
+      const newestFiltered = component.filteredDocuments;
+      expect(newestFiltered.map((d) => d.originalName)).toEqual(['alpha_guide.pdf', 'zebra.pdf']);
+    });
+
+    it('19. should apply folder filtering first, then sort the results', () => {
+      component.activeFolder = 'Finance'; // matches doc-a, doc-b, doc-d (excludes doc-c in HR)
+      component.selectedSort = 'name_asc';
+      const filtered = component.filteredDocuments;
+
+      expect(filtered.length).toBe(3);
+      expect(filtered.map((d) => d.originalName)).toEqual([
+        'alpha_guide.pdf',
+        'apple.docx',
+        'zebra.pdf',
+      ]);
+
+      component.selectedSort = 'oldest';
+      const oldestFiltered = component.filteredDocuments;
+      expect(oldestFiltered.map((d) => d.id)).toEqual(['doc-a', 'doc-b', 'doc-d']);
+    });
+
+    it('20. should fallback to createdAt when uploadedAt is not explicitly provided', () => {
+      component.documents = [
+        { id: 'd-1', originalName: 'doc1.pdf', createdAt: '2026-01-01T00:00:00Z' } as any,
+        { id: 'd-2', originalName: 'doc2.pdf', createdAt: '2026-02-01T00:00:00Z' } as any,
+      ];
+      component.selectedSort = 'newest';
+      expect(component.filteredDocuments.map((d) => d.id)).toEqual(['d-2', 'd-1']);
+
+      component.selectedSort = 'oldest';
+      expect(component.filteredDocuments.map((d) => d.id)).toEqual(['d-1', 'd-2']);
+    });
+  });
 });

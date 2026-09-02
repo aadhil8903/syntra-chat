@@ -421,20 +421,39 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
           }
         </div>
 
-        <!-- Search Input Filter -->
-        <div class="relative w-full sm:w-72">
-          <input
-            type="text"
-            [(ngModel)]="searchQuery"
-            placeholder="Search files or formats..."
-            class="w-full pl-8 pr-7 py-1.5 rounded-xl bg-[#09090b] border border-zinc-800 text-xs text-white focus:outline-none focus:border-zinc-600 placeholder:text-zinc-600 transition-colors"
-          />
-          <svg class="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          @if (searchQuery) {
-            <button (click)="searchQuery = ''" class="absolute right-2 top-1.5 text-zinc-500 hover:text-white text-xs font-bold">×</button>
-          }
+        <!-- Controls: Sort Select & Search Input Filter -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-shrink-0 w-full sm:w-auto">
+          <!-- Sort Dropdown -->
+          <div class="relative flex items-center">
+            <label class="sr-only" for="documentsSort">Sort documents</label>
+            <select
+              id="documentsSort"
+              [(ngModel)]="selectedSort"
+              class="w-full sm:w-auto px-3 py-1.5 rounded-xl bg-[#09090b] border border-zinc-800 text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 transition-colors cursor-pointer min-h-[36px]"
+              aria-label="Sort documents"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="name_asc">Name A → Z</option>
+              <option value="name_desc">Name Z → A</option>
+            </select>
+          </div>
+
+          <!-- Search Input Filter -->
+          <div class="relative w-full sm:w-64">
+            <input
+              type="text"
+              [(ngModel)]="searchQuery"
+              placeholder="Search files or formats..."
+              class="w-full pl-8 pr-7 py-1.5 rounded-xl bg-[#09090b] border border-zinc-800 text-xs text-white focus:outline-none focus:border-zinc-600 placeholder:text-zinc-600 transition-colors min-h-[36px]"
+            />
+            <svg class="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            @if (searchQuery) {
+              <button (click)="searchQuery = ''" class="absolute right-2 top-2 text-zinc-500 hover:text-white text-xs font-bold">×</button>
+            }
+          </div>
         </div>
       </div>
 
@@ -831,6 +850,7 @@ export class DocumentsComponent implements OnInit, OnDestroy {
   uploadError = '';
   toastMessage = '';
   searchQuery = '';
+  selectedSort: 'newest' | 'oldest' | 'name_asc' | 'name_desc' = 'newest';
 
   activeFolder: string | null = null;
   private routeSub?: Subscription;
@@ -958,13 +978,17 @@ export class DocumentsComponent implements OnInit, OnDestroy {
   }
 
   get filteredDocuments(): IDocument[] {
-    let docs = this.documents;
+    let docs = [...this.documents];
+
+    // 1. Folder filtering
     if (this.activeFolder !== null) {
       docs = docs.filter((doc) => {
         const folder = doc.folder ? doc.folder.trim() : '';
         return folder === this.activeFolder;
       });
     }
+
+    // 2. Search query filtering
     if (this.searchQuery && this.searchQuery.trim()) {
       const q = this.searchQuery.toLowerCase().trim();
       docs = docs.filter(
@@ -974,6 +998,32 @@ export class DocumentsComponent implements OnInit, OnDestroy {
           doc.folder?.toLowerCase().includes(q)
       );
     }
+
+    // 3. Client-side sorting
+    const getUploadTimestamp = (doc: IDocument): number => {
+      const val = doc.uploadedAt || doc.createdAt || doc.updatedAt || 0;
+      const t = new Date(val).getTime();
+      return isNaN(t) ? 0 : t;
+    };
+
+    const getDocName = (doc: IDocument): string => (doc.originalName || doc.filename || '').toLowerCase();
+
+    switch (this.selectedSort) {
+      case 'oldest':
+        docs.sort((a, b) => getUploadTimestamp(a) - getUploadTimestamp(b));
+        break;
+      case 'name_asc':
+        docs.sort((a, b) => getDocName(a).localeCompare(getDocName(b)));
+        break;
+      case 'name_desc':
+        docs.sort((a, b) => getDocName(b).localeCompare(getDocName(a)));
+        break;
+      case 'newest':
+      default:
+        docs.sort((a, b) => getUploadTimestamp(b) - getUploadTimestamp(a));
+        break;
+    }
+
     return docs;
   }
 

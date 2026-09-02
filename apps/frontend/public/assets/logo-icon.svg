@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="redGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff4365" />
+      <stop offset="100%" stop-color="#e11d48" />
+    </linearGradient>
+    <linearGradient id="redGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e11d48" />
+      <stop offset="100%" stop-color="#9f1239" />
+    </linearGradient>
+    <linearGradient id="redGradCore" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff637e" />
+      <stop offset="100%" stop-color="#e11d48" />
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#e4e4e7" />
+    </linearGradient>
+    <filter id="brandGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#e11d48" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <g filter="url(#brandGlow)">
+    <!-- Top-Left Vibrant Red Facet -->
+    <path d="M256 52 L108 168 L256 244 L256 128 Z" fill="url(#redGrad1)" />
+
+    <!-- Top-Right Crisp Pure White Facet -->
+    <path d="M256 52 L404 168 L256 244 L256 128 Z" fill="url(#whiteGrad)" />
+
+    <!-- Bottom-Left Deep Crimson Facet -->
+    <path d="M108 168 L108 332 L256 460 L256 280 Z" fill="url(#redGrad2)" />
+
+    <!-- Bottom-Right Red Base Facet -->
+    <path d="M404 168 L404 332 L256 460 L256 280 Z" fill="url(#redGrad1)" />
+
+    <!-- Right-Side Floating White Prism -->
+    <path d="M404 168 L332 224 L332 372 L404 332 Z" fill="url(#whiteGrad)" />
+
+    <!-- Center Precision Floating Diamond (Red Core with White Border) -->
+    <polygon points="256,164 324,256 256,348 188,256" fill="url(#redGradCore)" stroke="#ffffff" stroke-width="7" stroke-linejoin="round" />
+  </g>
+</svg>

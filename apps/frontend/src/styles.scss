@@ -6,7 +6,7 @@
    Syntra Chat — Strict 3-Color Design Tokens
    Base: #09090b (Near-black)
    Foreground: #fafafa (Near-white)
-   Accent: #38bdf8 (Restrained Accent)
+   Accent: #e11d48 (Brand Red Accent)
    ========================================================================== */
 :root {
   --color-base: #09090b;
@@ -15,8 +15,8 @@
   --color-foreground: #fafafa;
   --color-foreground-rgb: 250, 250, 250;
 
-  --color-accent: #38bdf8;
-  --color-accent-rgb: 56, 189, 248;
+  --color-accent: #e11d48;
+  --color-accent-rgb: 225, 29, 72;
 
   /* Derived Surface Layers */
   --bg-primary: #09090b;
@@ -29,7 +29,7 @@
   --text-primary: #fafafa;
   --text-secondary: rgba(var(--color-foreground-rgb), 0.65);
   --text-muted: rgba(var(--color-foreground-rgb), 0.42);
-  --text-accent: #38bdf8;
+  --text-accent: #e11d48;
 
   /* Derived Border Layers */
   --border-subtle: #27272a;
@@ -50,6 +50,11 @@ html, body {
   color: var(--color-foreground);
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
 /* Guard all SVGs from blowing up */

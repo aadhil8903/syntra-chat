@@ -24,11 +24,11 @@ import { RouterModule } from '@angular/router';
           </svg>
         </button>
 
-        <a routerLink="/dashboard" class="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
+        <a routerLink="/dashboard" class="flex items-center gap-2.5 text-white hover:text-white hover:opacity-90 transition-opacity">
           <div class="w-8 h-8 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center p-1.5 flex-shrink-0">
-            <img src="/logo-icon.png" alt="Syntra" class="w-full h-full object-contain" onerror="this.style.display='none'" />
+            <img src="/logo-icon.svg" alt="Syntra" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
           </div>
-          <span class="font-bold tracking-tight text-[#fafafa] text-base truncate">Syntra Chat</span>
+          <span class="font-bold tracking-tight text-white text-base truncate">Syntra Chat</span>
         </a>
       </div>
 

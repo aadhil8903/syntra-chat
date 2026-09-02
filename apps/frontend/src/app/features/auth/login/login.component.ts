@@ -13,8 +13,8 @@ import { WalkthroughService } from '../../../core/services/walkthrough.service';
     <div class="min-h-screen bg-[#09090b] flex items-center justify-center p-4">
       <div class="w-full max-w-md bg-[#111114] border border-[#27272a] rounded-2xl p-8">
         <div class="text-center mb-8">
-          <div class="inline-flex w-14 h-14 rounded-2xl bg-[#18181b] border border-[#27272a] p-2.5 items-center justify-center mb-4">
-            <img src="/logo-icon.png" alt="Syntra Chat Logo" class="w-full h-full object-contain" />
+          <div class="inline-flex w-14 h-14 rounded-2xl bg-[#18181b] border border-[#27272a] p-2.5 items-center justify-center mb-4 shadow-lg shadow-rose-950/20">
+            <img src="/logo-icon.svg" alt="Syntra Chat Logo" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
           </div>
           <h1 class="text-2xl font-bold text-white tracking-tight">Welcome to Syntra Chat</h1>
           <p class="text-sm text-[#a1a1aa] mt-1">Sign in to your private knowledge workspace</p>

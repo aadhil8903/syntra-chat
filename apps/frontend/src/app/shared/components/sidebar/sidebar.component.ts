@@ -170,7 +170,7 @@ import { NavigationDrawerService } from '../../../core/services/navigation-drawe
           <div class="flex items-center justify-between pb-3 border-b border-[#27272a]">
             <div class="flex items-center gap-2.5">
               <div class="w-8 h-8 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center p-1.5 flex-shrink-0">
-                <img src="/logo-icon.png" alt="Syntra" class="w-full h-full object-contain" />
+                <img src="/logo-icon.svg" alt="Syntra" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
               </div>
               <span class="font-bold tracking-tight text-white text-base">Syntra Chat</span>
             </div>

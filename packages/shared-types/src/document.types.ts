@@ -36,6 +36,7 @@ export interface IDocument {
   totalRows?: number;
   sourceType?: 'narrative' | 'tabular';
   errorMessage?: string;
+  uploadedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
