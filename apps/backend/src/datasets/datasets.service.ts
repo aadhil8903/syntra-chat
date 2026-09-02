@@ -24,6 +24,10 @@ import { UsersService } from '../users/users.service';
 import { AccessRequestsService } from '../access-requests/access-requests.service';
 import { AclResolverService } from '../permissions/services/acl-resolver.service';
 import { FoldersService } from '../folders/folders.service';
+import {
+  resolveUniqueFilenameForModel,
+  normalizeFolder,
+} from '../common/utils/filename-uniqueness.util';
 
 @Injectable()
 export class DatasetsService {
@@ -69,24 +73,32 @@ export class DatasetsService {
 
     const ext = path.extname(file.originalname);
     const fileType = this.mapFileType(ext);
+    const targetFolder = normalizeFolder(folder);
+
+    // Dynamically resolve unique filename in target folder
+    const uniqueOriginalName = await resolveUniqueFilenameForModel(
+      this.datasetModel,
+      file.originalname,
+      targetFolder,
+    );
 
     // Save to user-isolated folder
     const destinationSubdir = `users/${userId}/datasets`;
     const saveResult = await this.storageService.saveFile(
       file.buffer,
       destinationSubdir,
-      file.originalname,
+      uniqueOriginalName,
     );
 
     const dataset = new this.datasetModel({
       userId: new Types.ObjectId(userId),
       filename: saveResult.filename,
-      originalName: file.originalname,
+      originalName: uniqueOriginalName,
       fileType,
       mimeType: file.mimetype,
       fileSize: file.size,
       storagePath: saveResult.storagePath,
-      folder: folder.trim(),
+      folder: targetFolder,
       allowedDepartments,
       status: DatasetStatus.PROCESSING,
       sheetNames: [],
@@ -97,8 +109,8 @@ export class DatasetsService {
     const saved = await dataset.save();
     const datasetId = saved._id.toString();
 
-    // Trigger AI inspect asynchronously
-    this.triggerInspection(userId, datasetId, saveResult.storagePath, file.originalname, fileType);
+    // Trigger AI inspect asynchronously with canonical unique originalName
+    this.triggerInspection(userId, datasetId, saveResult.storagePath, saved.originalName, fileType);
 
     return this.toIDataset(saved);
   }
@@ -159,7 +171,24 @@ export class DatasetsService {
       throw new NotFoundException('Dataset not found');
     }
 
-    const update: any = { folder: folder.trim() };
+    const existingDs = await this.datasetModel.findById(datasetId);
+    if (!existingDs) {
+      throw new NotFoundException('Dataset not found');
+    }
+
+    const targetFolder = normalizeFolder(folder);
+    let finalOriginalName = existingDs.originalName;
+
+    if (existingDs.folder !== targetFolder) {
+      finalOriginalName = await resolveUniqueFilenameForModel(
+        this.datasetModel,
+        existingDs.originalName,
+        targetFolder,
+        existingDs._id,
+      );
+    }
+
+    const update: any = { folder: targetFolder, originalName: finalOriginalName };
     if (allowedDepartments) {
       update.allowedDepartments = allowedDepartments;
     }
@@ -170,11 +199,7 @@ export class DatasetsService {
       { new: true },
     );
 
-    if (!ds) {
-      throw new NotFoundException('Dataset not found');
-    }
-
-    return this.toIDataset(ds);
+    return this.toIDataset(ds!);
   }
 
   private buildAccessQuery(user: IUser, approvedIds: string[] = []): any {

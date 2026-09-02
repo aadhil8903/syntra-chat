@@ -901,9 +901,9 @@ export class DocumentsComponent implements OnInit, OnDestroy {
     this.uploading = true;
     this.uploadError = '';
     this.apiService.uploadDocument(file, this.activeFolder || undefined).subscribe({
-      next: () => {
+      next: (doc) => {
         this.uploading = false;
-        this.triggerToast(`Uploaded "${file.name}"`);
+        this.triggerToast(`Uploaded "${doc?.originalName || file.name}"`);
         this.loadDocuments();
       },
       error: (err) => {

@@ -23,6 +23,10 @@ import { UsersService } from '../users/users.service';
 import { AccessRequestsService } from '../access-requests/access-requests.service';
 import { AclResolverService } from '../permissions/services/acl-resolver.service';
 import { FoldersService } from '../folders/folders.service';
+import {
+  resolveUniqueFilenameForModel,
+  normalizeFolder,
+} from '../common/utils/filename-uniqueness.util';
 
 @Injectable()
 export class DocumentsService {
@@ -80,24 +84,32 @@ export class DocumentsService {
     const ext = path.extname(file.originalname);
     const fileType = this.mapFileType(ext);
     const isTabular = ['csv', 'xlsx', 'xls'].includes(fileType);
+    const targetFolder = normalizeFolder(folder);
+
+    // Dynamically resolve unique filename in target folder
+    const uniqueOriginalName = await resolveUniqueFilenameForModel(
+      this.documentModel,
+      file.originalname,
+      targetFolder,
+    );
 
     // Save to user-isolated folder
     const destinationSubdir = `users/${userId}/documents`;
     const saveResult = await this.storageService.saveFile(
       file.buffer,
       destinationSubdir,
-      file.originalname,
+      uniqueOriginalName,
     );
 
     const doc = new this.documentModel({
       userId: new Types.ObjectId(userId),
       filename: saveResult.filename,
-      originalName: file.originalname,
+      originalName: uniqueOriginalName,
       fileType,
       mimeType: file.mimetype,
       fileSize: file.size,
       storagePath: saveResult.storagePath,
-      folder: folder.trim(),
+      folder: targetFolder,
       allowedDepartments,
       status: DocumentStatus.PROCESSING,
       sourceType: isTabular ? 'tabular' : 'narrative',
@@ -110,8 +122,8 @@ export class DocumentsService {
     const savedDoc = await doc.save();
     const docId = savedDoc._id.toString();
 
-    // Trigger AI RAG Ingestion asynchronously in background
-    this.triggerIngestion(userId, docId, saveResult.storagePath, file.originalname, fileType);
+    // Trigger AI RAG Ingestion asynchronously in background with canonical unique originalName
+    this.triggerIngestion(userId, docId, saveResult.storagePath, savedDoc.originalName, fileType);
 
     return this.toIDocument(savedDoc);
   }
@@ -219,7 +231,24 @@ export class DocumentsService {
       throw new NotFoundException('Document not found');
     }
 
-    const update: any = { folder: folder.trim() };
+    const existingDoc = await this.documentModel.findById(documentId);
+    if (!existingDoc) {
+      throw new NotFoundException('Document not found');
+    }
+
+    const targetFolder = normalizeFolder(folder);
+    let finalOriginalName = existingDoc.originalName;
+
+    if (existingDoc.folder !== targetFolder) {
+      finalOriginalName = await resolveUniqueFilenameForModel(
+        this.documentModel,
+        existingDoc.originalName,
+        targetFolder,
+        existingDoc._id,
+      );
+    }
+
+    const update: any = { folder: targetFolder, originalName: finalOriginalName };
     if (allowedDepartments) {
       update.allowedDepartments = allowedDepartments;
     }
@@ -230,11 +259,7 @@ export class DocumentsService {
       { new: true },
     );
 
-    if (!doc) {
-      throw new NotFoundException('Document not found');
-    }
-
-    return this.toIDocument(doc);
+    return this.toIDocument(doc!);
   }
 
   private buildAccessQuery(user: IUser, approvedIds: string[] = []): any {
