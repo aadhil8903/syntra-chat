@@ -225,5 +225,25 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
 
       expect(chatDraftServiceMock.clearDraft).toHaveBeenCalledWith('conv-a');
     });
+
+    it('9. should automatically expand parent collection when selecting a chat belonging to a collection', () => {
+      const convInCol: IConversation = {
+        id: 'conv-col-1',
+        title: 'Project Titan Database Details',
+        collectionId: 'col-test-2',
+        userId: 'user-1',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      component.collections = [{ id: 'col-test-2', name: 'test2', userId: 'user-1', createdAt: '', updatedAt: '' }];
+      component.isCollectionsGroupExpanded = false;
+      component.expandedCollectionIds = new Set();
+
+      component.selectConversation(convInCol);
+
+      expect(component.isCollectionsGroupExpanded).toBe(true);
+      expect(component.isCollectionExpanded('col-test-2')).toBe(true);
+    });
   });
 });

@@ -723,6 +723,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   voiceService = inject(VoiceRecognitionService);
   private voiceSub?: Subscription;
   private voiceErrorSub?: Subscription;
+  private routeSub?: Subscription;
 
   @ViewChild('scrollContainer') scrollContainer?: ElementRef<HTMLDivElement>;
   @ViewChild('inputArea') inputArea?: ElementRef<HTMLTextAreaElement>;
@@ -919,6 +920,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     }
     this.voiceSub?.unsubscribe();
     this.voiceErrorSub?.unsubscribe();
+    this.routeSub?.unsubscribe();
   }
 
   private voiceBaseText = '';
@@ -1108,6 +1110,17 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       }
     });
 
+    // Route param subscription for navigating to specific chats (e.g. from Dashboard collections)
+    this.routeSub = this.route.paramMap.subscribe((params) => {
+      const routeId = params.get('id');
+      if (routeId && this.conversations.length > 0) {
+        const found = this.conversations.find((c) => c.id === routeId);
+        if (found && (!this.activeConversation || this.activeConversation.id !== found.id)) {
+          this.selectConversation(found);
+        }
+      }
+    });
+
     // Check and trigger collections walkthrough if first time viewing collections
     setTimeout(() => {
       this.collectionsWalkthrough.checkAndTrigger();
@@ -1169,6 +1182,13 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
             cols.forEach((c) => this.expandedCollectionIds.add(c.id));
           }
         }
+
+        // If the active conversation belongs to a collection, ensure its parent collection is expanded
+        if (this.activeConversation?.collectionId && colIdsInDb.has(this.activeConversation.collectionId)) {
+          this.isCollectionsGroupExpanded = true;
+          this.expandedCollectionIds.add(this.activeConversation.collectionId);
+        }
+
         this.savePersistedCollectionState();
       },
       error: () => {
@@ -1505,6 +1525,14 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     }
 
     this.activeConversation = conv;
+
+    // Auto-expand parent collection if this conversation belongs to one
+    if (conv.collectionId) {
+      this.isCollectionsGroupExpanded = true;
+      this.expandedCollectionIds.add(conv.collectionId);
+      this.savePersistedCollectionState();
+    }
+
     this.dismissError();
 
     // Immediately restore draft for target chat
