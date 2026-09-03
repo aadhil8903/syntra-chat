@@ -308,6 +308,7 @@ export class ChatStateService {
                     generatedTable: data.generatedTable,
                     pythonCode: data.pythonCode,
                     executionOutput: data.executionOutput,
+                    downloadableFile: data.downloadableFile,
                   };
                   this.setMessages(conversationId, [...msgs]);
                 }

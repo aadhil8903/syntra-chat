@@ -263,23 +263,23 @@ describe('UsersService (Security & Admin Invariant)', () => {
       mail.sendWelcomeEmail.mockResolvedValue(true);
 
       const result = await service.createUserByAdmin({
-        email: 'alice.smith@enterprise.com',
-        firstName: 'Alice',
-        lastName: 'Smith',
+        email: 'rayyan.alsayed@enterprise.com',
+        firstName: 'Rayyan',
+        lastName: 'Al-Sayed',
         role: UserRole.USER,
         departments: ['Engineering', 'DevOps'],
         allowedFolders: ['Engineering/Docs', 'General'],
       });
 
-      expect(result.user.email).toBe('alice.smith@enterprise.com');
+      expect(result.user.email).toBe('rayyan.alsayed@enterprise.com');
       expect(result.user.departments).toEqual(['Engineering', 'DevOps']);
       expect(result.user.allowedFolders).toEqual(['Engineering/Docs', 'General']);
       expect(result.emailSent).toBe(true);
       expect(result.temporaryPassword).toBeDefined();
       expect(result.message).toContain('welcome email dispatched successfully');
       expect(mail.sendWelcomeEmail).toHaveBeenCalledWith(
-        'alice.smith@enterprise.com',
-        'Alice',
+        'rayyan.alsayed@enterprise.com',
+        'Rayyan',
         result.temporaryPassword,
       );
     });

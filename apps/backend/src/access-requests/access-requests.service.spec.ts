@@ -86,7 +86,7 @@ describe('AccessRequestsService', () => {
         exec: jest.fn().mockResolvedValue([
           {
             _id: 'req1',
-            userId: { _id: 'u1', firstName: 'Alice', lastName: 'Smith', email: 'alice@co.com' },
+            userId: { _id: 'u1', firstName: 'Sarah', lastName: 'Al-Sayed', email: 'sarah@co.com' },
             resourceId: 'doc123',
             resourceType: 'document',
             status: 'approved',
@@ -112,7 +112,7 @@ describe('AccessRequestsService', () => {
       expect(res.total).toBe(1);
       expect(res.items.length).toBe(1);
       expect(res.items[0].resolvedByName).toBe('Admin One');
-      expect(res.items[0].userName).toBe('Alice Smith');
+      expect(res.items[0].userName).toBe('Sarah Al-Sayed');
     });
   });
 });

@@ -35,7 +35,7 @@ import { WalkthroughService } from '../../../core/services/walkthrough.service';
               name="email"
               required
               class="w-full px-3.5 py-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-white text-sm focus:outline-none focus:border-white transition-colors"
-              placeholder="name@company.com"
+              placeholder="sarah@company.com"
             />
           </div>
 

@@ -73,14 +73,16 @@ function isClearlyUnrelatedQuestion(content: string): boolean {
 }
 
 /**
- * Detects if a user message is explicitly asking to find, get, or download a PDF or file.
+ * Detects if a user message is asking to find, get, or download a PDF or file.
  */
-function isPdfDiscoveryRequest(content: string): boolean {
+export function isPdfDiscoveryRequest(content: string): boolean {
   const lower = content.toLowerCase().trim();
-  const fileKeywords = /\b(pdf|file|document|handbook|guide|report|policy|agreement|manual)\b/i;
-  const requestKeywords = /\b(give me|can i get|can i download|download|find|get me|where is|send me|show me|fetch|locate)\b/i;
-  const directDownload = /^(download|get)\s+/i;
-  return (fileKeywords.test(lower) && requestKeywords.test(lower)) || directDownload.test(lower);
+  if (/\b(download|get me the|give me the|send me the|fetch the|locate the)\b/i.test(lower)) {
+    return true;
+  }
+  const hasRequest = /\b(give me|can i get|can i have|can i download|i want|i need|i wanna|download|find|get|where is|send me|show me|fetch|open|locate)\b/i.test(lower);
+  const hasFile = /\b(pdf|file|document|handbook|guide|report|policy|agreement|manual)\b/i.test(lower) || /\.pdf\b/i.test(lower) || /@[a-zA-Z0-9_\-\.]+/i.test(lower) || /\b(it|this)\b/i.test(lower);
+  return hasRequest && hasFile;
 }
 
 @Injectable()
@@ -466,7 +468,7 @@ export class MessagesService {
       let fileRes: any = null;
 
       if (isFileReq) {
-        fileRes = await this.documentsService.resolvePdfRequest(userId, content, scopeData.activeScope);
+        fileRes = await this.documentsService.resolvePdfRequest(userId, content, scopeData.activeScope, history);
         if (fileRes.matchType === 'exact' && fileRes.found && fileRes.document && fileRes.canDownload) {
           authoritativeDownloadableFile = {
             documentId: fileRes.document.id,
@@ -504,17 +506,25 @@ export class MessagesService {
         if (fileRes.matchType === 'exact') {
           if (!fileRes.canDownload) {
             authoritativeDownloadableFile = undefined;
-            aiResponse.answer = `${fileRes.document?.originalName || 'This file'} is available, but this file is restricted from downloading.`;
-          } else if (!aiResponse.answer || aiResponse.answer.toLowerCase().includes("couldn't find") || aiResponse.answer.toLowerCase().includes("cannot find")) {
-            aiResponse.answer = `Sure, I found the PDF.`;
+            if (fileRes.reason === 'ACCESS_DENIED') {
+              aiResponse.answer = `You do not have access to this document. Please request access to view or download it.`;
+            } else {
+              aiResponse.answer = `This file can't be downloaded.`;
+            }
+          } else if (aiResponse.intent === AgentIntent.FILE_REQUEST || !aiResponse.answer || aiResponse.answer.toLowerCase().includes("couldn't find") || aiResponse.answer.toLowerCase().includes("cannot find")) {
+            aiResponse.answer = `Here is the file.`;
           }
+        } else if (fileRes.matchType === 'ambiguous' && fileRes.candidates && fileRes.candidates.length > 0) {
+          authoritativeDownloadableFile = undefined;
+          const candidateList = fileRes.candidates.map((c: any) => `- ${c.originalName}${c.folder ? ` (${c.folder})` : ''}`).join('\n');
+          aiResponse.answer = `I found a few matching files. Which one do you want?\n\n${candidateList}`;
         } else if (fileRes.matchType === 'alternative' && fileRes.alternativeDocument) {
           authoritativeDownloadableFile = undefined;
-          aiResponse.answer = `I couldn't find that exact PDF, but I found '${fileRes.alternativeDocument.originalName}'${fileRes.alternativeDocument.folder ? ` in the ${fileRes.alternativeDocument.folder} folder` : ''}. Is that the file you're looking for?`;
+          aiResponse.answer = `I couldn't find that exact file, but I found '${fileRes.alternativeDocument.originalName}'${fileRes.alternativeDocument.folder ? ` in the ${fileRes.alternativeDocument.folder} folder` : ''}. Is that the file you mean?`;
         } else if (fileRes.matchType === 'none') {
           authoritativeDownloadableFile = undefined;
           if (!aiResponse.answer || aiResponse.intent === AgentIntent.FILE_REQUEST || aiResponse.answer.toLowerCase().includes("couldn't find") || aiResponse.answer.toLowerCase().includes("cannot find")) {
-            aiResponse.answer = `Sorry, I couldn't find that PDF.`;
+            aiResponse.answer = `Sorry, I couldn't find that file.`;
           }
         }
       }
@@ -699,7 +709,7 @@ export class MessagesService {
       let fileRes: any = null;
 
       if (isFileReq) {
-        fileRes = await this.documentsService.resolvePdfRequest(userId, content, scopeData.activeScope);
+        fileRes = await this.documentsService.resolvePdfRequest(userId, content, scopeData.activeScope, history);
         if (fileRes.matchType === 'exact' && fileRes.found && fileRes.document && fileRes.canDownload) {
           authoritativeDownloadableFile = {
             documentId: fileRes.document.id,
@@ -810,21 +820,28 @@ export class MessagesService {
           if (!fileRes.canDownload) {
             authoritativeDownloadableFile = undefined;
             delete metadata.downloadableFile;
-            if (!fullAnswer || !fullAnswer.toLowerCase().includes('restricted')) {
-              fullAnswer = `${fileRes.document?.originalName || 'This file'} is available, but this file is restricted from downloading.`;
+            if (fileRes.reason === 'ACCESS_DENIED') {
+              fullAnswer = `You do not have access to this document. Please request access to view or download it.`;
+            } else {
+              fullAnswer = `This file can't be downloaded.`;
             }
+          } else if (metadata.intent === AgentIntent.FILE_REQUEST || !fullAnswer || fullAnswer.toLowerCase().includes("couldn't find") || fullAnswer.toLowerCase().includes("cannot find") || fullAnswer.toLowerCase().includes("file viewer panel")) {
+            fullAnswer = `Here is the file.`;
           }
+        } else if (fileRes.matchType === 'ambiguous' && fileRes.candidates && fileRes.candidates.length > 0) {
+          authoritativeDownloadableFile = undefined;
+          delete metadata.downloadableFile;
+          const candidateList = fileRes.candidates.map((c: any) => `- ${c.originalName}${c.folder ? ` (${c.folder})` : ''}`).join('\n');
+          fullAnswer = `I found a few matching files. Which one do you want?\n\n${candidateList}`;
         } else if (fileRes.matchType === 'alternative' && fileRes.alternativeDocument) {
           authoritativeDownloadableFile = undefined;
           delete metadata.downloadableFile;
-          if (!fullAnswer || fullAnswer.toLowerCase().includes("couldn't find") || fullAnswer.toLowerCase().includes("cannot find")) {
-            fullAnswer = `I couldn't find that exact PDF, but I found '${fileRes.alternativeDocument.originalName}'${fileRes.alternativeDocument.folder ? ` in the ${fileRes.alternativeDocument.folder} folder` : ''}. Is that the file you're looking for?`;
-          }
+          fullAnswer = `I couldn't find that exact file, but I found '${fileRes.alternativeDocument.originalName}'${fileRes.alternativeDocument.folder ? ` in the ${fileRes.alternativeDocument.folder} folder` : ''}. Is that the file you mean?`;
         } else if (fileRes.matchType === 'none') {
           authoritativeDownloadableFile = undefined;
           delete metadata.downloadableFile;
           if (!fullAnswer || metadata.intent === AgentIntent.FILE_REQUEST || fullAnswer.toLowerCase().includes("couldn't find") || fullAnswer.toLowerCase().includes("cannot find")) {
-            fullAnswer = `Sorry, I couldn't find that PDF.`;
+            fullAnswer = `Sorry, I couldn't find that file.`;
           }
         }
       }

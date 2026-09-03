@@ -475,7 +475,7 @@ export interface IDynamicStarterCard {
                 }
 
                 <div
-                  [ngClass]="msg.role === 'user' ? 'bg-[#18181b] text-white rounded-2xl rounded-tr-sm px-4 py-3 border border-[#3f3f46] max-w-[85%]' : 'bg-transparent text-white flex-1 max-w-full'"
+                  [ngClass]="msg.role === 'user' ? 'bg-[#212124] text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.3)] max-w-[85%]' : 'bg-transparent text-white flex-1 max-w-full'"
                   class="text-sm leading-relaxed group relative"
                 >
                   <!-- Rendered Rich Markdown Content -->
@@ -483,7 +483,7 @@ export interface IDynamicStarterCard {
                     @if (msg.referencedResourceIds && msg.referencedResourceIds.length > 0) {
                       <div class="flex flex-wrap gap-1.5 mb-2">
                         @for (rId of msg.referencedResourceIds; track rId) {
-                          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#27272a] border border-[#3f3f46] text-[11px] text-zinc-300">
+                          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#2b2b30] text-[11px] text-zinc-300">
                             <span class="text-white font-bold">&#64;</span>
                             <span>{{ getResourceDisplayName(rId) }}</span>
                           </span>
@@ -537,55 +537,43 @@ export interface IDynamicStarterCard {
                     }
                   </div>
 
-                  <!-- Downloadable PDF File Card -->
+                  <!-- Compact Inline Downloadable File Card (Claude-style borderless pill) -->
                   @if (msg.downloadableFile) {
-                    <div class="mt-3.5 mb-2 w-full max-w-md">
+                    <div class="mt-2 mb-1 inline-block">
                       <div
                         (click)="downloadChatFile(msg.downloadableFile)"
-                        class="group/file-card relative flex items-center justify-between gap-3 p-3.5 rounded-xl border border-red-500/30 bg-gradient-to-r from-red-950/40 via-red-900/20 to-zinc-900/60 hover:from-red-950/60 hover:via-red-900/30 hover:to-zinc-900/80 hover:border-red-500/50 shadow-lg shadow-red-950/20 cursor-pointer transition-all duration-200"
+                        class="group/file-card inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-[#212124] hover:bg-[#28282c] cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.35)] max-w-sm"
                         [class.opacity-75]="isDownloadingFile(msg.downloadableFile.documentId)"
+                        role="button"
+                        tabindex="0"
+                        [title]="'Click to download ' + msg.downloadableFile.fileName"
                       >
-                        <!-- Left: PDF Icon & File Metadata -->
-                        <div class="flex items-center gap-3 min-w-0 flex-1">
-                          <div class="flex-shrink-0 w-11 h-11 rounded-lg bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 group-hover/file-card:scale-105 transition-transform">
-                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M7 2a2 2 0 00-2 2v16a2 2 0 002 2h10a2 2 0 002-2V8l-6-6H7zm6 1.5L17.5 8H13V3.5zM8.5 12h2.25c.97 0 1.75.78 1.75 1.75s-.78 1.75-1.75 1.75H9.75v1.75H8.5V12zm1.25 1.2v1.1h1c.41 0 .75-.34.75-.75s-.34-.35-.75-.35h-1zm5.25-.2h2v1.1h-2v.8h1.75v1.1H15v1.85h-1.25V12zm-3.5 0h1.5c1.1 0 2 .9 2 2v1.25c0 1.1-.9 2-2 2h-1.5V12zm1.25 1.2v2.85h.25c.41 0 .75-.34.75-.75V14c0-.41-.34-.75-.75-.75h-.25z" />
-                            </svg>
-                          </div>
-                          <div class="min-w-0 flex-1">
-                            <div class="text-sm font-semibold text-zinc-100 truncate pr-2 group-hover/file-card:text-white transition-colors" [title]="msg.downloadableFile.fileName">
-                              {{ msg.downloadableFile.fileName }}
-                            </div>
-                            <div class="flex items-center gap-2 text-xs text-red-300/80 font-medium mt-0.5">
-                              <span>PDF</span>
-                              @if (msg.downloadableFile.fileSize) {
-                                <span>•</span>
-                                <span>{{ formatFileSize(msg.downloadableFile.fileSize) }}</span>
-                              }
-                              @if (msg.downloadableFile.folder) {
-                                <span>•</span>
-                                <span class="truncate max-w-[120px]">{{ msg.downloadableFile.folder }}</span>
-                              }
-                            </div>
-                          </div>
+                        <!-- Left: Compact File Type Badge + Filename -->
+                        <div class="flex items-center gap-2 min-w-0">
+                          <span class="flex-shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase bg-red-500/20 text-red-400">
+                            PDF
+                          </span>
+                          <span class="text-xs font-medium text-zinc-100 group-hover/file-card:text-white truncate max-w-[220px]" [title]="msg.downloadableFile.fileName">
+                            {{ msg.downloadableFile.fileName }}
+                          </span>
                         </div>
 
-                        <!-- Right: Min 44x44px Touch Target Circular Download Button -->
+                        <!-- Right: Compact Download Icon Button -->
                         <button
                           type="button"
                           (click)="$event.stopPropagation(); downloadChatFile(msg.downloadableFile)"
                           [disabled]="isDownloadingFile(msg.downloadableFile.documentId)"
-                          class="flex-shrink-0 w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-red-500 hover:bg-red-400 active:bg-red-600 text-white shadow-md shadow-red-500/30 flex items-center justify-center transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-red-400/50"
-                          title="Download PDF"
-                          aria-label="Download PDF"
+                          class="flex-shrink-0 w-6 h-6 rounded-lg bg-white/5 hover:bg-white/10 active:bg-white/20 text-zinc-300 hover:text-white flex items-center justify-center transition-colors focus:outline-none ml-0.5"
+                          title="Download file"
+                          aria-label="Download file"
                         >
                           @if (isDownloadingFile(msg.downloadableFile.documentId)) {
-                            <svg class="w-5 h-5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                            <svg class="w-3.5 h-3.5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
                               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
                           } @else {
-                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <svg class="w-3.5 h-3.5 text-zinc-300 group-hover/file-card:text-white transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                             </svg>
                           }

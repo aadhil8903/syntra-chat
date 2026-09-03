@@ -16,6 +16,9 @@ describe('DocumentsService - Dynamic Duplicate Filename Handling', () => {
   let mockDocumentModel: any;
   let mockStorageService: any;
   let mockAiGatewayService: any;
+  let mockUsersService: any;
+  let mockAccessRequestsService: any;
+  let mockAclResolver: any;
   let existingDocuments: any[] = [];
 
   beforeEach(async () => {
@@ -92,7 +95,11 @@ describe('DocumentsService - Dynamic Duplicate Filename Handling', () => {
       if (doc && update.$set) {
         Object.assign(doc, update.$set);
       }
-      return Promise.resolve(doc);
+      return {
+        ...doc,
+        then: (resolve: any) => Promise.resolve(doc).then(resolve),
+        exec: jest.fn().mockResolvedValue(doc),
+      };
     });
 
     mockDocumentModel.findOneAndUpdate = jest.fn().mockImplementation((filter: any, update: any) => {
@@ -121,6 +128,26 @@ describe('DocumentsService - Dynamic Duplicate Filename Handling', () => {
       ingestDocument: jest.fn().mockResolvedValue({ chunkCount: 5 }),
     };
 
+    mockUsersService = {
+      findById: jest.fn().mockImplementation((id: string) =>
+        Promise.resolve({
+          _id: new Types.ObjectId(id),
+          id,
+          role: id === '507f1f77bcf86cd799439011' ? UserRole.ADMIN : UserRole.USER,
+          departments: [],
+        }),
+      ),
+    };
+
+    mockAccessRequestsService = {
+      getApprovedResourceIdsForUser: jest.fn().mockResolvedValue([]),
+      getUserRequests: jest.fn().mockResolvedValue([]),
+    };
+
+    mockAclResolver = {
+      canUserAccessFolder: jest.fn().mockResolvedValue(true),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DocumentsService,
@@ -138,27 +165,24 @@ describe('DocumentsService - Dynamic Duplicate Filename Handling', () => {
         },
         {
           provide: UsersService,
-          useValue: {
-            findById: jest.fn().mockImplementation((id: string) =>
-              Promise.resolve({
-                _id: new Types.ObjectId(id),
-                id,
-                role: id === '507f1f77bcf86cd799439011' ? UserRole.ADMIN : UserRole.USER,
-              }),
-            ),
-          },
+          useValue: mockUsersService,
         },
         {
           provide: AccessRequestsService,
-          useValue: {},
+          useValue: mockAccessRequestsService,
         },
         {
           provide: AclResolverService,
-          useValue: {},
+          useValue: mockAclResolver,
         },
         {
           provide: FoldersService,
           useValue: {
+            findAll: jest.fn().mockResolvedValue([
+              { name: 'Finance', downloadPolicy: 'restricted', allowedDepartments: [] },
+              { name: 'Sales', downloadPolicy: 'allowed', allowedDepartments: [] },
+              { name: 'HR', downloadPolicy: 'allowed', allowedDepartments: [] },
+            ]),
             findByName: jest.fn().mockImplementation((name: string) => {
               if (name === 'Finance') return Promise.resolve({ name: 'Finance', downloadPolicy: 'restricted' });
               if (name === 'Sales') return Promise.resolve({ name: 'Sales', downloadPolicy: 'allowed' });
@@ -512,6 +536,265 @@ describe('DocumentsService - Dynamic Duplicate Filename Handling', () => {
       await expect(
         service.updateFolderAndDeps('507f1f77bcf86cd799439011', doc.id, 'NonExistentFolder_12345'),
       ).rejects.toThrow('Destination folder "NonExistentFolder_12345" not found');
+    });
+  });
+
+  describe('Document Access vs Download Permission Separation', () => {
+    const adminId = '507f1f77bcf86cd799439011';
+    const normalUserId = '507f1f77bcf86cd799439022';
+
+    it('1. Admin + document access allowed + download allowed -> visible + downloadable', async () => {
+      const file: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'admin_open.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF-1.4 open'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      const doc = await service.uploadDocument(adminId, file, 'Sales');
+      const allDocs = await service.findAllAccessible(adminId);
+      const found = allDocs.find((d) => d.id === doc.id);
+      expect(found).toBeDefined();
+      expect(found!.hasAccess).toBe(true);
+
+      const check = await service.canUserDownloadDocument(adminId, doc.id);
+      expect(check.canDownload).toBe(true);
+    });
+
+    it('2. Admin + document access allowed + download restricted -> visible + restricted + NO Request Access', async () => {
+      const file: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'financial_report.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF-1.4 financial'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      const doc = await service.uploadDocument(adminId, file, 'Finance');
+      await service.updateDownloadPolicy(adminId, doc.id, 'restricted');
+
+      const allDocs = await service.findAllAccessible(adminId);
+      const found = allDocs.find((d) => d.id === doc.id);
+      expect(found).toBeDefined();
+      expect(found!.hasAccess).toBe(true);
+      expect(found!.effectiveDownloadPolicy).toBe('restricted');
+
+      const check = await service.canUserDownloadDocument(adminId, doc.id);
+      expect(check.canDownload).toBe(false);
+      expect(check.reason).toBe('DOWNLOAD_RESTRICTED');
+    });
+
+    it('3. Normal user + document access allowed + download allowed -> visible + downloadable', async () => {
+      const file: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'user_doc.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF-1.4 user'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      const doc = await service.uploadDocument(normalUserId, file, 'Sales');
+      const check = await service.canUserDownloadDocument(normalUserId, doc.id);
+      expect(check.canDownload).toBe(true);
+    });
+
+    it('4. Normal user + document access allowed + download restricted -> visible + restricted + NO Download', async () => {
+      const file: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'user_restricted.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF-1.4 user restricted'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      const doc = await service.uploadDocument(normalUserId, file, 'Sales');
+      await service.updateDownloadPolicy(adminId, doc.id, 'restricted');
+
+      const check = await service.canUserDownloadDocument(normalUserId, doc.id);
+      expect(check.canDownload).toBe(false);
+      expect(check.reason).toBe('DOWNLOAD_RESTRICTED');
+    });
+
+    it('5. Normal user + document access denied -> ACCESS_DENIED + NO Download', async () => {
+      mockUsersService.findById.mockResolvedValueOnce({
+        id: '507f1f77bcf86cd799439099',
+        role: 'user',
+        departments: ['Marketing'],
+      });
+      mockAclResolver.canUserAccessFolder.mockResolvedValueOnce(false);
+
+      const file: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'secret_finance.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF-1.4 secret'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      const doc = await service.uploadDocument(adminId, file, 'Finance');
+      const check = await service.canUserDownloadDocument('507f1f77bcf86cd799439099', doc.id);
+      expect(check.canDownload).toBe(false);
+      expect(check.reason).toBe('ACCESS_DENIED');
+    });
+
+    it('6. Admin + restricted folder download policy -> files remain visible to admin with restricted download', async () => {
+      const file: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'finance_budget.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF-1.4 budget'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      const doc = await service.uploadDocument(adminId, file, 'Finance');
+      const allDocs = await service.findAllAccessible(adminId);
+      const found = allDocs.find((d) => d.id === doc.id);
+      expect(found).toBeDefined();
+      expect(found!.hasAccess).toBe(true);
+      expect(found!.effectiveDownloadPolicy).toBe('restricted');
+    });
+
+    it('7. File-level Restricted override inside an Allowed folder -> file is not downloadable', async () => {
+      const file: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'special_sales.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF-1.4 special'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      const doc = await service.uploadDocument(adminId, file, 'Sales');
+      await service.updateDownloadPolicy(adminId, doc.id, 'restricted');
+
+      const check = await service.canUserDownloadDocument(adminId, doc.id);
+      expect(check.canDownload).toBe(false);
+      expect(check.reason).toBe('DOWNLOAD_RESTRICTED');
+    });
+
+    it('8. File-level Allowed override inside a Restricted folder -> downloadable if user has access', async () => {
+      const file: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'public_finance.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF-1.4 public finance'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      const doc = await service.uploadDocument(adminId, file, 'Finance');
+      await service.updateDownloadPolicy(adminId, doc.id, 'allowed');
+
+      const check = await service.canUserDownloadDocument(adminId, doc.id);
+      expect(check.canDownload).toBe(true);
+    });
+  });
+
+  describe('Natural Language File Discovery (No @mentions Required)', () => {
+    const adminId = '507f1f77bcf86cd799439011';
+
+    beforeEach(async () => {
+      const file1: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'Leave_Policy.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF leave'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      const file2: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'Employee_Handbook.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF handbook'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      const file3: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'Reimbursement_Policy.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF reimb'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      await service.uploadDocument(adminId, file1, 'HR');
+      await service.uploadDocument(adminId, file2, 'HR');
+      await service.uploadDocument(adminId, file3, 'HR');
+    });
+
+    it('Scenario 1: Resolves natural language file request without @mention', async () => {
+      const res = await service.resolvePdfRequest(adminId, 'Can I download the employee handbook?');
+      expect(res.found).toBe(true);
+      expect(res.matchType).toBe('exact');
+      expect(res.document?.originalName).toBe('Employee_Handbook.pdf');
+      expect(res.canDownload).toBe(true);
+    });
+
+    it('Scenario 2: Resolves contextual "Give me the file" using conversation history', async () => {
+      const history = [
+        { role: 'user', content: 'What are the rules for taking time off?' },
+        { role: 'assistant', content: 'According to the Leave_Policy.pdf, employees receive 20 days off annually.' },
+      ];
+      const res = await service.resolvePdfRequest(adminId, 'Give me the file', null, history);
+      expect(res.found).toBe(true);
+      expect(res.matchType).toBe('exact');
+      expect(res.document?.originalName).toBe('Leave_Policy.pdf');
+    });
+
+    it('Scenario 3: Returns ambiguous clarification when multiple files match a generic topic', async () => {
+      const res = await service.resolvePdfRequest(adminId, 'Give me the HR policy file');
+      expect(res.matchType).toBe('ambiguous');
+      expect(res.candidates && res.candidates.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('Scenario 4: Returns none when file does not exist', async () => {
+      const res = await service.resolvePdfRequest(adminId, 'Give me the quarterly spaceship report');
+      expect(res.found).toBe(false);
+      expect(res.matchType).toBe('none');
     });
   });
 });

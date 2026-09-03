@@ -45,9 +45,9 @@ describe('AdminComponent (User Provisioning & Loading State)', () => {
       const mockCreatedUser = {
         user: {
           id: 'u123',
-          email: 'alice.test@enterprise.com',
-          firstName: 'Alice',
-          lastName: 'Test',
+          email: 'rayyan.test@enterprise.com',
+          firstName: 'Rayyan',
+          lastName: 'Al-Sayed',
           role: UserRole.USER,
         },
         temporaryPassword: 'TempPassword123!',
@@ -58,9 +58,9 @@ describe('AdminComponent (User Provisioning & Loading State)', () => {
       apiMock.createUser.mockReturnValue(of(mockCreatedUser));
 
       component.newUser = {
-        firstName: 'Alice',
-        lastName: 'Test',
-        email: 'alice.test@enterprise.com',
+        firstName: 'Rayyan',
+        lastName: 'Al-Sayed',
+        email: 'rayyan.test@enterprise.com',
         role: UserRole.USER,
         departments: [],
         allowedFolders: [],
@@ -131,6 +131,43 @@ describe('AdminComponent (User Provisioning & Loading State)', () => {
       expect(component.creatingUser).toBe(false);
       expect(component.createUserError).toContain('User provisioning request timed out');
       expect(component.showCreateModal).toBe(true);
+    });
+
+    it('should open and close requester note popover with anchor positioning', () => {
+      const mockReq = {
+        id: 'req-1',
+        userName: 'Sarah Al-Sayed',
+        resourceName: 'HR_Policy.pdf',
+        reason: 'Need for onboarding reference',
+        createdAt: new Date().toISOString(),
+      };
+
+      const dummyButton = document.createElement('button');
+      jest.spyOn(dummyButton, 'getBoundingClientRect').mockReturnValue({
+        top: 200,
+        bottom: 232,
+        left: 500,
+        right: 532,
+        width: 32,
+        height: 32,
+      } as DOMRect);
+
+      const event = { currentTarget: dummyButton, stopPropagation: jest.fn() } as any;
+
+      component.openRequestMessage(mockReq, event);
+
+      expect(component.activeMessageRequest).toBe(mockReq);
+      expect(component.messagePopoverPosition.top).toBe(236); // 232 + 4
+
+      // Toggling the same request closes it
+      component.openRequestMessage(mockReq, event);
+      expect(component.activeMessageRequest).toBeNull();
+
+      // Explicit close
+      component.openRequestMessage(mockReq, event);
+      expect(component.activeMessageRequest).toBe(mockReq);
+      component.closeRequestMessage();
+      expect(component.activeMessageRequest).toBeNull();
     });
   });
 });

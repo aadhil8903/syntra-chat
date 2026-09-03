@@ -139,6 +139,24 @@ export class AdminComponent implements OnInit {
     if (!target.closest('.dropdown-container')) {
       this.openDropdownId = null;
     }
+    if (this.activeMessageRequest && !target.closest('.request-message-popover')) {
+      this.closeRequestMessage();
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey() {
+    if (this.activeMessageRequest) {
+      this.closeRequestMessage();
+    }
+  }
+
+  @HostListener('window:scroll')
+  @HostListener('window:resize')
+  onWindowChange() {
+    if (this.activeMessageRequest) {
+      this.closeRequestMessage();
+    }
   }
 
   toggleDropdown(id: string, event: MouseEvent) {
@@ -646,6 +664,52 @@ export class AdminComponent implements OnInit {
 
   isAuditRowExpanded(reqId: string): boolean {
     return this.expandedAuditRowIds.has(reqId);
+  }
+
+  // Contextual Requester Note Popover
+  activeMessageRequest: any = null;
+  messagePopoverPosition: { top: number; left?: number; right?: number } = { top: 0 };
+
+  openRequestMessage(req: any, event?: MouseEvent): void {
+    if (this.activeMessageRequest?.id === req.id) {
+      this.closeRequestMessage();
+      return;
+    }
+
+    if (event) {
+      event.stopPropagation();
+      const button = (event.currentTarget as HTMLElement) || (event.target as HTMLElement);
+      const rect = button.getBoundingClientRect();
+      const popoverWidth = 320;
+      const popoverEstimatedHeight = 220;
+
+      if (window.innerWidth < 640) {
+        this.messagePopoverPosition = {
+          top: Math.max(20, (window.innerHeight - popoverEstimatedHeight) / 2),
+          left: Math.max(16, (window.innerWidth - popoverWidth) / 2),
+        };
+      } else {
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const openUpward = spaceBelow < popoverEstimatedHeight && rect.top > popoverEstimatedHeight;
+        const top = openUpward ? Math.max(8, rect.top - popoverEstimatedHeight - 4) : rect.bottom + 4;
+
+        let right: number | undefined = Math.max(8, window.innerWidth - rect.right);
+        let left: number | undefined;
+
+        if (window.innerWidth - right - popoverWidth < 8) {
+          right = undefined;
+          left = Math.max(8, rect.left - popoverWidth + rect.width);
+        }
+
+        this.messagePopoverPosition = { top, left, right };
+      }
+    }
+
+    this.activeMessageRequest = req;
+  }
+
+  closeRequestMessage(): void {
+    this.activeMessageRequest = null;
   }
 
   toggleUserStatus(user: IUser) {

@@ -560,31 +560,81 @@ export class DocumentsService {
     userId: string,
     query: string,
     activeScope?: IActiveScope | null,
+    history?: Array<{ role: string; content: string }>,
   ): Promise<{
-    matchType: 'exact' | 'alternative' | 'none';
+    matchType: 'exact' | 'alternative' | 'ambiguous' | 'none';
     found: boolean;
     document?: IDocument;
     alternativeDocument?: IDocument;
+    candidates?: IDocument[];
     canDownload: boolean;
     reason?: string;
   }> {
     const accessibleDocs = await this.findAllAccessible(userId);
-    const accessiblePdfs = accessibleDocs.filter(
-      (d) => d.hasAccess && d.fileType === SupportedDocumentFormat.PDF,
+    const allPdfs = accessibleDocs.filter(
+      (d) => d.fileType === SupportedDocumentFormat.PDF || (d.originalName || '').toLowerCase().endsWith('.pdf'),
     );
+    const accessiblePdfs = allPdfs.filter((d) => d.hasAccess);
 
-    if (accessiblePdfs.length === 0) {
+    if (allPdfs.length === 0) {
       return { matchType: 'none', found: false, canDownload: false, reason: 'NO_ACCESSIBLE_PDFS' };
     }
 
-    // Clean user query for filename extraction
-    const rawClean = query
-      .replace(/^(give me the|give me|can i get the|can i get|can i download the|can i download|download the|download|find the pdf for the|find the pdf for|find the pdf|find the|find|get me the pdf from the|get me the pdf from|get me the pdf|get me the|get me|where is the|please send me the|show me the pdf for|show me the pdf|show me the|fetch the|open the)\s+/i, '')
+    const lowerQuery = query.toLowerCase().trim();
+
+    // 1. Direct @mention or explicit filename extraction
+    const mentionMatch = query.match(/@([a-zA-Z0-9_\-\.\s]+?\.(?:pdf|docx|xlsx|csv|txt)|[a-zA-Z0-9_\-]+)/i);
+    if (mentionMatch && mentionMatch[1]) {
+      const cleanMention = mentionMatch[1].trim().toLowerCase();
+      const mentionedDoc = allPdfs.find((d) => {
+        const orig = d.originalName.toLowerCase();
+        const noExt = orig.replace(/\.pdf$/i, '');
+        return orig === cleanMention || orig === `${cleanMention}.pdf` || noExt === cleanMention || d.id === cleanMention;
+      });
+      if (mentionedDoc) {
+        const authCheck = await this.canUserDownloadDocument(userId, mentionedDoc.id);
+        return {
+          matchType: 'exact',
+          found: true,
+          document: mentionedDoc,
+          canDownload: authCheck.canDownload,
+          reason: authCheck.reason,
+        };
+      }
+    }
+
+    // 2. Contextual Reference: "the file", "the pdf", "this file", "download it", "give me the file"
+    const isReferential = /\b(the file|the pdf|the document|this file|this pdf|this document|download it|download this|get it|get this)\b/i.test(lowerQuery);
+    if (isReferential && history && history.length > 0) {
+      // Look backward from most recent messages for any mentioned accessible document
+      for (let i = history.length - 1; i >= 0; i--) {
+        const msgContent = history[i].content.toLowerCase();
+        for (const doc of accessiblePdfs) {
+          const docName = doc.originalName.toLowerCase();
+          const docNoExt = docName.replace(/\.pdf$/i, '');
+          if (msgContent.includes(docName) || (docNoExt.length >= 4 && msgContent.includes(docNoExt))) {
+            const authCheck = await this.canUserDownloadDocument(userId, doc.id);
+            return {
+              matchType: 'exact',
+              found: true,
+              document: doc,
+              canDownload: authCheck.canDownload,
+              reason: authCheck.reason,
+            };
+          }
+        }
+      }
+    }
+
+    // 3. Clean query for semantic and token matching
+    let cleanQuery = lowerQuery
+      .replace(/@[a-zA-Z0-9_\-\.]+/g, '')
+      .replace(/^(give me the|give me|can i get the|can i get|can i download the|can i download|download the|download|find the pdf for the|find the pdf for|find the pdf|find the|find|get me the pdf from the|get me the pdf from|get me the pdf|get me the|get me|where is the|please send me the|show me the pdf for|show me the pdf|show me the|fetch the|open the|i need the|i need|send me the|send me|locate the)\s+/i, '')
       .replace(/\s+(?:from|in)\s+(?:the\s+)?([a-zA-Z0-9_\-\s]+?)\s+folder$/i, '')
+      .replace(/\s+(i wanna download this|i want to download this|i want to download|can i download|download this|please download|for me)\s*$/i, '')
       .replace(/\s+(pdf|file|document)$/i, '')
       .replace(/\.pdf$/i, '')
-      .trim()
-      .toLowerCase();
+      .trim();
 
     // Check if query specifies a folder context
     let folderHint = '';
@@ -595,12 +645,14 @@ export class DocumentsService {
       folderHint = (activeScope.id?.replace(/^folder:/, '') || activeScope.name || '').trim().toLowerCase();
     }
 
-    // 1. Try Exact Match
+    // 4. Exact match against filename or filename without extension
     let exactCandidates = accessiblePdfs.filter((d) => {
       const nameWithoutExt = d.originalName.replace(/\.pdf$/i, '').trim().toLowerCase();
       const fullName = d.originalName.toLowerCase();
-      const matchesName = nameWithoutExt === rawClean || fullName === rawClean || fullName === `${rawClean}.pdf`;
-      if (!matchesName) return false;
+      const nameNoSep = nameWithoutExt.replace(/[_\-\s]+/g, ' ');
+      const cleanNoSep = cleanQuery.replace(/[_\-\s]+/g, ' ');
+      const matches = nameWithoutExt === cleanQuery || fullName === cleanQuery || fullName === `${cleanQuery}.pdf` || nameNoSep === cleanNoSep;
+      if (!matches) return false;
       if (folderHint) {
         return (d.folder || '').toLowerCase() === folderHint;
       }
@@ -608,16 +660,100 @@ export class DocumentsService {
     });
 
     if (exactCandidates.length === 0 && folderHint) {
-      // Fallback exact match across all folders
       exactCandidates = accessiblePdfs.filter((d) => {
         const nameWithoutExt = d.originalName.replace(/\.pdf$/i, '').trim().toLowerCase();
         const fullName = d.originalName.toLowerCase();
-        return nameWithoutExt === rawClean || fullName === rawClean || fullName === `${rawClean}.pdf`;
+        const nameNoSep = nameWithoutExt.replace(/[_\-\s]+/g, ' ');
+        const cleanNoSep = cleanQuery.replace(/[_\-\s]+/g, ' ');
+        return nameWithoutExt === cleanQuery || fullName === cleanQuery || fullName === `${cleanQuery}.pdf` || nameNoSep === cleanNoSep;
       });
     }
 
-    if (exactCandidates.length > 0) {
+    if (exactCandidates.length === 1) {
       const bestDoc = exactCandidates[0];
+      const authCheck = await this.canUserDownloadDocument(userId, bestDoc.id);
+      return {
+        matchType: 'exact',
+        found: true,
+        document: bestDoc,
+        canDownload: authCheck.canDownload,
+        reason: authCheck.reason,
+      };
+    } else if (exactCandidates.length === 0) {
+      const allExact = allPdfs.filter((d) => {
+        const nameWithoutExt = d.originalName.replace(/\.pdf$/i, '').trim().toLowerCase();
+        const fullName = d.originalName.toLowerCase();
+        const nameNoSep = nameWithoutExt.replace(/[_\-\s]+/g, ' ');
+        const cleanNoSep = cleanQuery.replace(/[_\-\s]+/g, ' ');
+        return nameWithoutExt === cleanQuery || fullName === cleanQuery || fullName === `${cleanQuery}.pdf` || nameNoSep === cleanNoSep;
+      });
+      if (allExact.length === 1) {
+        const bestDoc = allExact[0];
+        const authCheck = await this.canUserDownloadDocument(userId, bestDoc.id);
+        return {
+          matchType: 'exact',
+          found: true,
+          document: bestDoc,
+          canDownload: authCheck.canDownload,
+          reason: authCheck.reason,
+        };
+      }
+    } else if (exactCandidates.length > 1) {
+      return {
+        matchType: 'ambiguous',
+        found: false,
+        candidates: exactCandidates.slice(0, 4),
+        canDownload: false,
+      };
+    }
+
+    // 5. Intelligent Multi-Attribute Scoring
+    const queryTokens = cleanQuery.split(/[\s_\-]+/).filter((t) => t.length >= 2);
+    const scoredCandidates: Array<{ doc: IDocument; score: number }> = [];
+
+    for (const doc of accessiblePdfs) {
+      const docName = doc.originalName.toLowerCase();
+      const docNoExt = docName.replace(/\.pdf$/i, '');
+      const docWords = docNoExt.replace(/[_\-]+/g, ' ');
+      const docFolder = (doc.folder || '').toLowerCase();
+      const docFolderWords = docFolder.replace(/[_\-]+/g, ' ');
+
+      let score = 0;
+
+      // Full substring match
+      if (cleanQuery.length >= 3 && (docWords.includes(cleanQuery) || docName.includes(cleanQuery))) {
+        score += 30;
+      }
+      if (cleanQuery.length >= 3 && cleanQuery.includes(docWords)) {
+        score += 25;
+      }
+
+      // Folder match
+      if (folderHint && (docFolder === folderHint || docFolderWords.includes(folderHint))) {
+        score += 15;
+      } else if (docFolderWords.length >= 2 && (cleanQuery.includes(docFolderWords) || docFolderWords.includes(cleanQuery))) {
+        score += 15;
+      }
+
+      // Token overlap
+      for (const token of queryTokens) {
+        if (docWords.includes(token)) {
+          score += 8;
+        }
+        if (docFolderWords.includes(token)) {
+          score += 5;
+        }
+      }
+
+      if (score >= 15) {
+        scoredCandidates.push({ doc, score });
+      }
+    }
+
+    scoredCandidates.sort((a, b) => b.score - a.score);
+
+    if (scoredCandidates.length === 1) {
+      const bestDoc = scoredCandidates[0].doc;
       const authCheck = await this.canUserDownloadDocument(userId, bestDoc.id);
       return {
         matchType: 'exact',
@@ -628,39 +764,48 @@ export class DocumentsService {
       };
     }
 
-    // 2. Try Plausible Alternative Match
-    if (rawClean.length >= 3) {
-      const tokens = rawClean.split(/\s+/).filter((t) => t.length > 2);
-      let scoredCandidates = accessiblePdfs.map((doc) => {
-        const docNameLower = doc.originalName.toLowerCase();
-        let score = 0;
-        if (folderHint && (doc.folder || '').toLowerCase() === folderHint) {
-          score += 3;
-        }
-        if (docNameLower.includes(rawClean)) {
-          score += 5;
-        }
-        for (const token of tokens) {
-          if (docNameLower.includes(token)) {
-            score += 2;
-          }
-        }
-        return { doc, score };
-      });
+    if (scoredCandidates.length > 1) {
+      const topScore = scoredCandidates[0].score;
+      const runnerUpScore = scoredCandidates[1].score;
 
-      scoredCandidates = scoredCandidates
-        .filter((c) => c.score >= 5)
-        .sort((a, b) => b.score - a.score);
-
-      if (scoredCandidates.length > 0) {
-        const bestAlt = scoredCandidates[0].doc;
+      // Clear winner
+      if (topScore >= 35 && topScore >= runnerUpScore + 12) {
+        const bestDoc = scoredCandidates[0].doc;
+        const authCheck = await this.canUserDownloadDocument(userId, bestDoc.id);
         return {
-          matchType: 'alternative',
+          matchType: 'exact',
+          found: true,
+          document: bestDoc,
+          canDownload: authCheck.canDownload,
+          reason: authCheck.reason,
+        };
+      }
+
+      // Close match between multiple candidates -> Ambiguous clarification
+      const closeCandidates = scoredCandidates
+        .filter((c) => c.score >= topScore - 12 && c.score >= 18)
+        .map((c) => c.doc)
+        .slice(0, 4);
+
+      if (closeCandidates.length > 1) {
+        return {
+          matchType: 'ambiguous',
           found: false,
-          alternativeDocument: bestAlt,
+          candidates: closeCandidates,
           canDownload: false,
         };
       }
+    }
+
+    // 6. Plausible Alternative Suggestion
+    if (scoredCandidates.length > 0 && scoredCandidates[0].score >= 12) {
+      const bestAlt = scoredCandidates[0].doc;
+      return {
+        matchType: 'alternative',
+        found: false,
+        alternativeDocument: bestAlt,
+        canDownload: false,
+      };
     }
 
     return { matchType: 'none', found: false, canDownload: false };
@@ -815,6 +960,7 @@ export class DocumentsService {
       totalRows: doc.totalRows || 0,
       sourceType: (doc.sourceType as any) || (['csv', 'xlsx', 'xls'].includes(doc.fileType) ? 'tabular' : 'narrative'),
       errorMessage: doc.errorMessage,
+      hasAccess: true,
       createdAt: doc.createdAt?.toISOString() || new Date().toISOString(),
       updatedAt: doc.updatedAt?.toISOString() || new Date().toISOString(),
     };

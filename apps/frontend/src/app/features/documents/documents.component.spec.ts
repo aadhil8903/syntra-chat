@@ -524,5 +524,221 @@ describe('DocumentsComponent (Responsive Navigation & Modal UX)', () => {
       expect(component.showMoveModal).toBe(false);
       expect(component.moveTargetDoc).toBeNull();
     });
+
+    it('30. Admin with restricted download has access but cannot download', () => {
+      mockAuthService.isAdmin.mockReturnValue(true);
+      const doc: any = { id: 'd-1', hasAccess: true, effectiveDownloadPolicy: 'restricted' };
+      expect(component.canAccessDoc(doc)).toBe(true);
+      expect(component.canDownloadDoc(doc)).toBe(false);
+    });
+
+    it('31. Admin has access even if doc.hasAccess is false (no Request Access for admin)', () => {
+      mockAuthService.isAdmin.mockReturnValue(true);
+      const doc: any = { id: 'd-2', hasAccess: false, effectiveDownloadPolicy: 'restricted' };
+      expect(component.canAccessDoc(doc)).toBe(true);
+      expect(component.canDownloadDoc(doc)).toBe(false);
+    });
+
+    it('32. Normal user with access and restricted download has access but cannot download', () => {
+      mockAuthService.isAdmin.mockReturnValue(false);
+      const doc: any = { id: 'd-3', hasAccess: true, effectiveDownloadPolicy: 'restricted' };
+      expect(component.canAccessDoc(doc)).toBe(true);
+      expect(component.canDownloadDoc(doc)).toBe(false);
+    });
+
+    it('33. Normal user without access cannot access and cannot download', () => {
+      mockAuthService.isAdmin.mockReturnValue(false);
+      const doc: any = { id: 'd-4', hasAccess: false, effectiveDownloadPolicy: 'allowed' };
+      expect(component.canAccessDoc(doc)).toBe(false);
+      expect(component.canDownloadDoc(doc)).toBe(false);
+    });
+
+    it('34. Normal user with access and allowed download can access and can download', () => {
+      mockAuthService.isAdmin.mockReturnValue(false);
+      const doc: any = { id: 'd-5', hasAccess: true, effectiveDownloadPolicy: 'allowed' };
+      expect(component.canAccessDoc(doc)).toBe(true);
+      expect(component.canDownloadDoc(doc)).toBe(true);
+    });
+
+    it('35. Admin selecting file triggers upload modal with default inherit policy', () => {
+      mockAuthService.isAdmin.mockReturnValue(true);
+      const mockFile = new File(['content'], 'test.pdf', { type: 'application/pdf' });
+      const event = { target: { files: [mockFile], value: 'test.pdf' } } as any;
+
+      component.onFileSelected(event);
+
+      expect(component.showUploadModal).toBe(true);
+      expect(component.pendingUploadFile).toBe(mockFile);
+      expect(component.uploadDownloadPolicy).toBe('inherit');
+    });
+
+    it('36. Confirming upload calls apiService.uploadDocument with selected download policy', () => {
+      mockAuthService.isAdmin.mockReturnValue(true);
+      const mockFile = new File(['content'], 'handbook.pdf', { type: 'application/pdf' });
+      component.pendingUploadFile = mockFile;
+      component.uploadDownloadPolicy = 'restricted';
+      component.showUploadModal = true;
+
+      component.confirmUpload();
+
+      expect(mockApiService.uploadDocument).toHaveBeenCalledWith(
+        mockFile,
+        undefined,
+        [],
+        'restricted',
+      );
+      expect(component.showUploadModal).toBe(false);
+      expect(component.pendingUploadFile).toBeNull();
+    });
+
+    it('37. Escape key closes upload modal', () => {
+      component.showUploadModal = true;
+      component.pendingUploadFile = new File([''], 'doc.pdf');
+
+      component.onEscapeKey(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+      expect(component.showUploadModal).toBe(false);
+      expect(component.pendingUploadFile).toBeNull();
+    });
+
+    it('38. Clicking three-dot button opens action menu with positioning', () => {
+      const mockDoc = mockDocuments[0] as any;
+      const dummyButton = document.createElement('button');
+      jest.spyOn(dummyButton, 'getBoundingClientRect').mockReturnValue({
+        top: 200,
+        bottom: 232,
+        left: 800,
+        right: 832,
+        width: 32,
+        height: 32,
+      } as DOMRect);
+
+      const event = {
+        currentTarget: dummyButton,
+        stopPropagation: jest.fn(),
+      } as any;
+
+      component.toggleActionMenu(mockDoc, event);
+
+      expect(component.activeActionMenuDoc).toBe(mockDoc);
+      expect(component.menuPosition.top).toBe(236); // 232 + 4
+      expect(event.stopPropagation).toHaveBeenCalled();
+    });
+
+    it('39. Toggling action menu again or for another row closes previous menu', () => {
+      const doc1 = mockDocuments[0] as any;
+      const doc2 = mockDocuments[1] as any;
+      const dummyButton = document.createElement('button');
+      jest.spyOn(dummyButton, 'getBoundingClientRect').mockReturnValue({
+        top: 100,
+        bottom: 132,
+        left: 500,
+        right: 532,
+        width: 32,
+        height: 32,
+      } as DOMRect);
+
+      const event = { currentTarget: dummyButton, stopPropagation: jest.fn() } as any;
+
+      // Open doc1
+      component.toggleActionMenu(doc1, event);
+      expect(component.activeActionMenuDoc).toBe(doc1);
+
+      // Open doc2 -> replaces doc1
+      component.toggleActionMenu(doc2, event);
+      expect(component.activeActionMenuDoc).toBe(doc2);
+
+      // Toggle doc2 again -> closes
+      component.toggleActionMenu(doc2, event);
+      expect(component.activeActionMenuDoc).toBeNull();
+    });
+
+    it('40. Escape key closes open action menu', () => {
+      component.activeActionMenuDoc = mockDocuments[0] as any;
+
+      component.onEscapeKey(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+      expect(component.activeActionMenuDoc).toBeNull();
+    });
+
+    it('41. Document click and window change close action menu', () => {
+      component.activeActionMenuDoc = mockDocuments[0] as any;
+
+      component.onDocumentClick();
+      expect(component.activeActionMenuDoc).toBeNull();
+
+      component.activeActionMenuDoc = mockDocuments[0] as any;
+      component.onWindowChange();
+      expect(component.activeActionMenuDoc).toBeNull();
+    });
+
+    it('42. Action menu flips upward when clicked near bottom of viewport', () => {
+      const mockDoc = mockDocuments[0] as any;
+      const dummyButton = document.createElement('button');
+      // Position near bottom of 800px window
+      jest.spyOn(dummyButton, 'getBoundingClientRect').mockReturnValue({
+        top: 750,
+        bottom: 782,
+        left: 500,
+        right: 532,
+        width: 32,
+        height: 32,
+      } as DOMRect);
+
+      const event = { currentTarget: dummyButton, stopPropagation: jest.fn() } as any;
+      mockAuthService.isAdmin.mockReturnValue(true);
+
+      component.toggleActionMenu(mockDoc, event);
+
+      expect(component.activeActionMenuDoc).toBe(mockDoc);
+      // Flipped upward: 750 - 210 - 4 = 536
+      expect(component.menuPosition.top).toBeLessThan(750);
+    });
+
+    it('43. Selecting an action closes the menu immediately', () => {
+      const mockDoc = mockDocuments[0] as any;
+      component.activeActionMenuDoc = mockDoc;
+
+      jest.spyOn(component, 'openMoveModal').mockImplementation();
+      component.handleMenuMove(mockDoc);
+
+      expect(component.activeActionMenuDoc).toBeNull();
+      expect(component.openMoveModal).toHaveBeenCalledWith(mockDoc);
+    });
+
+    it('44. Clicking download policy pill with event opens compact popover with positioning', () => {
+      const mockDoc = mockDocuments[0] as any;
+      mockAuthService.isAdmin.mockReturnValue(true);
+
+      const dummyButton = document.createElement('button');
+      jest.spyOn(dummyButton, 'getBoundingClientRect').mockReturnValue({
+        top: 300,
+        bottom: 330,
+        left: 400,
+        right: 490,
+        width: 90,
+        height: 30,
+      } as DOMRect);
+
+      const event = { currentTarget: dummyButton, stopPropagation: jest.fn() } as any;
+
+      component.openDownloadPolicyModal(mockDoc, event);
+
+      expect(component.editingDownloadPolicyDoc).toBe(mockDoc);
+      expect(component.downloadPolicyMenuPosition.top).toBe(334); // 330 + 4
+      expect(component.downloadPolicyMenuPosition.left).toBe(400);
+    });
+
+    it('45. Selecting a policy via setDocDownloadPolicy saves and closes the popover', () => {
+      const mockDoc = mockDocuments[0] as any;
+      mockAuthService.isAdmin.mockReturnValue(true);
+      component.editingDownloadPolicyDoc = mockDoc;
+      component.documents = [{ ...mockDoc }];
+
+      component.setDocDownloadPolicy('restricted');
+
+      expect(mockApiService.updateDocumentDownloadPolicy).toHaveBeenCalledWith(mockDoc.id, 'restricted');
+      expect(component.editingDownloadPolicyDoc).toBeNull();
+    });
   });
 });

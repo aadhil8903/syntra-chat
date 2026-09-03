@@ -40,7 +40,11 @@ Communication Rules:
 9. Interactive Charts & Visualizations:
    - This enterprise chat UI natively renders interactive visual charts (bar, line, pie, donut, area), data tables, and PDF reports.
    - NEVER state that you "cannot generate visual graphs directly", "cannot display images/charts in this interface", or any similar disclaimers.
-   - When the user asks for charts, graphs, plots, or visual comparisons, discuss the figures and trends directly with confidence. The interactive chart component will render alongside your response."""
+   - When the user asks for charts, graphs, plots, or visual comparisons, discuss the figures and trends directly with confidence. The interactive chart component will render alongside your response.
+10. File Downloads & Documents:
+   - This chat UI natively renders inline downloadable file cards directly below your message when a user requests a file.
+   - NEVER tell the user to "download it from the file viewer panel", "click the download icon in the file viewer", or look for an external download button.
+   - When asked for a file or PDF, acknowledge the file naturally ("Here is the file.", "Sure, here is the file."). The system automatically attaches the inline download card."""
 
 
 # -------------------------------------------------------------
@@ -267,14 +271,14 @@ async def route_intent_node(state: AgentState) -> Dict[str, Any]:
     shared_memory = state.get("shared_memory")
 
     # 0. File / PDF Discovery and Download Requests -> Priority 0
-    file_keywords = ["pdf", "file", "document", "handbook", "guide", "report", "policy", "manual"]
+    file_keywords = ["pdf", "file", "document", "handbook", "guide", "report", "policy", "agreement", "manual"]
     file_request_verbs = [
-        "give me", "can i get", "can i download", "download", "find", "get me", "where is",
-        "send me", "show me", "fetch", "locate"
+        "give me", "can i get", "can i have", "can i download", "i wanna download", "i want to download",
+        "download", "find", "get me", "where is", "send me", "show me", "fetch", "locate", "i need"
     ]
-    is_file_request = (
-        any(k in message for k in file_keywords) and any(v in message for v in file_request_verbs)
-    ) or (re.match(r"^(download|get)\s+", message) is not None)
+    has_file_kw = any(k in message for k in file_keywords) or ".pdf" in message or "@" in message or "the file" in message or "this file" in message
+    has_verb = any(v in message for v in file_request_verbs)
+    is_file_request = (has_file_kw and has_verb) or bool(re.match(r"^(download|get)\s+", message)) or "i wanna download" in message
     if is_file_request:
         return {"intent": AgentIntent.FILE_REQUEST}
 
@@ -612,6 +616,7 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
     message = state.get("message", "")
     active_scope = state.get("active_scope")
     resolved_docs = state.get("resolved_documents", [])
+    history = state.get("history", [])
 
     db = get_database()
     folders_col = db["folders"]
@@ -636,16 +641,79 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
         if str(d.get("fileType", "")).lower() == "pdf" or str(d.get("originalName", "")).lower().endswith(".pdf")
     ]
 
-    # Clean query
-    raw_clean = re.sub(
-        r"^(give me the|give me|can i get the|can i get|can i download the|can i download|download the|download|find the pdf for the|find the pdf for|find the pdf|find the|find|get me the pdf from the|get me the pdf from|get me the pdf|get me the|get me|where is the|please send me the|show me the pdf for|show me the pdf|show me the|fetch the|open the)\s+",
+    lower_message = message.lower().strip()
+
+    # 1. Direct @mention extraction
+    mention_match = re.search(r"@([a-zA-Z0-9_\-\.\s]+?\.(?:pdf|docx|xlsx|csv|txt)|[a-zA-Z0-9_\-]+)", message, re.IGNORECASE)
+    if mention_match:
+        clean_mention = mention_match.group(1).strip().lower()
+        for d in accessible_pdfs:
+            orig = str(d.get("originalName", "")).lower()
+            no_ext = re.sub(r"\.pdf$", "", orig, flags=re.IGNORECASE)
+            doc_id = str(d.get("_id") or d.get("id", ""))
+            if orig == clean_mention or orig == f"{clean_mention}.pdf" or no_ext == clean_mention or doc_id == clean_mention:
+                eff = get_effective_policy(d)
+                if eff == "allowed":
+                    return {
+                        "final_answer": "Here is the file.",
+                        "downloadable_file": {
+                            "documentId": doc_id,
+                            "fileName": d.get("originalName"),
+                            "fileSize": d.get("fileSize", 0),
+                            "mimeType": d.get("mimeType", "application/pdf"),
+                            "folder": d.get("folder"),
+                        },
+                        "intent": AgentIntent.FILE_REQUEST,
+                    }
+                else:
+                    return {
+                        "final_answer": f"{d.get('originalName')} is available, but this file is restricted from downloading. This file can't be downloaded.",
+                        "downloadable_file": None,
+                        "intent": AgentIntent.FILE_REQUEST,
+                    }
+
+    # 2. Contextual reference ("the file", "the pdf", "download it") from conversation history
+    is_referential = bool(re.search(r"\b(the file|the pdf|the document|this file|this pdf|this document|download it|download this|get it|get this)\b", lower_message))
+    if is_referential and history:
+        for msg in reversed(history):
+            content_str = str(msg.get("content", "")).lower() if isinstance(msg, dict) else str(getattr(msg, "content", "")).lower()
+            for d in accessible_pdfs:
+                orig = str(d.get("originalName", "")).lower()
+                no_ext = re.sub(r"\.pdf$", "", orig, flags=re.IGNORECASE)
+                if orig in content_str or (len(no_ext) >= 4 and no_ext in content_str):
+                    eff = get_effective_policy(d)
+                    doc_id = str(d.get("_id") or d.get("id", ""))
+                    if eff == "allowed":
+                        return {
+                            "final_answer": "Here is the file.",
+                            "downloadable_file": {
+                                "documentId": doc_id,
+                                "fileName": d.get("originalName"),
+                                "fileSize": d.get("fileSize", 0),
+                                "mimeType": d.get("mimeType", "application/pdf"),
+                                "folder": d.get("folder"),
+                            },
+                            "intent": AgentIntent.FILE_REQUEST,
+                        }
+                    else:
+                        return {
+                            "final_answer": f"{d.get('originalName')} is available, but this file is restricted from downloading. This file can't be downloaded.",
+                            "downloadable_file": None,
+                            "intent": AgentIntent.FILE_REQUEST,
+                        }
+
+    # 3. Clean query for matching
+    clean_query = re.sub(r"@[a-zA-Z0-9_\-\.]+", "", lower_message)
+    clean_query = re.sub(
+        r"^(give me the|give me|can i get the|can i get|can i download the|can i download|download the|download|find the pdf for the|find the pdf for|find the pdf|find the|find|get me the pdf from the|get me the pdf from|get me the pdf|get me the|get me|where is the|please send me the|show me the pdf for|show me the pdf|show me the|fetch the|open the|i need the|i need|send me the|send me|locate the)\s+",
         "",
-        message,
+        clean_query,
         flags=re.IGNORECASE,
     )
-    raw_clean = re.sub(r"\s+(?:from|in)\s+(?:the\s+)?([a-zA-Z0-9_\-\s]+?)\s+folder$", "", raw_clean, flags=re.IGNORECASE)
-    raw_clean = re.sub(r"\s+(pdf|file|document)$", "", raw_clean, flags=re.IGNORECASE)
-    raw_clean = re.sub(r"\.pdf$", "", raw_clean, flags=re.IGNORECASE).strip().lower()
+    clean_query = re.sub(r"\s+(?:from|in)\s+(?:the\s+)?([a-zA-Z0-9_\-\s]+?)\s+folder$", "", clean_query, flags=re.IGNORECASE)
+    clean_query = re.sub(r"\s+(i wanna download this|i want to download this|i want to download|can i download|download this|please download|for me)\s*$", "", clean_query, flags=re.IGNORECASE)
+    clean_query = re.sub(r"\s+(pdf|file|document)$", "", clean_query, flags=re.IGNORECASE)
+    clean_query = re.sub(r"\.pdf$", "", clean_query).strip()
 
     folder_hint = ""
     folder_match = re.search(r"(?:from|in)\s+(?:the\s+)?([a-zA-Z0-9_\-\s]+?)\s+folder", message, re.IGNORECASE)
@@ -654,13 +722,15 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
     elif active_scope and active_scope.get("type") == "folder":
         folder_hint = str(active_scope.get("name", "")).strip().lower()
 
-    # 1. Exact match search
+    # 4. Exact match search
     exact_candidates = []
     for d in accessible_pdfs:
         orig = d.get("originalName", "")
         name_no_ext = re.sub(r"\.pdf$", "", orig, flags=re.IGNORECASE).strip().lower()
         full_name = orig.lower()
-        if name_no_ext == raw_clean or full_name == raw_clean or full_name == f"{raw_clean}.pdf":
+        name_no_sep = re.sub(r"[_\-\s]+", " ", name_no_ext)
+        clean_no_sep = re.sub(r"[_\-\s]+", " ", clean_query)
+        if name_no_ext == clean_query or full_name == clean_query or full_name == f"{clean_query}.pdf" or name_no_sep == clean_no_sep:
             if folder_hint:
                 if (d.get("folder") or "").lower() == folder_hint:
                     exact_candidates.append(d)
@@ -672,51 +742,84 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
             orig = d.get("originalName", "")
             name_no_ext = re.sub(r"\.pdf$", "", orig, flags=re.IGNORECASE).strip().lower()
             full_name = orig.lower()
-            if name_no_ext == raw_clean or full_name == raw_clean or full_name == f"{raw_clean}.pdf":
+            name_no_sep = re.sub(r"[_\-\s]+", " ", name_no_ext)
+            clean_no_sep = re.sub(r"[_\-\s]+", " ", clean_query)
+            if name_no_ext == clean_query or full_name == clean_query or full_name == f"{clean_query}.pdf" or name_no_sep == clean_no_sep:
                 exact_candidates.append(d)
 
-    if exact_candidates:
+    if len(exact_candidates) == 1:
         doc = exact_candidates[0]
-        effective_policy = get_effective_policy(doc)
-        if effective_policy == "allowed":
-            downloadable = {
-                "documentId": str(doc.get("_id") or doc.get("id")),
-                "fileName": doc.get("originalName"),
-                "fileSize": doc.get("fileSize", 0),
-                "mimeType": doc.get("mimeType", "application/pdf"),
-                "folder": doc.get("folder"),
-            }
+        eff = get_effective_policy(doc)
+        doc_id = str(doc.get("_id") or doc.get("id"))
+        if eff == "allowed":
             return {
                 "final_answer": "Sure, I found the PDF.",
-                "downloadable_file": downloadable,
+                "downloadable_file": {
+                    "documentId": doc_id,
+                    "fileName": doc.get("originalName"),
+                    "fileSize": doc.get("fileSize", 0),
+                    "mimeType": doc.get("mimeType", "application/pdf"),
+                    "folder": doc.get("folder"),
+                },
                 "intent": AgentIntent.FILE_REQUEST,
             }
         else:
             return {
-                "final_answer": f"{doc.get('originalName')} is available, but this file is restricted from downloading.",
+                "final_answer": f"{doc.get('originalName')} is available, but this file is restricted from downloading. This file can't be downloaded.",
                 "downloadable_file": None,
                 "intent": AgentIntent.FILE_REQUEST,
             }
+    elif len(exact_candidates) > 1:
+        cand_names = [f"- {d.get('originalName')}" + (f" ({d.get('folder')})" if d.get('folder') else "") for d in exact_candidates[:4]]
+        return {
+            "final_answer": f"I found a few matching files. Which one do you want?\n\n" + "\n".join(cand_names),
+            "downloadable_file": None,
+            "intent": AgentIntent.FILE_REQUEST,
+        }
 
-    # 2. Alternative search
-    if len(raw_clean) >= 3:
-        tokens = [t for t in raw_clean.split() if len(t) > 2]
-        scored = []
-        for d in accessible_pdfs:
-            doc_name = d.get("originalName", "").lower()
-            score = 0
-            if folder_hint and (d.get("folder") or "").lower() == folder_hint:
-                score += 3
-            if raw_clean in doc_name:
+    # 5. Intelligent Multi-Attribute Scoring for Alternative / Ambiguous Suggestions
+    query_tokens = [t for t in re.split(r"[\s_\-]+", clean_query) if len(t) > 2]
+    scored: List[Tuple[int, Dict[str, Any]]] = []
+
+    for d in accessible_pdfs:
+        doc_name = d.get("originalName", "").lower()
+        doc_no_ext = re.sub(r"\.pdf$", "", doc_name, flags=re.IGNORECASE)
+        doc_words = re.sub(r"[_\-]+", " ", doc_no_ext)
+        doc_folder = (d.get("folder") or "").lower()
+        doc_folder_words = re.sub(r"[_\-]+", " ", doc_folder)
+
+        score = 0
+        if len(clean_query) >= 3 and (clean_query in doc_words or clean_query in doc_name):
+            score += 30
+        if len(clean_query) >= 3 and doc_words in clean_query:
+            score += 25
+        if folder_hint and (doc_folder == folder_hint or folder_hint in doc_folder_words):
+            score += 15
+        elif doc_folder_words and doc_folder_words in clean_query:
+            score += 15
+
+        for t in query_tokens:
+            if t in doc_words:
+                score += 8
+            elif t in doc_folder_words:
                 score += 5
-            for t in tokens:
-                if t in doc_name:
-                    score += 2
-            if score >= 5:
-                scored.append((score, d))
 
-        if scored:
-            scored.sort(key=lambda x: x[0], reverse=True)
+        if score >= 15:
+            scored.append((score, d))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+
+    if scored:
+        top_score = scored[0][0]
+        close_cands = [d for s, d in scored if s >= top_score - 12 and s >= 18][:4]
+        if len(close_cands) > 1:
+            cand_names = [f"- {d.get('originalName')}" + (f" ({d.get('folder')})" if d.get('folder') else "") for d in close_cands]
+            return {
+                "final_answer": f"I found a few matching files. Which one do you want?\n\n" + "\n".join(cand_names),
+                "downloadable_file": None,
+                "intent": AgentIntent.FILE_REQUEST,
+            }
+        else:
             best_alt = scored[0][1]
             folder_part = f" in the {best_alt.get('folder')} folder" if best_alt.get('folder') else ""
             return {
@@ -726,7 +829,7 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
             }
 
     return {
-        "final_answer": "Sorry, I couldn't find that PDF.",
+        "final_answer": "Sorry, I couldn't find that file.",
         "downloadable_file": None,
         "intent": AgentIntent.FILE_REQUEST,
     }

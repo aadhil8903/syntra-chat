@@ -53,7 +53,7 @@ describe('AuthService', () => {
 
   describe('Login Flow', () => {
     it('should authenticate user and store tokens on success', (done) => {
-      const mockUser = { id: 'u2', email: 'alice@enterprise.com', role: UserRole.USER, firstName: 'Alice', lastName: 'Smith' };
+      const mockUser = { id: 'u2', email: 'sarah@enterprise.com', role: UserRole.USER, firstName: 'Sarah', lastName: 'Al-Sayed' };
       const mockResponse = {
         accessToken: 'access-token-123',
         refreshToken: 'refresh-token-456',
@@ -61,7 +61,7 @@ describe('AuthService', () => {
       };
       httpClientMock.post.mockReturnValue(of(mockResponse));
 
-      service.login({ email: 'alice@enterprise.com', password: 'Password123!' }).subscribe({
+      service.login({ email: 'sarah@enterprise.com', password: 'Password123!' }).subscribe({
         next: (res) => {
           expect(res).toEqual(mockResponse);
           expect(service.isAuthenticated()).toBe(true);
@@ -104,7 +104,7 @@ describe('AuthService', () => {
     it('should fail login on network failure', (done) => {
       httpClientMock.post.mockReturnValue(throwError(() => new Error('Connection refused')));
 
-      service.login({ email: 'alice@enterprise.com', password: 'Password123!' }).subscribe({
+      service.login({ email: 'sarah@enterprise.com', password: 'Password123!' }).subscribe({
         error: (err) => {
           expect(err.message).toBe('Connection refused');
           expect(service.isAuthenticated()).toBe(false);
@@ -173,14 +173,14 @@ describe('AuthService', () => {
 
   describe('User Profile Updates', () => {
     it('should update current user signal and localStorage', () => {
-      const initialUser = { id: 'u1', email: 'test@local', firstName: 'Jane', lastName: 'Doe', role: UserRole.USER };
+      const initialUser = { id: 'u1', email: 'test@local', firstName: 'Tariq', lastName: 'Khan', role: UserRole.USER };
       httpClientMock.post.mockReturnValue(of({ accessToken: 'a', refreshToken: 'r', user: initialUser }));
 
       service.login({ email: 'test@local', password: 'p' }).subscribe();
 
-      service.updateCurrentUser({ firstName: 'Janet' });
-      expect(service.currentUser()?.firstName).toBe('Janet');
-      expect(JSON.parse(localStorage.getItem('syntra_chat_user') || '{}').firstName).toBe('Janet');
+      service.updateCurrentUser({ firstName: 'Tariq-Updated' });
+      expect(service.currentUser()?.firstName).toBe('Tariq-Updated');
+      expect(JSON.parse(localStorage.getItem('syntra_chat_user') || '{}').firstName).toBe('Tariq-Updated');
     });
   });
 });

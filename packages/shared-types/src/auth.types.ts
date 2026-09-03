@@ -27,14 +27,14 @@ export interface IUser {
 export function isAdminRole(role?: string | null, roles?: string[] | null): boolean {
   if (role) {
     const r = role.toString().toLowerCase().trim();
-    if (r === 'admin' || r === 'master_admin' || r === 'superadmin') {
+    if (r === 'admin' || r === 'master_admin' || r === 'superadmin' || r === 'super_admin' || r === 'administrator') {
       return true;
     }
   }
   if (Array.isArray(roles)) {
     return roles.some((r) => {
       const clean = (r || '').toString().toLowerCase().trim();
-      return clean === 'admin' || clean === 'master_admin' || clean === 'superadmin';
+      return clean === 'admin' || clean === 'master_admin' || clean === 'superadmin' || clean === 'super_admin' || clean === 'administrator';
     });
   }
   return false;
