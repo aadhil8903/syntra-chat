@@ -77,7 +77,7 @@ export interface IQuickAction {
               (keydown)="onKeyDown($event)"
               placeholder="Ask Syntra about your documents, data, or anything..."
               rows="2"
-              class="w-full bg-transparent border-0 text-white text-sm sm:text-base px-2 py-1 focus:outline-none resize-none min-h-[56px] max-h-48 leading-relaxed placeholder:text-zinc-500"
+              class="w-full bg-transparent border-0 text-white text-sm sm:text-base px-2 py-1 focus:outline-none resize-none min-h-[56px] max-h-48 leading-relaxed placeholder:text-zinc-400 placeholder:text-[#a1a1aa]"
               aria-label="Ask Syntra AI"
             ></textarea>
 

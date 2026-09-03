@@ -633,7 +633,7 @@ export interface IDynamicStarterCard {
                   placeholder="Ask anything naturally or type @ to mention files or folders... (Shift + Enter for new line)"
                   [disabled]="isCurrentGenerating || isMaxGenerationsReached"
                   rows="1"
-                  class="w-full bg-transparent border-0 text-white text-sm px-2 py-1.5 focus:outline-none resize-none max-h-36 sm:max-h-60 overflow-y-auto leading-relaxed disabled:opacity-50 transition-[height] duration-150"
+                  class="w-full bg-transparent border-0 text-white text-sm px-2 py-1.5 focus:outline-none resize-none max-h-36 sm:max-h-60 overflow-y-auto leading-relaxed disabled:opacity-50 transition-[height] duration-150 placeholder:text-zinc-400 placeholder:text-[#a1a1aa]"
                 ></textarea>
 
                 <!-- Voice / Microphone Button in Top-Right of Input Box -->

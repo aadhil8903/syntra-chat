@@ -57,6 +57,24 @@ a {
   text-decoration: none;
 }
 
+/* Ensure all form controls default to crisp white text and readable light gray placeholders */
+input, textarea, select {
+  color: #ffffff;
+
+  &::placeholder {
+    color: #a1a1aa !important;
+    opacity: 1 !important;
+  }
+
+  &:-webkit-autofill,
+  &:-webkit-autofill:hover,
+  &:-webkit-autofill:focus {
+    -webkit-text-fill-color: #ffffff !important;
+    -webkit-box-shadow: 0 0 0px 1000px #111114 inset !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+}
+
 /* Guard all SVGs from blowing up */
 svg {
   display: inline-block;
