@@ -41,7 +41,6 @@ import { ModalDialogService } from '../../../core/services/modal-dialog.service'
               <h3 class="text-sm font-semibold text-white truncate">
                 {{ modal.activeModal()?.title || 'Notice' }}
               </h3>
-              <span class="text-[10px] text-zinc-500 font-mono">Syntra Enterprise Security</span>
             </div>
 
             <button

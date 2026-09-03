@@ -423,7 +423,7 @@ Create the Vector Search index on the `document_chunks` collection in MongoDB At
 
 ## 7.2 Primary Admin Protection & Single-Admin Policy
 
-* **Single Primary Admin Invariant**: The root administrator (`aadil@gmail.com`) is protected from deletion or demotion.
+* **Single Primary Admin Invariant**: The root administrator (`aadhildevwork@gmail.com` or `PRIMARY_ADMIN_EMAIL`) is protected from deletion or demotion.
 * **Deletion Guard**: In `users.service.ts`, `deleteUser` rejects attempts to delete the primary administrator.
 * **Role Modification Guard**: Only an active administrator can assign the `admin` role.
 

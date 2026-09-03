@@ -264,13 +264,13 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800/80 pb-6">
         <div>
           <div class="flex items-center gap-3">
-            <h1 class="text-2xl font-bold text-white tracking-tight">Files & Knowledge</h1>
+            <h1 class="text-2xl font-bold text-white tracking-tight">Files</h1>
             <span class="px-2.5 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-400">
               {{ documents.length }} items
             </span>
           </div>
           <p class="text-xs sm:text-sm text-zinc-400 mt-1 max-w-2xl">
-            Unified knowledge repository for enterprise documents, policies, datasets, and spreadsheets.
+            Unified repository for enterprise documents, policies, datasets, and spreadsheets.
           </p>
         </div>
         <div class="flex items-center gap-2.5 flex-wrap">

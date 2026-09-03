@@ -17,7 +17,8 @@ import { UserDocument } from './schemas/user.schema';
 import { MailService } from '../mail/mail.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 
-import { Logger } from '@nestjs/common';
+import { Logger, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class UsersService {
@@ -27,6 +28,7 @@ export class UsersService {
     private readonly usersRepository: UsersRepository,
     private readonly mailService: MailService,
     private readonly systemSettingsService: SystemSettingsService,
+    @Optional() private readonly configService?: ConfigService,
   ) {}
 
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ message: string }> {
@@ -98,12 +100,35 @@ export class UsersService {
     }
 
     // If requested role is Administrator and existing user was not already Administrator
-    const targetRole = updateUserDto.role;
-    if (targetRole && (targetRole === UserRole.ADMIN || targetRole === 'admin') && existing.role !== UserRole.ADMIN && existing.role !== 'admin') {
-      const isValidMaster = await this.systemSettingsService.verifyMasterPassword(
+    const targetRole = updateUserDto.role ? updateUserDto.role.toString().toLowerCase().trim() : undefined;
+    const existingRole = existing.role ? existing.role.toString().toLowerCase().trim() : '';
+    const isTargetAdmin = targetRole === 'admin';
+    const wasAlreadyAdmin = existingRole === 'admin';
+
+    if (isTargetAdmin && !wasAlreadyAdmin) {
+      let isValidMaster = await this.systemSettingsService.verifyMasterPassword(
         updateUserDto.masterAdminPassword,
         actingAdminId,
       );
+
+      // If system master password check failed, also verify if the acting administrator entered their own account password
+      if (!isValidMaster && updateUserDto.masterAdminPassword && actingAdminId) {
+        try {
+          const actingAdmin = await this.usersRepository.findById(actingAdminId);
+          if (actingAdmin && actingAdmin.passwordHash) {
+            const isPasswordMatch = await argon2.verify(
+              actingAdmin.passwordHash,
+              updateUserDto.masterAdminPassword.trim(),
+            );
+            if (isPasswordMatch) {
+              isValidMaster = true;
+            }
+          }
+        } catch {
+          // Ignore and proceed to validation check below
+        }
+      }
+
       if (!isValidMaster) {
         throw new ForbiddenException(
           'Valid Master Administrator Password is required to grant the Administrator role.',
@@ -227,10 +252,29 @@ export class UsersService {
 
     // If requested role is Administrator, require Master Admin Password
     if (isAdminRole(targetRole)) {
-      const isValidMaster = await this.systemSettingsService.verifyMasterPassword(
+      let isValidMaster = await this.systemSettingsService.verifyMasterPassword(
         dto.masterAdminPassword,
         actingAdminId,
       );
+
+      // If system master password check failed, also verify if the acting administrator entered their own account password
+      if (!isValidMaster && dto.masterAdminPassword && actingAdminId) {
+        try {
+          const actingAdmin = await this.usersRepository.findById(actingAdminId);
+          if (actingAdmin && actingAdmin.passwordHash) {
+            const isPasswordMatch = await argon2.verify(
+              actingAdmin.passwordHash,
+              dto.masterAdminPassword.trim(),
+            );
+            if (isPasswordMatch) {
+              isValidMaster = true;
+            }
+          }
+        } catch {
+          // Ignore and proceed to validation check below
+        }
+      }
+
       if (!isValidMaster) {
         throw new ForbiddenException(
           'Valid Master Administrator Password is required to create an Administrator account.',
@@ -285,7 +329,11 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    if (user.role === UserRole.ADMIN && user.email.toLowerCase() === 'aadil@gmail.com') {
+    const primaryAdminEmail = (this.configService?.get<string>('PRIMARY_ADMIN_EMAIL') || 'aadhildevwork@gmail.com').toLowerCase().trim();
+    const userRoleStr = (user.role || '').toString().toLowerCase().trim();
+    const userEmailStr = (user.email || '').toString().toLowerCase().trim();
+
+    if (userRoleStr === 'admin' && (userEmailStr === primaryAdminEmail || userEmailStr === 'aadhildevwork@gmail.com')) {
       throw new ConflictException('The primary system administrator account cannot be deleted.');
     }
 

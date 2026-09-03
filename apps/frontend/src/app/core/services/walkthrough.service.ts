@@ -34,7 +34,7 @@ export class WalkthroughService {
     },
     {
       id: 'documents',
-      title: 'Explore Knowledge & Enterprise Files',
+      title: 'Explore Enterprise Files',
       description:
         'Browse authorized company documents, PDFs, datasets, and spreadsheets. Only administrators can upload or manage files, ensuring secure and centralized knowledge governance.',
       tip: 'Need access to restricted files? Click the "Request Access" button on any locked document to notify your administrator.',

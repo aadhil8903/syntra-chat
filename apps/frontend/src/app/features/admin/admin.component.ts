@@ -555,6 +555,14 @@ export class AdminComponent implements OnInit {
     this.openDropdownId = null;
   }
 
+  isTargetRoleAdmin(): boolean {
+    return (this.editRole || '').toString().toLowerCase().trim() === 'admin';
+  }
+
+  isUserAdmin(user: IUser): boolean {
+    return (user.role || '').toString().toLowerCase().trim() === 'admin';
+  }
+
   saveUser(user: IUser) {
     const departments = this.editDepartmentsText
       ? this.editDepartmentsText
@@ -570,9 +578,15 @@ export class AdminComponent implements OnInit {
       status: this.editStatus,
     };
 
-    if (this.editRole === UserRole.ADMIN && user.role !== UserRole.ADMIN) {
+    const isTargetAdmin = this.isTargetRoleAdmin();
+    const wasAlreadyAdmin = this.isUserAdmin(user);
+
+    if (isTargetAdmin && !wasAlreadyAdmin) {
       if (!this.editMasterAdminPassword.trim()) {
-        this.modal.alert('Master admin password is required to assign the Administrator role.', 'Security Requirement');
+        this.modal.alert(
+          'Master Administrator Password is required to assign the Administrator role. Please enter the master password.',
+          'Security Requirement'
+        );
         return;
       }
       payload.masterAdminPassword = this.editMasterAdminPassword.trim();
@@ -591,8 +605,46 @@ export class AdminComponent implements OnInit {
           this.openDropdownId = null;
           this.loadAvailableFoldersAndDeps();
         },
-        error: (err) => this.modal.alert(err.error?.message || 'Failed to update user', 'Error'),
+        error: (err) => {
+          let errorMsg = 'Failed to update user.';
+          if (err.error) {
+            if (typeof err.error === 'string') {
+              errorMsg = err.error;
+            } else if (typeof err.error.message === 'string') {
+              errorMsg = err.error.message;
+            } else if (Array.isArray(err.error.message)) {
+              errorMsg = err.error.message.join(', ');
+            } else if (typeof err.error.error === 'string') {
+              errorMsg = err.error.error;
+            }
+          } else if (err.status === 403) {
+            errorMsg = 'Permission denied. Master Administrator Password is required to assign Administrator privileges.';
+          } else if (err.status === 401) {
+            errorMsg = 'Your session has expired. Please log in again.';
+          } else if (err.status === 409) {
+            errorMsg = 'A conflict occurred while updating this user.';
+          } else if (err.message && !err.message.includes('Http failure response')) {
+            errorMsg = err.message;
+          }
+          this.modal.alert(errorMsg, 'Error');
+        },
       });
+  }
+
+  // Expanded Audit Rows in Access Requests & Audit Log
+  expandedAuditRowIds = new Set<string>();
+
+  toggleAuditRowExpand(reqId: string, event?: Event): void {
+    if (event) event.stopPropagation();
+    if (this.expandedAuditRowIds.has(reqId)) {
+      this.expandedAuditRowIds.delete(reqId);
+    } else {
+      this.expandedAuditRowIds.add(reqId);
+    }
+  }
+
+  isAuditRowExpanded(reqId: string): boolean {
+    return this.expandedAuditRowIds.has(reqId);
   }
 
   toggleUserStatus(user: IUser) {

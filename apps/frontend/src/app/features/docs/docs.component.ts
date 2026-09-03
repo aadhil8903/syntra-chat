@@ -202,7 +202,7 @@ export interface IDocSection {
                     <span class="text-emerald-400">01.</span> Navigation
                   </div>
                   <p class="text-[11px] text-zinc-400 leading-relaxed">
-                    Quickly switch between Dashboard metrics, AI Chat, Files & Knowledge, and your Settings.
+                    Quickly switch between Dashboard metrics, AI Chat, Files, and your Settings.
                   </p>
                 </div>
                 <div class="p-3.5 rounded-xl bg-[#141418] border border-[#27272a] space-y-1.5">
@@ -330,7 +330,7 @@ export interface IDocSection {
                 <span class="px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 text-[10px] font-mono">Unified Repository</span>
               </div>
               <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed">
-                The <a routerLink="/documents" class="text-white underline underline-offset-2">Files & Knowledge</a> section is the unified repository combining narrative documents, policies, datasets, and spreadsheets:
+                The <a routerLink="/documents" class="text-white underline underline-offset-2">Files</a> section is the unified repository combining narrative documents, policies, datasets, and spreadsheets:
               </p>
               <ul class="space-y-2 text-xs sm:text-sm text-zinc-300 list-disc pl-5">
                 <li><strong>Mixed File Types in One Folder:</strong> Folders can hold both PDF manuals and Excel spreadsheets together.</li>

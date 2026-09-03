@@ -54,6 +54,7 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
       searchConversations: jest.fn().mockReturnValue(of([])),
       getDocuments: jest.fn().mockReturnValue(of([])),
       getDatasets: jest.fn().mockReturnValue(of([])),
+      moveConversationToCollection: jest.fn().mockReturnValue(of({ success: true })),
     };
 
     chatStateMock = {
@@ -99,6 +100,39 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
     const voiceTranscript$ = new Subject();
     const voiceError$ = new Subject();
 
+    let isDemoModeSig = signal(false);
+    let demoColsSig = signal<ICollection[]>([
+      { id: 'demo-col-titan', name: 'Project Titan', userId: 'demo-user', createdAt: '', updatedAt: '' },
+    ]);
+    let demoConvsSig = signal<IConversation[]>([
+      { id: 'demo-conv-1', title: 'Sprint Planning & Milestones', collectionId: null, userId: 'demo-user', createdAt: '', updatedAt: '' },
+    ]);
+
+    const collectionsWalkthroughMock = {
+      checkAndTrigger: jest.fn(),
+      isDemoMode: isDemoModeSig,
+      demoCollections: demoColsSig,
+      demoConversations: demoConvsSig,
+      start: jest.fn((idx = 0) => {
+        isDemoModeSig.set(true);
+      }),
+      finish: jest.fn(() => {
+        isDemoModeSig.set(false);
+        demoColsSig.set([]);
+        demoConvsSig.set([]);
+      }),
+      skip: jest.fn(() => {
+        isDemoModeSig.set(false);
+        demoColsSig.set([]);
+        demoConvsSig.set([]);
+      }),
+      moveDemoConversation: jest.fn((convId: string, colId: string | null) => {
+        demoConvsSig.set(
+          demoConvsSig().map((c) => (c.id === convId ? { ...c, collectionId: colId } : c))
+        );
+      }),
+    };
+
     await TestBed.configureTestingModule({
       imports: [ChatComponent],
       providers: [
@@ -109,7 +143,7 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
         { provide: ChatDraftService, useValue: chatDraftServiceMock },
         { provide: ModalDialogService, useValue: modalMock },
         { provide: PdfReportService, useValue: { exportFullConversation: jest.fn() } },
-        { provide: CollectionsWalkthroughService, useValue: { checkAndTrigger: jest.fn() } },
+        { provide: CollectionsWalkthroughService, useValue: collectionsWalkthroughMock },
         { provide: VoiceRecognitionService, useValue: { isListening: false, transcript$: voiceTranscript$.asObservable(), error$: voiceError$.asObservable(), toggleListening: jest.fn(), stopListening: jest.fn() } },
       ],
       schemas: [NO_ERRORS_SCHEMA],
@@ -244,6 +278,91 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
 
       expect(component.isCollectionsGroupExpanded).toBe(true);
       expect(component.isCollectionExpanded('col-test-2')).toBe(true);
+    });
+  });
+
+  describe('Spec Round 28 — Drag-and-Drop Refinements & Demo Walkthrough', () => {
+    let collectionsWalkthroughService: CollectionsWalkthroughService;
+
+    beforeEach(() => {
+      collectionsWalkthroughService = TestBed.inject(CollectionsWalkthroughService);
+    });
+
+    it('10. should handle auto-scroll calculation during drag over scroll container', () => {
+      const mockScrollDiv = document.createElement('div');
+      Object.defineProperty(mockScrollDiv, 'getBoundingClientRect', {
+        value: () => ({ top: 100, bottom: 600, height: 500, left: 0, right: 300, width: 300 }),
+      });
+      component.convScrollContainer = { nativeElement: mockScrollDiv } as any;
+      component.draggedConversation = mockConvA;
+
+      // Drag near top edge (clientY = 110 -> 10px from top)
+      const topEvent = { clientY: 110 } as DragEvent;
+      component.onDragOverScrollContainer(topEvent);
+      expect((component as any).autoScrollSpeed).toBeLessThan(0);
+
+      // Drag in middle (clientY = 350 -> no scroll)
+      const midEvent = { clientY: 350 } as DragEvent;
+      component.onDragOverScrollContainer(midEvent);
+      expect((component as any).autoScrollSpeed).toBe(0);
+
+      // Drag near bottom edge (clientY = 590 -> 10px from bottom)
+      const bottomEvent = { clientY: 590 } as DragEvent;
+      component.onDragOverScrollContainer(bottomEvent);
+      expect((component as any).autoScrollSpeed).toBeGreaterThan(0);
+
+      // Drag end stops auto-scroll
+      component.onDragEndChat();
+      expect((component as any).autoScrollSpeed).toBe(0);
+      expect(component.draggedConversation).toBeNull();
+    });
+
+    it('11. should allow dragging a chat out of a collection into Recent Chats drop zone', () => {
+      const convInCol: IConversation = {
+        ...mockConvA,
+        collectionId: 'col-1',
+      };
+      component.conversations = [convInCol];
+      component.draggedConversation = convInCol;
+
+      const dropEvent = { preventDefault: jest.fn() } as unknown as DragEvent;
+      component.onDropOnRecentChats(dropEvent);
+
+      expect(dropEvent.preventDefault).toHaveBeenCalled();
+      expect(convInCol.collectionId).toBeNull();
+      expect(apiServiceMock.moveConversationToCollection).toHaveBeenCalledWith('conv-a', null);
+      expect(component.undoToast).toBeTruthy();
+      expect(component.undoToast?.message).toContain('Moved "Chat Alpha" to Recent Chats');
+    });
+
+    it('12. should render ephemeral demo data during walkthrough and make 0 API calls', () => {
+      component.collections = [];
+      component.conversations = [];
+
+      collectionsWalkthroughService.start(0);
+      expect(collectionsWalkthroughService.isDemoMode()).toBe(true);
+
+      // Should display ephemeral demo items in template getters
+      expect(component.displayedCollections.length).toBeGreaterThan(0);
+      expect(component.displayedConversations.length).toBeGreaterThan(0);
+
+      const demoConv = component.displayedConversations[0];
+      component.draggedConversation = demoConv;
+
+      const dropEvent = { preventDefault: jest.fn() } as unknown as DragEvent;
+      component.onDropOnCollection('demo-col-titan', dropEvent);
+
+      // No API call should be executed during demo walkthrough!
+      expect(apiServiceMock.moveConversationToCollection).not.toHaveBeenCalled();
+
+      // Demo data should be updated in memory
+      expect(demoConv.collectionId).toBe('demo-col-titan');
+
+      // Finishing walkthrough clears demo data completely
+      collectionsWalkthroughService.finish();
+      expect(collectionsWalkthroughService.isDemoMode()).toBe(false);
+      expect(component.displayedCollections.length).toBe(0);
+      expect(component.displayedConversations.length).toBe(0);
     });
   });
 });

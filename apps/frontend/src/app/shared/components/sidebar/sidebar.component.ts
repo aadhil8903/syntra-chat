@@ -72,13 +72,13 @@ import { NavigationDrawerService } from '../../../core/services/navigation-drawe
             routerLinkActive="bg-white text-black font-semibold"
             data-tour="nav-documents"
             class="flex items-center gap-3 px-3 py-2 rounded-xl text-[#a1a1aa] hover:text-white hover:bg-[#18181b] transition-colors text-sm"
-            [title]="isCollapsed ? 'Knowledge' : ''"
+            [title]="isCollapsed ? 'Files' : ''"
           >
             <svg class="w-5 h-5 flex-shrink-0" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
             </svg>
             @if (!isCollapsed) {
-              <span class="truncate">Knowledge</span>
+              <span class="truncate">Files</span>
             }
           </a>
         </nav>
@@ -220,9 +220,9 @@ import { NavigationDrawerService } from '../../../core/services/navigation-drawe
               class="flex items-center gap-3 px-3.5 min-h-[44px] rounded-xl text-[#a1a1aa] hover:text-white hover:bg-[#18181b] transition-colors text-sm font-medium"
             >
               <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
               </svg>
-              <span>Knowledge</span>
+              <span>Files</span>
             </a>
 
             @if (isAdmin) {

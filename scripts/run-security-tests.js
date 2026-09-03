@@ -42,7 +42,7 @@ async function runSecurityAudit() {
   // 1.1 Login with wrong password
   const badLogin = await request('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email: 'aadil@gmail.com', password: 'WrongPassword123!' }),
+    body: JSON.stringify({ email: 'aadhildevwork@gmail.com', password: 'WrongPassword123!' }),
   });
   assert(badLogin.status === 401, 'Rejects login with invalid password with HTTP 401');
 
@@ -223,14 +223,14 @@ async function runSecurityAudit() {
   // ---------------------------------------------------------------------------
   console.log('\n--- 4. Single-Admin Invariant & Deletion Defense ---');
 
-  // Attempt to delete primary administrator (aadil@gmail.com)
+  // Attempt to delete primary administrator (aadhildevwork@gmail.com)
   const deleteAdminAttempt = await request(`/users/${adminId}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${adminToken}` },
   });
   assert(
     [400, 403, 409].includes(deleteAdminAttempt.status),
-    'System blocks deletion of primary system administrator account (aadil@gmail.com)',
+    'System blocks deletion of primary system administrator account (aadhildevwork@gmail.com)',
     `received status ${deleteAdminAttempt.status}`,
   );
 

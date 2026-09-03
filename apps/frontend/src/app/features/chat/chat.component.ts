@@ -136,7 +136,11 @@ export interface IDynamicStarterCard {
           </div>
 
           <!-- ONE Continuous Scrollable Region: Collections + Recent Chats -->
-          <div class="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pt-2 space-y-4 pr-0.5 custom-sidebar-scrollbar">
+          <div
+            #convScrollContainer
+            (dragover)="onDragOverScrollContainer($event)"
+            class="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pt-2 space-y-4 pr-0.5 custom-sidebar-scrollbar"
+          >
             <!-- Collections Section -->
             <div data-tour="collections-section" class="space-y-1">
               <!-- Compact Collections Header Row -->
@@ -155,7 +159,7 @@ export interface IDynamicStarterCard {
                     <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                   </svg>
                   <span class="text-[10px] font-bold uppercase tracking-widest text-[#71717a] group-hover:text-zinc-300 truncate">Collections</span>
-                  <span class="text-[10px] text-zinc-500 font-mono font-medium flex-shrink-0">({{ collections.length }})</span>
+                  <span class="text-[10px] text-zinc-500 font-mono font-medium flex-shrink-0">({{ displayedCollections.length }})</span>
                 </div>
 
                 <button
@@ -174,7 +178,7 @@ export interface IDynamicStarterCard {
               <!-- Collections List (when group expanded) -->
               @if (isCollectionsGroupExpanded) {
                 <div data-tour="collections-list" class="space-y-0.5">
-                  @for (col of collections; track col.id) {
+                  @for (col of displayedCollections; track col.id) {
                     <div
                       class="rounded-xl border transition-all"
                       [ngClass]="dragOverCollectionId === col.id ? 'bg-zinc-800/90 border-white/60 ring-1 ring-white/50' : 'border-transparent hover:border-zinc-800/40 bg-transparent hover:bg-[#111114]/40'"
@@ -249,10 +253,11 @@ export interface IDynamicStarterCard {
                               (dragend)="onDragEndChat()"
                               (click)="selectConversation(conv)"
                               [ngClass]="activeConversation?.id === conv.id ? 'bg-[#18181b] text-white font-medium border border-[#3f3f46]' : 'text-[#a1a1aa] hover:text-white hover:bg-[#141417]'"
-                              class="group/item flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer transition-colors text-xs"
+                              class="group/item flex items-center justify-between px-2 py-1.5 rounded-lg cursor-grab active:cursor-grabbing transition-all text-xs select-none"
+                              [class.opacity-50]="draggedConversation?.id === conv.id"
                             >
                               <div class="flex items-center gap-1.5 truncate">
-                                <span class="text-zinc-500 cursor-grab active:cursor-grabbing text-[11px] select-none">&#x22EE;</span>
+                                <span class="w-[2px] h-3 rounded-full bg-zinc-600/70 group-hover/item:bg-zinc-400 select-none flex-shrink-0"></span>
                                 <span class="truncate">{{ conv.title }}</span>
                               </div>
                               <div class="flex items-center gap-1">
@@ -301,7 +306,14 @@ export interface IDynamicStarterCard {
             </div>
 
             <!-- Recent Chats / Uncollected Chats (Directly continuous in single scroll container) -->
-            <div data-tour="recent-chats-list" class="space-y-1 pt-1">
+            <div
+              data-tour="recent-chats-list"
+              class="space-y-1 pt-1 rounded-xl p-1 transition-all border"
+              [ngClass]="isDragOverRecentChats ? 'bg-zinc-800/90 border-white/60 ring-1 ring-white/50' : 'border-transparent'"
+              (dragover)="onDragOverRecentChats($event)"
+              (dragleave)="onDragLeaveRecentChats($event)"
+              (drop)="onDropOnRecentChats($event)"
+            >
               <div class="flex items-center justify-between px-1.5 py-1 text-xs">
                 <div class="text-[10px] font-bold uppercase tracking-widest text-[#71717a]">
                   {{ searchQuery ? 'Search Results' : 'Recent Chats' }}
@@ -326,12 +338,13 @@ export interface IDynamicStarterCard {
                   (dragend)="onDragEndChat()"
                   (click)="selectConversation(conv)"
                   [ngClass]="activeConversation?.id === conv.id ? 'bg-[#18181b] text-white font-medium border border-[#3f3f46]' : 'text-[#a1a1aa] hover:text-white hover:bg-[#141417]'"
-                  class="group flex items-center justify-between px-2.5 py-2 rounded-xl cursor-pointer transition-colors text-xs"
+                  class="group flex items-center justify-between px-2.5 py-2 rounded-xl cursor-grab active:cursor-grabbing transition-all text-xs select-none"
+                  [class.opacity-50]="draggedConversation?.id === conv.id"
                 >
                   <div class="flex items-center gap-2 truncate">
-                    <span class="text-zinc-500 cursor-grab active:cursor-grabbing text-xs select-none">&#x22EE;</span>
+                    <span class="w-[2px] h-3.5 rounded-full bg-zinc-600/70 group-hover:bg-zinc-400 select-none flex-shrink-0"></span>
                     <svg class="w-3.5 h-3.5 flex-shrink-0 text-zinc-500 group-hover:text-zinc-300" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
                     </svg>
                     <span class="truncate">{{ conv.title }}</span>
                   </div>
@@ -726,6 +739,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   private routeSub?: Subscription;
 
   @ViewChild('scrollContainer') scrollContainer?: ElementRef<HTMLDivElement>;
+  @ViewChild('convScrollContainer') convScrollContainer?: ElementRef<HTMLDivElement>;
   @ViewChild('inputArea') inputArea?: ElementRef<HTMLTextAreaElement>;
 
   conversations: IConversation[] = [];
@@ -972,7 +986,24 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   expandedCollectionIds = new Set<string>();
   draggedConversation: IConversation | null = null;
   dragOverCollectionId: string | null = null;
+  isDragOverRecentChats = false;
+  private autoScrollRafId: number | null = null;
+  private autoScrollSpeed = 0;
   undoToast: { message: string; conversationId: string; previousCollectionId: string | null; timer: any } | null = null;
+
+  get displayedCollections(): ICollection[] {
+    if (this.collectionsWalkthrough.isDemoMode() && this.collections.length === 0) {
+      return this.collectionsWalkthrough.demoCollections();
+    }
+    return this.collections;
+  }
+
+  get displayedConversations(): IConversation[] {
+    if (this.collectionsWalkthrough.isDemoMode() && this.conversations.length === 0) {
+      return this.collectionsWalkthrough.demoConversations();
+    }
+    return this.conversations;
+  }
 
   getResourceDisplayName(rId: string): string {
     if (this.resourceNameMap.has(rId)) {
@@ -1232,12 +1263,12 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   getConversationsForCollection(colId: string): IConversation[] {
-    const pool = this.searchQuery ? this.filteredConversations : this.conversations;
+    const pool = this.searchQuery ? this.filteredConversations : this.displayedConversations;
     return pool.filter((c) => c.collectionId === colId);
   }
 
   getRecentUncollectedChats(): IConversation[] {
-    const pool = this.searchQuery ? this.filteredConversations : this.conversations;
+    const pool = this.searchQuery ? this.filteredConversations : this.displayedConversations;
     return pool.filter((c) => !c.collectionId);
   }
 
@@ -1331,6 +1362,52 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   onDragEndChat(): void {
     this.draggedConversation = null;
     this.dragOverCollectionId = null;
+    this.isDragOverRecentChats = false;
+    this.stopAutoScroll();
+  }
+
+  onDragOverScrollContainer(event: DragEvent): void {
+    if (!this.draggedConversation || !this.convScrollContainer) return;
+    const container = this.convScrollContainer.nativeElement;
+    const rect = container.getBoundingClientRect();
+    const clientY = event.clientY;
+
+    const topDist = clientY - rect.top;
+    const bottomDist = rect.bottom - clientY;
+    const THRESHOLD = 55;
+
+    if (topDist >= 0 && topDist < THRESHOLD) {
+      const factor = (THRESHOLD - topDist) / THRESHOLD;
+      this.autoScrollSpeed = -Math.max(3, Math.round(factor * 16));
+      this.startAutoScroll();
+    } else if (bottomDist >= 0 && bottomDist < THRESHOLD) {
+      const factor = (THRESHOLD - bottomDist) / THRESHOLD;
+      this.autoScrollSpeed = Math.max(3, Math.round(factor * 16));
+      this.startAutoScroll();
+    } else {
+      this.stopAutoScroll();
+    }
+  }
+
+  private startAutoScroll(): void {
+    if (this.autoScrollRafId !== null) return;
+    const scrollStep = () => {
+      if (!this.convScrollContainer || this.autoScrollSpeed === 0) {
+        this.stopAutoScroll();
+        return;
+      }
+      this.convScrollContainer.nativeElement.scrollTop += this.autoScrollSpeed;
+      this.autoScrollRafId = requestAnimationFrame(scrollStep);
+    };
+    this.autoScrollRafId = requestAnimationFrame(scrollStep);
+  }
+
+  private stopAutoScroll(): void {
+    if (this.autoScrollRafId !== null) {
+      cancelAnimationFrame(this.autoScrollRafId);
+      this.autoScrollRafId = null;
+    }
+    this.autoScrollSpeed = 0;
   }
 
   onDragOverCollection(colId: string, event: DragEvent): void {
@@ -1350,6 +1427,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   onDropOnCollection(colId: string, event: DragEvent): void {
     event.preventDefault();
     this.dragOverCollectionId = null;
+    this.stopAutoScroll();
     if (!this.draggedConversation) return;
 
     const conv = this.draggedConversation;
@@ -1357,21 +1435,70 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
     if (prevCollectionId === colId) return;
 
-    const targetCol = this.collections.find((c) => c.id === colId);
+    const targetCol = this.displayedCollections.find((c) => c.id === colId);
     const colName = targetCol ? targetCol.name : 'Collection';
 
     // Optimistically update
     conv.collectionId = colId;
 
-    this.api.moveConversationToCollection(conv.id, colId).subscribe({
-      next: () => {
-        this.showUndoToast(`Moved "${conv.title}" to ${colName}`, conv.id, prevCollectionId);
-      },
-      error: (err) => {
-        conv.collectionId = prevCollectionId;
-        alert(err.error?.message || 'Failed to move chat');
-      },
-    });
+    if (this.collectionsWalkthrough.isDemoMode()) {
+      this.collectionsWalkthrough.moveDemoConversation(conv.id, colId);
+      this.showUndoToast(`Moved "${conv.title}" to ${colName}`, conv.id, prevCollectionId);
+    } else {
+      this.api.moveConversationToCollection(conv.id, colId).subscribe({
+        next: () => {
+          this.showUndoToast(`Moved "${conv.title}" to ${colName}`, conv.id, prevCollectionId);
+        },
+        error: (err) => {
+          conv.collectionId = prevCollectionId;
+          alert(err.error?.message || 'Failed to move chat');
+        },
+      });
+    }
+
+    this.draggedConversation = null;
+  }
+
+  onDragOverRecentChats(event: DragEvent): void {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+    if (this.draggedConversation && this.draggedConversation.collectionId) {
+      this.isDragOverRecentChats = true;
+    }
+  }
+
+  onDragLeaveRecentChats(event: DragEvent): void {
+    this.isDragOverRecentChats = false;
+  }
+
+  onDropOnRecentChats(event: DragEvent): void {
+    event.preventDefault();
+    this.isDragOverRecentChats = false;
+    this.stopAutoScroll();
+    if (!this.draggedConversation) return;
+
+    const conv = this.draggedConversation;
+    const prevCollectionId = conv.collectionId || null;
+    if (!prevCollectionId) return;
+
+    conv.collectionId = null;
+
+    if (this.collectionsWalkthrough.isDemoMode()) {
+      this.collectionsWalkthrough.moveDemoConversation(conv.id, null);
+      this.showUndoToast(`Moved "${conv.title}" to Recent Chats`, conv.id, prevCollectionId);
+    } else {
+      this.api.moveConversationToCollection(conv.id, null).subscribe({
+        next: () => {
+          this.showUndoToast(`Moved "${conv.title}" to Recent Chats`, conv.id, prevCollectionId);
+        },
+        error: (err) => {
+          conv.collectionId = prevCollectionId;
+          alert(err.error?.message || 'Failed to move chat');
+        },
+      });
+    }
 
     this.draggedConversation = null;
   }
@@ -1381,15 +1508,20 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     const prevCollectionId = conv.collectionId || null;
     conv.collectionId = null;
 
-    this.api.moveConversationToCollection(conv.id, null).subscribe({
-      next: () => {
-        this.showUndoToast(`Moved "${conv.title}" to Recent Chats`, conv.id, prevCollectionId);
-      },
-      error: (err) => {
-        conv.collectionId = prevCollectionId;
-        alert(err.error?.message || 'Failed to move chat');
-      },
-    });
+    if (this.collectionsWalkthrough.isDemoMode()) {
+      this.collectionsWalkthrough.moveDemoConversation(conv.id, null);
+      this.showUndoToast(`Moved "${conv.title}" to Recent Chats`, conv.id, prevCollectionId);
+    } else {
+      this.api.moveConversationToCollection(conv.id, null).subscribe({
+        next: () => {
+          this.showUndoToast(`Moved "${conv.title}" to Recent Chats`, conv.id, prevCollectionId);
+        },
+        error: (err) => {
+          conv.collectionId = prevCollectionId;
+          alert(err.error?.message || 'Failed to move chat');
+        },
+      });
+    }
   }
 
   showUndoToast(message: string, conversationId: string, previousCollectionId: string | null): void {
@@ -1413,6 +1545,11 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     const { conversationId, previousCollectionId } = this.undoToast;
     clearTimeout(this.undoToast.timer);
     this.undoToast = null;
+
+    if (this.collectionsWalkthrough.isDemoMode()) {
+      this.collectionsWalkthrough.moveDemoConversation(conversationId, previousCollectionId);
+      return;
+    }
 
     const conv = this.conversations.find((c) => c.id === conversationId);
     if (conv) {

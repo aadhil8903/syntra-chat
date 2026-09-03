@@ -130,21 +130,41 @@ export class SystemSettingsService implements OnModuleInit {
     const trimmedPassword = password.trim();
 
 
-    if (!setting || !setting.value) {
-      this.recordFailedAttempt(identifier);
-      return false;
-    }
+    const envPassword =
+      this.configService.get<string>('MASTER_ADMIN_PASSWORD') ||
+      this.configService.get<string>('INITIAL_MASTER_ADMIN_PASSWORD');
 
     try {
-      const isValid = await argon2.verify(setting.value, trimmedPassword);
-      if (isValid) {
+      if (setting && setting.value) {
+        const isValid = await argon2.verify(setting.value, trimmedPassword);
+        if (isValid) {
+          this.clearFailedAttempts(identifier);
+          return true;
+        }
+      }
+
+      // If DB hash failed or missing, check if it matches the current environment variable
+      if (envPassword && envPassword.trim() === trimmedPassword) {
+        // Auto-sync the new hash to database
+        const newHash = await argon2.hash(trimmedPassword, { type: argon2.argon2id });
+        await this.systemSettingModel.findOneAndUpdate(
+          { key: SystemSettingsService.MASTER_PASSWORD_KEY },
+          { value: newHash, description: 'Argon2id hash of Master Administrator Password' },
+          { upsert: true, new: true },
+        );
+        this.clearFailedAttempts(identifier);
+        this.logger.log('Master Admin Password auto-synced to database from environment.');
+        return true;
+      }
+
+      this.recordFailedAttempt(identifier);
+      return false;
+    } catch (err) {
+      // Fallback check against env variable
+      if (envPassword && envPassword.trim() === trimmedPassword) {
         this.clearFailedAttempts(identifier);
         return true;
-      } else {
-        this.recordFailedAttempt(identifier);
-        return false;
       }
-    } catch (err) {
       this.recordFailedAttempt(identifier);
       return false;
     }

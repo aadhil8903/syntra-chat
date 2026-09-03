@@ -54,7 +54,7 @@ describe('UsersService (Security & Admin Invariant)', () => {
   it('should block deletion of the primary system administrator account (Single-Admin Invariant)', async () => {
     repo.findById.mockResolvedValue({
       _id: '507f1f77bcf86cd799439099',
-      email: 'aadil@gmail.com',
+      email: 'aadhildevwork@gmail.com',
       role: UserRole.ADMIN,
     });
 

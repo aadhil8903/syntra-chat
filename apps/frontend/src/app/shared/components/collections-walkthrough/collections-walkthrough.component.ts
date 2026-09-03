@@ -35,7 +35,7 @@ interface ICardPosition {
         role="dialog"
         aria-modal="true"
         [attr.aria-label]="currentStep().title"
-        (keydown)="onKeyDown(\$event)"
+        (keydown)="onKeyDown($event)"
         tabindex="-1"
       >
         <!-- Overlay Canvas Backdrop with SVG Cutout Spotlight -->
@@ -59,6 +59,10 @@ interface ICardPosition {
                 />
               }
             </mask>
+            <!-- Marker for Animated SVG Guide Arrow -->
+            <marker id="arrow-accent" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#e11d48" />
+            </marker>
           </defs>
 
           <!-- Dimmed Dark Backdrop -->
@@ -81,27 +85,59 @@ interface ICardPosition {
               rx="10"
               ry="10"
               fill="none"
-              stroke="#ffffff"
+              stroke="#e11d48"
               stroke-width="1.75"
               stroke-dasharray="6 3"
               class="animate-pulse"
             />
           }
+
+          <!-- Hand-drawn style animated arrow curve during drag demonstration -->
+          @if (walkthrough.demoDragAnimation()) {
+            <g class="transition-opacity duration-300">
+              <path
+                [attr.d]="getCurvedGuideArrowPath()"
+                fill="none"
+                stroke="#e11d48"
+                stroke-width="2.25"
+                stroke-dasharray="6 4"
+                marker-end="url(#arrow-accent)"
+                class="animate-[dash_1.2s_linear_infinite]"
+              />
+            </g>
+          }
         </svg>
+
+        <!-- Simulated Floating Drag Ghost Pill -->
+        @if (walkthrough.demoDragAnimation(); as dragAnim) {
+          <div
+            class="absolute pointer-events-none z-30 transition-transform duration-75 ease-out shadow-2xl rounded-xl border border-rose-500/80 bg-[#18181b] px-3 py-2 flex items-center gap-2 text-xs text-white max-w-[240px] truncate"
+            [style.top.px]="getGhostPillPosition().y"
+            [style.left.px]="getGhostPillPosition().x"
+            [style.transform]="'translate(-50%, -50%) scale(' + (dragAnim.phase === 'dropped' ? 0.95 : 1.05) + ')'"
+          >
+            <span class="w-[2px] h-3.5 rounded-full bg-rose-400 select-none flex-shrink-0"></span>
+            <span class="truncate font-medium">{{ dragAnim.sourceTitle }}</span>
+            <span class="text-[10px] text-zinc-400 font-mono">➔ {{ dragAnim.targetName }}</span>
+          </div>
+        }
 
         <!-- Contextual Compact Tour Card -->
         <div
           #tourCard
-          class="absolute z-10 w-80 sm:w-88 max-w-[calc(100vw-2rem)] bg-[#111114] border border-[#27272a] rounded-2xl overflow-hidden flex flex-col p-4 space-y-3 transition-all duration-300 ease-out focus:outline-none"
+          class="absolute z-10 w-80 sm:w-88 max-w-[calc(100vw-2rem)] bg-[#111114] border border-[#27272a] rounded-2xl overflow-hidden flex flex-col p-4 space-y-3 transition-all duration-300 ease-out focus:outline-none shadow-2xl"
           [style.top.px]="cardPosition().top"
           [style.left.px]="cardPosition().left"
           tabindex="0"
         >
           <!-- Card Header: Title & Step counter -->
           <div class="flex items-start justify-between gap-2">
-            <h3 class="text-sm font-bold text-white tracking-tight leading-snug">
-              {{ currentStep().title }}
-            </h3>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-[#e11d48]"></span>
+              <h3 class="text-sm font-bold text-white tracking-tight leading-snug">
+                {{ currentStep().title }}
+              </h3>
+            </div>
             <span class="text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-[#18181b] border border-[#27272a] text-[#a1a1aa] flex-shrink-0">
               {{ walkthrough.currentStepIndex() + 1 }}/{{ walkthrough.totalSteps() }}
             </span>
@@ -332,5 +368,38 @@ export class CollectionsWalkthroughComponent implements OnInit, OnDestroy, After
       left: Math.max(16, (vWidth - cardWidth) / 2),
       placement: 'center',
     });
+  }
+
+  getCurvedGuideArrowPath(): string {
+    const spot = this.spotlight();
+    const startX = spot ? spot.left + spot.width * 0.45 : 140;
+    const startY = spot ? spot.top + spot.height - 20 : 360;
+    const endX = spot ? spot.left + spot.width * 0.55 : 160;
+    const endY = spot ? spot.top + 50 : 180;
+    const controlX = startX - 45;
+    const controlY = (startY + endY) / 2;
+
+    return `M ${startX} ${startY} Q ${controlX} ${controlY} ${endX} ${endY}`;
+  }
+
+  getGhostPillPosition(): { x: number; y: number } {
+    const anim = this.walkthrough.demoDragAnimation();
+    const spot = this.spotlight();
+    const startX = spot ? spot.left + spot.width * 0.45 : 140;
+    const startY = spot ? spot.top + spot.height - 20 : 360;
+    const endX = spot ? spot.left + spot.width * 0.55 : 160;
+    const endY = spot ? spot.top + 50 : 180;
+
+    const progress = anim ? anim.progress : 0;
+    const controlX = startX - 45;
+    const controlY = (startY + endY) / 2;
+
+    // Quadratic Bezier interpolation: B(t) = (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
+    const t = Math.min(1, Math.max(0, progress));
+    const invT = 1 - t;
+    const x = invT * invT * startX + 2 * invT * t * controlX + t * t * endX;
+    const y = invT * invT * startY + 2 * invT * t * controlY + t * t * endY;
+
+    return { x: Math.round(x), y: Math.round(y) };
   }
 }
