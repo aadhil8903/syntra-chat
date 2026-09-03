@@ -1142,7 +1142,7 @@
                 <tr class="hover:bg-zinc-800/30 transition-colors">
                   <!-- Requester -->
                   <td class="py-3.5 px-5">
-                    <div class="font-medium text-zinc-100">{{ req.userName || req.userEmail || req.userId }}</div>
+                    <div class="font-medium text-zinc-100">{{ req.userName || req.userEmail || (req.userId ? 'User (' + req.userId.slice(-4) + ')' : 'Former User') }}</div>
                     <div *ngIf="req.userEmail" class="text-[11px] text-zinc-500 font-mono">{{ req.userEmail }}</div>
                   </td>
 
@@ -1303,7 +1303,7 @@
           <div class="bg-[#111114] border border-zinc-800 rounded-2xl p-4 space-y-3 text-xs">
             <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-zinc-800">
               <div>
-                <div class="font-semibold text-white text-sm">{{ req.userName || req.userEmail || req.userId }}</div>
+                <div class="font-semibold text-white text-sm">{{ req.userName || req.userEmail || (req.userId ? 'User (' + req.userId.slice(-4) + ')' : 'Former User') }}</div>
                 <div *ngIf="req.userEmail" class="text-[11px] text-zinc-500 font-mono">{{ req.userEmail }}</div>
               </div>
               <span

@@ -19,6 +19,8 @@ import { SystemSettingsService } from '../system-settings/system-settings.servic
 
 import { Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectConnection } from '@nestjs/mongoose';
+import { Connection, Types } from 'mongoose';
 
 @Injectable()
 export class UsersService {
@@ -29,6 +31,7 @@ export class UsersService {
     private readonly mailService: MailService,
     private readonly systemSettingsService: SystemSettingsService,
     @Optional() private readonly configService?: ConfigService,
+    @InjectConnection() @Optional() private readonly connection?: Connection,
   ) {}
 
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ message: string }> {
@@ -335,6 +338,33 @@ export class UsersService {
 
     if (userRoleStr === 'admin' && (userEmailStr === primaryAdminEmail || userEmailStr === 'aadhildevwork@gmail.com')) {
       throw new ConflictException('The primary system administrator account cannot be deleted.');
+    }
+
+    // Preserve historical requester & resolver names in access requests audit log
+    if (this.connection) {
+      try {
+        const userFullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+        await this.connection.collection('access_requests').updateMany(
+          { userId: new Types.ObjectId(id) },
+          {
+            $set: {
+              userName: userFullName,
+              userEmail: user.email,
+            },
+          },
+        );
+        await this.connection.collection('access_requests').updateMany(
+          { resolvedBy: new Types.ObjectId(id) },
+          {
+            $set: {
+              resolvedByName: userFullName,
+              resolvedByEmail: user.email,
+            },
+          },
+        );
+      } catch (err) {
+        this.logger.warn(`Failed to snapshot user identity for deleted user ${id}: ${err}`);
+      }
     }
 
     const deleted = await this.usersRepository.deleteById(id);

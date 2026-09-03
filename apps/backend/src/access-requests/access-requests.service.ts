@@ -17,11 +17,17 @@ export class AccessRequestsService {
 
   async createRequest(userId: string, dto: ICreateAccessRequestDto): Promise<IAccessRequest> {
     const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
     if (isUserAdmin(user)) {
       throw new BadRequestException(
         'Administrators already possess unrestricted access to all system datasets, documents, and folders',
       );
     }
+
+    const requesterName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+    const requesterEmail = user.email;
 
     const existing = await this.accessRequestModel.findOne({
       userId: new Types.ObjectId(userId),
@@ -36,12 +42,16 @@ export class AccessRequestsService {
       existing.reason = dto.reason || existing.reason;
       existing.resourceName = dto.resourceName || existing.resourceName;
       existing.folderPath = dto.folderPath || existing.folderPath;
+      existing.userName = requesterName;
+      existing.userEmail = requesterEmail;
       await existing.save();
       return this.toIAccessRequest(existing);
     }
 
     const newReq = new this.accessRequestModel({
       userId: new Types.ObjectId(userId),
+      userName: requesterName,
+      userEmail: requesterEmail,
       resourceId: dto.resourceId.toString(),
       resourceType: dto.resourceType,
       resourceName: dto.resourceName,
@@ -66,6 +76,15 @@ export class AccessRequestsService {
     req.status = dto.status;
     if (adminUserId && Types.ObjectId.isValid(adminUserId)) {
       req.resolvedBy = new Types.ObjectId(adminUserId);
+      try {
+        const adminUser = await this.usersService.findById(adminUserId);
+        if (adminUser) {
+          req.resolvedByName = `${adminUser.firstName || ''} ${adminUser.lastName || ''}`.trim() || adminUser.email;
+          req.resolvedByEmail = adminUser.email;
+        }
+      } catch {
+        // Fallback gracefully
+      }
     }
     req.resolvedAt = new Date();
     await req.save();
@@ -256,20 +275,30 @@ export class AccessRequestsService {
       updatedAt: doc.updatedAt?.toISOString() || new Date().toISOString(),
     };
 
-    // Populate user/requester identity
-    if (doc.userId && typeof doc.userId === 'object') {
+    // Populate user/requester identity: Check live populated user first, then stored snapshot, then friendly fallback
+    if (doc.userId && typeof doc.userId === 'object' && (doc.userId.firstName || doc.userId.email)) {
       const u = doc.userId;
-      res.userName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || 'Deleted user';
+      res.userName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
       res.userEmail = u.email;
+    } else if (doc.userName || doc.userEmail) {
+      res.userName = doc.userName || doc.userEmail;
+      res.userEmail = doc.userEmail || undefined;
     } else if (doc.userId) {
       res.userName = 'User (' + doc.userId.toString().slice(-4) + ')';
+    } else {
+      res.userName = 'Former User (Deleted)';
     }
 
-    // Populate resolving administrator identity
-    if (doc.resolvedBy && typeof doc.resolvedBy === 'object') {
+    // Populate resolving administrator identity: Check live populated admin first, then stored snapshot
+    if (doc.resolvedBy && typeof doc.resolvedBy === 'object' && (doc.resolvedBy.firstName || doc.resolvedBy.email)) {
       const a = doc.resolvedBy;
-      res.resolvedByName = `${a.firstName || ''} ${a.lastName || ''}`.trim() || a.email || 'Administrator';
+      res.resolvedByName = `${a.firstName || ''} ${a.lastName || ''}`.trim() || a.email;
       res.resolvedByEmail = a.email;
+    } else if (doc.resolvedByName || doc.resolvedByEmail) {
+      res.resolvedByName = doc.resolvedByName || doc.resolvedByEmail;
+      res.resolvedByEmail = doc.resolvedByEmail || undefined;
+    } else {
+      res.resolvedByName = doc.status === AccessRequestStatus.PENDING ? undefined : 'Administrator';
     }
 
     return res;

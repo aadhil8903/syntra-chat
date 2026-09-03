@@ -241,13 +241,17 @@ import { IUser } from '@enter-chat/shared-types';
     </div>
   `,
 })
-export class SettingsComponent {
+export class SettingsComponent implements OnInit {
   private auth = inject(AuthService);
   private api = inject(ApiService);
   private walkthrough = inject(WalkthroughService);
 
   user = this.auth.currentUser;
   isAdmin = this.auth.isAdmin;
+
+  ngOnInit(): void {
+    this.auth.fetchCurrentUserProfile().subscribe({ error: () => {} });
+  }
 
   currentPassword = '';
   newPassword = '';

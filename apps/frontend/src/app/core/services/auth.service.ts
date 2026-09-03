@@ -29,7 +29,11 @@ export class AuthService {
   constructor(
     private http: HttpClient,
     private router: Router,
-  ) {}
+  ) {
+    if (this.getAccessToken()) {
+      this.fetchCurrentUserProfile().subscribe({ error: () => {} });
+    }
+  }
 
   private getStoredUser(): IUser | null {
     const raw = localStorage.getItem(this.USER_KEY) || localStorage.getItem('enter_chat_user');
@@ -99,6 +103,21 @@ export class AuthService {
     localStorage.setItem(this.REFRESH_KEY, res.refreshToken);
     localStorage.setItem(this.USER_KEY, JSON.stringify(res.user));
     this.currentUserSignal.set(res.user);
+  }
+
+  fetchCurrentUserProfile(): Observable<IUser | null> {
+    if (!this.getAccessToken() || !this.http?.get) return of(null);
+    const req$ = this.http.get<IUser>(`${getApiBaseUrl()}/users/me`);
+    if (!req$ || typeof req$.pipe !== 'function') return of(null);
+    return req$.pipe(
+      tap((user) => {
+        if (user) {
+          localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+          this.currentUserSignal.set(user);
+        }
+      }),
+      catchError(() => of(null)),
+    );
   }
 
   updateCurrentUser(partial: Partial<IUser>): void {

@@ -11,6 +11,12 @@ export class AccessRequestEntity {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   userId: Types.ObjectId;
 
+  @Prop({ type: String })
+  userName?: string;
+
+  @Prop({ type: String })
+  userEmail?: string;
+
   @Prop({ type: String, required: true, index: true })
   resourceId: string;
 
@@ -31,6 +37,12 @@ export class AccessRequestEntity {
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
   resolvedBy?: Types.ObjectId;
+
+  @Prop({ type: String })
+  resolvedByName?: string;
+
+  @Prop({ type: String })
+  resolvedByEmail?: string;
 
   @Prop({ type: Date })
   resolvedAt?: Date;
