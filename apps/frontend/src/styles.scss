@@ -222,6 +222,8 @@ pre, code {
     border-radius: 0.75rem;
     padding: 0.85rem 1rem;
     overflow-x: auto;
+    overflow-y: auto;
+    max-height: 24rem;
     margin: 0.75rem 0;
 
     code {
@@ -240,11 +242,14 @@ pre, code {
     border-collapse: collapse;
     margin: 0.85rem 0;
     font-size: 0.85rem;
+    display: block;
+    overflow-x: auto;
 
     th, td {
       border: 1px solid var(--border-subtle);
       padding: 0.5rem 0.75rem;
       text-align: left;
+      white-space: nowrap;
     }
 
     th {

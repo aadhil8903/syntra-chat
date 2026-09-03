@@ -36,7 +36,7 @@ export class MarkdownPipe implements PipeTransform {
             <span class="copy-text font-sans">Copy</span>
           </button>
         </div>
-        <pre class="hljs-vscode-dark p-3.5 bg-black overflow-x-auto text-[12px] font-mono leading-relaxed m-0"><code class="hljs ${language ? 'language-' + language : ''}">${highlighted}</code></pre>
+        <pre class="hljs-vscode-dark p-3.5 bg-black overflow-x-auto overflow-y-auto max-h-72 sm:max-h-80 text-[12px] font-mono leading-relaxed m-0"><code class="hljs ${language ? 'language-' + language : ''}">${highlighted}</code></pre>
       </div>`;
     };
 

@@ -26,6 +26,9 @@ import {
   IMentionOption,
   MentionResourceType,
   IDownloadableFile,
+  IChartSpec,
+  IChartSeries,
+  ChartType,
 } from '@enter-chat/shared-types';
 import { CollectionsWalkthroughService } from '../../core/services/collections-walkthrough.service';
 import { VoiceRecognitionService } from '../../core/services/voice-recognition.service';
@@ -427,7 +430,7 @@ export interface IDynamicStarterCard {
         </div>
 
         <!-- Messages Thread -->
-        <div #scrollContainer class="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 max-w-4xl mx-auto w-full">
+        <div #scrollContainer class="flex-1 overflow-y-auto px-2.5 sm:px-6 lg:px-8 pt-3 pb-12 sm:pt-4 sm:pb-16 space-y-2.5 sm:space-y-4 max-w-4xl mx-auto w-full min-h-0">
           @if (messages.length === 0 && !isCurrentGenerating) {
             <div class="h-full flex flex-col items-center justify-center text-center space-y-6 py-12 animate-fade-in my-auto">
               <div class="w-12 h-12 rounded-2xl bg-[#18181b] border border-[#27272a] flex items-center justify-center p-2.5 shadow-lg shadow-rose-950/20">
@@ -463,20 +466,20 @@ export interface IDynamicStarterCard {
           }
 
           @for (msg of messages; track $index; let msgIdx = $index) {
-            @if (msg.role === 'user' || (msg.content && msg.content.length > 0) || msg.generatedChart || (msg.generatedCharts && msg.generatedCharts.length > 0) || msg.generatedTable || msg.pythonCode) {
+            @if (msg.role === 'user' || (msg.content && msg.content.length > 0) || msg.generatedChart || (msg.generatedCharts && msg.generatedCharts.length > 0) || msg.generatedTable || msg.pythonCode || getDisplayChart(msg)) {
               <div
                 [ngClass]="msg.role === 'user' ? 'justify-end' : 'justify-start'"
-                class="flex gap-3 animate-fade-in"
+                class="flex gap-2 sm:gap-3 animate-fade-in"
               >
                 @if (msg.role !== 'user') {
-                  <div class="w-7 h-7 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center flex-shrink-0 p-1 mt-0.5">
+                  <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center flex-shrink-0 p-0.5 sm:p-1 mt-0.5">
                     <img src="/logo-icon.svg" alt="Syntra" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
                   </div>
                 }
 
                 <div
-                  [ngClass]="msg.role === 'user' ? 'bg-[#212124] text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.3)] max-w-[85%]' : 'bg-transparent text-white flex-1 max-w-full'"
-                  class="text-sm leading-relaxed group relative"
+                  [ngClass]="msg.role === 'user' ? 'bg-[#212124] text-white rounded-2xl rounded-tr-sm px-3 py-2 sm:px-4 sm:py-3 shadow-[0_1px_3px_rgba(0,0,0,0.3)] max-w-[90%] sm:max-w-[85%]' : 'bg-transparent text-white max-w-full'"
+                  class="text-sm leading-relaxed group relative min-w-0"
                 >
                   <!-- Rendered Rich Markdown Content -->
                   @if (msg.role === 'user') {
@@ -492,7 +495,7 @@ export interface IDynamicStarterCard {
                     }
                     <div class="whitespace-pre-wrap text-sm">{{ msg.content }}</div>
                   } @else {
-                    <div class="prose-ai" [innerHTML]="msg.content | markdown"></div>
+                    <div class="prose-ai" [innerHTML]="getDisplayContent(msg) | markdown"></div>
                   }
 
                   <!-- Python Execution Code Viewer Accordion (VS Code Dark+ Pitch Black) -->
@@ -515,7 +518,7 @@ export interface IDynamicStarterCard {
                           </button>
                         </div>
                       </summary>
-                      <div class="p-3.5 bg-black font-mono text-[12px] overflow-x-auto leading-relaxed">
+                      <div class="p-3.5 bg-black font-mono text-[12px] overflow-x-auto overflow-y-auto max-h-80 leading-relaxed">
                         <pre class="hljs-vscode-dark m-0"><code class="hljs language-python" [innerHTML]="highlightCode(msg.pythonCode, 'python')"></code></pre>
                       </div>
                     </details>
@@ -526,14 +529,14 @@ export interface IDynamicStarterCard {
                     <app-table-viewer [table]="msg.generatedTable"></app-table-viewer>
                   }
 
-                  <!-- Generated Charts (Single or Multiple) -->
+                  <!-- Generated Charts (Single, Multiple, or Embedded JSON) -->
                   <div data-tour="chat-charts">
                     @if (msg.generatedCharts && msg.generatedCharts.length > 0) {
                       @for (chart of msg.generatedCharts; track $index) {
                         <app-chart-viewer [chartSpec]="chart"></app-chart-viewer>
                       }
-                    } @else if (msg.generatedChart) {
-                      <app-chart-viewer [chartSpec]="msg.generatedChart"></app-chart-viewer>
+                    } @else if (getDisplayChart(msg)) {
+                      <app-chart-viewer [chartSpec]="getDisplayChart(msg)!"></app-chart-viewer>
                     }
                   </div>
 
@@ -591,7 +594,7 @@ export interface IDynamicStarterCard {
 
                   <!-- Action Toolbar for Assistant Message -->
                   @if (msg.role !== 'user' && msg.content && msg.content.trim().length > 0) {
-                    <div class="flex items-center justify-start gap-2 pt-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div class="flex items-center justify-start gap-1.5 pt-1.5 mt-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <button
                         (click)="copyMessageText(msg.content, msgIdx)"
                         class="text-[11px] flex items-center gap-1 transition-colors px-2 py-1 rounded-md hover:bg-[#18181b] border border-transparent hover:border-zinc-800"
@@ -682,14 +685,14 @@ export interface IDynamicStarterCard {
             }
 
             <!-- Floating Prompt Container (Claude/ChatGPT Style) -->
-            <div data-tour="chat-input-area" class="bg-[#111114] border border-[#27272a] focus-within:border-white rounded-2xl p-2 sm:p-2.5 transition-colors">
+            <div data-tour="chat-input-area" class="bg-[#111114] border border-[#27272a] focus-within:border-white rounded-2xl p-1.5 sm:p-2.5 transition-colors">
               <div class="flex items-start gap-1">
                 <textarea
                   #inputArea
                   [(ngModel)]="inputText"
                   (input)="onInputChange($event)"
                   (keydown)="onKeyDown($event)"
-                  placeholder="Ask anything naturally or type @ to mention files or folders... (Shift + Enter for new line)"
+                  placeholder="Ask anything or type @ to mention files..."
                   [disabled]="isCurrentGenerating || isMaxGenerationsReached"
                   rows="1"
                   class="w-full bg-transparent border-0 text-white text-sm px-2 py-1.5 focus:outline-none resize-none max-h-36 sm:max-h-60 overflow-y-auto leading-relaxed disabled:opacity-50 transition-[height] duration-150 placeholder:text-zinc-400 placeholder:text-[#a1a1aa]"
@@ -701,7 +704,7 @@ export interface IDynamicStarterCard {
                   (click)="toggleVoiceInput()"
                   [disabled]="isCurrentGenerating || isMaxGenerationsReached"
                   [ngClass]="voiceService.isListening ? 'bg-white text-black font-semibold border border-white' : 'text-zinc-400 hover:text-white hover:bg-[#18181b] border border-transparent hover:border-[#27272a]'"
-                  class="min-w-[40px] min-h-[40px] p-2 rounded-xl text-xs flex items-center justify-center transition-all flex-shrink-0"
+                  class="min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] p-2 rounded-xl text-xs flex items-center justify-center transition-all flex-shrink-0"
                   [title]="voiceService.isListening ? 'Listening... Click to stop recording' : 'Voice input (Click to speak)'"
                   aria-label="Voice input"
                 >
@@ -711,14 +714,14 @@ export interface IDynamicStarterCard {
                 </button>
               </div>
 
-              <div class="flex items-center justify-between pt-1.5 border-t border-[#27272a] mt-1">
+              <div class="flex items-center justify-between pt-1 sm:pt-1.5 border-t border-[#27272a] mt-1">
                 <div class="flex items-center gap-1.5">
                   <button
                     type="button"
                     (click)="triggerMentionMenu()"
                     data-tour="chat-mention-btn"
                     [disabled]="isCurrentGenerating || isMaxGenerationsReached"
-                    class="min-h-[36px] px-3 py-1.5 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-[#18181b] border border-[#27272a] text-xs flex items-center gap-1.5 transition-colors disabled:opacity-40"
+                    class="min-h-[32px] sm:min-h-[36px] px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-[#18181b] border border-[#27272a] text-xs flex items-center gap-1 sm:gap-1.5 transition-colors disabled:opacity-40"
                     title="Attach & mention document or dataset"
                   >
                     <span class="text-white font-bold">&#64;</span>
@@ -730,7 +733,7 @@ export interface IDynamicStarterCard {
                 <button
                   (click)="sendUserMessage()"
                   [disabled]="isCurrentGenerating || isMaxGenerationsReached || (!inputText.trim() && attachedResources.length === 0)"
-                  class="min-h-[38px] px-4 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0"
+                  class="min-h-[34px] sm:min-h-[38px] px-3 sm:px-4 py-1 sm:py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0"
                   title="Send (Enter)"
                 >
                   <span>Send</span>
@@ -763,6 +766,11 @@ export interface IDynamicStarterCard {
   `,
   styles: [
     `
+      :host {
+        display: block;
+        height: 100%;
+        overflow: hidden;
+      }
       .custom-sidebar-scrollbar::-webkit-scrollbar {
         width: 4px;
       }
@@ -821,6 +829,62 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.draftDebounceTimer = setTimeout(() => {
       this.persistActiveDraft();
     }, 300);
+  }
+
+  getDisplayContent(msg: IMessage): string {
+    if (!msg.content) return '';
+    if (msg.generatedChart || (msg.generatedCharts && msg.generatedCharts.length > 0)) {
+      return msg.content;
+    }
+    const jsonBlockRegex = /```(?:json)?\s*(\{[\s\S]*?(?:"chart_type"|"chartType"|"datasets"|"series")[\s\S]*?\})\s*```/gi;
+    if (jsonBlockRegex.test(msg.content)) {
+      return msg.content.replace(jsonBlockRegex, '').trim();
+    }
+    return msg.content;
+  }
+
+  getDisplayChart(msg: IMessage): IChartSpec | undefined {
+    if (msg.generatedChart) return msg.generatedChart;
+    if (msg.generatedCharts && msg.generatedCharts.length > 0) return msg.generatedCharts[0];
+    if (!msg.content) return undefined;
+
+    const jsonBlockRegex = /```(?:json)?\s*(\{[\s\S]*?(?:"chart_type"|"chartType"|"datasets"|"series")[\s\S]*?\})\s*```/i;
+    const match = msg.content.match(jsonBlockRegex);
+    if (match && match[1]) {
+      try {
+        const parsed = JSON.parse(match[1]);
+        const rawType = (parsed.chart_type || parsed.chartType || 'line').toLowerCase();
+        let typeEnum = ChartType.LINE;
+        if (rawType.includes('bar')) typeEnum = ChartType.BAR;
+        else if (rawType.includes('pie')) typeEnum = ChartType.PIE;
+        else if (rawType.includes('doughnut') || rawType.includes('donut')) typeEnum = ChartType.DOUGHNUT;
+        else if (rawType.includes('area')) typeEnum = ChartType.AREA;
+
+        const labels = parsed.data?.labels || parsed.labels || [];
+        let series: IChartSeries[] = [];
+        if (parsed.data?.datasets && Array.isArray(parsed.data.datasets)) {
+          series = parsed.data.datasets.map((d: any) => ({
+            name: d.label || d.name || 'Series',
+            data: d.data || [],
+          }));
+        } else if (parsed.series && Array.isArray(parsed.series)) {
+          series = parsed.series;
+        }
+
+        if (labels.length > 0 && series.length > 0) {
+          return {
+            chartType: typeEnum,
+            title: parsed.title || 'Performance Metric',
+            description: parsed.description,
+            labels,
+            series,
+          };
+        }
+      } catch {
+        // Fallback if parsing fails
+      }
+    }
+    return undefined;
   }
 
   private persistActiveDraft(): void {
