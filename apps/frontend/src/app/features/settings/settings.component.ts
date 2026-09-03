@@ -376,6 +376,9 @@ export class SettingsComponent implements OnInit {
   currentPassword = '';
   newPassword = '';
   confirmPassword = '';
+  showCurrentPassword = false;
+  showNewPassword = false;
+  showConfirmPassword = false;
   updatingPassword = false;
   passwordSuccess = '';
   passwordError = '';
@@ -384,6 +387,9 @@ export class SettingsComponent implements OnInit {
   currentMasterPassword = '';
   newMasterPassword = '';
   confirmMasterPassword = '';
+  showCurrentMasterPassword = false;
+  showNewMasterPassword = false;
+  showConfirmMasterPassword = false;
   updatingMasterPassword = false;
   masterPasswordSuccess = '';
   masterPasswordError = '';

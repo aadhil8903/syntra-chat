@@ -93,6 +93,7 @@ export class AdminComponent implements OnInit {
     allowedFolders: [],
   };
   newUserMasterAdminPassword = '';
+  newUserShowMasterAdminPassword = false;
   newUserSelectedFolders: string[] = [];
   newUserSelectedDepartments: string[] = [];
   createUserError = '';
@@ -110,6 +111,7 @@ export class AdminComponent implements OnInit {
   editSelectedDepartments: string[] = [];
   editRole: any = UserRole.USER;
   editMasterAdminPassword = '';
+  editShowMasterAdminPassword = false;
   editStatus: 'active' | 'suspended' = 'active';
 
   get filteredUsers(): IUser[] {

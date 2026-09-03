@@ -168,13 +168,30 @@
                     </select>
                     <div *ngIf="isTargetRoleAdmin() && !isUserAdmin(user)" class="space-y-0.5 animate-fade-in">
                       <label class="block text-[10px] text-zinc-300 font-medium">Master Admin Password *</label>
-                      <input
-                        type="password"
-                        [(ngModel)]="editMasterAdminPassword"
-                        placeholder="Master password"
-                        autocomplete="new-password"
-                        class="w-full px-2 py-1 rounded-lg bg-[#09090b] border border-zinc-700 text-[11px] text-white focus:outline-none focus:border-white"
-                      />
+                      <div class="relative">
+                        <input
+                          [type]="editShowMasterAdminPassword ? 'text' : 'password'"
+                          [(ngModel)]="editMasterAdminPassword"
+                          placeholder="Master password"
+                          autocomplete="new-password"
+                          class="w-full pl-2 pr-7 py-1 rounded-lg bg-[#09090b] border border-zinc-700 text-[11px] text-white focus:outline-none focus:border-white"
+                        />
+                        <button
+                          type="button"
+                          (click)="editShowMasterAdminPassword = !editShowMasterAdminPassword"
+                          class="absolute right-1.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors focus:outline-none p-0.5"
+                          [title]="editShowMasterAdminPassword ? 'Hide password' : 'Show password'"
+                          aria-label="Toggle master password visibility"
+                        >
+                          <svg *ngIf="editShowMasterAdminPassword" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                          </svg>
+                          <svg *ngIf="!editShowMasterAdminPassword" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </td>
@@ -389,13 +406,30 @@
               </select>
               <div *ngIf="isTargetRoleAdmin() && !isUserAdmin(user)" class="space-y-0.5 animate-fade-in">
                 <label class="block text-[10px] text-zinc-300 font-medium">Master Admin Password *</label>
-                <input
-                  type="password"
-                  [(ngModel)]="editMasterAdminPassword"
-                  placeholder="Master password"
-                  autocomplete="new-password"
-                  class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-700 text-xs text-white focus:outline-none focus:border-white"
-                />
+                <div class="relative">
+                  <input
+                    [type]="editShowMasterAdminPassword ? 'text' : 'password'"
+                    [(ngModel)]="editMasterAdminPassword"
+                    placeholder="Master password"
+                    autocomplete="new-password"
+                    class="w-full pl-3 pr-8 py-2 rounded-xl bg-[#09090b] border border-zinc-700 text-xs text-white focus:outline-none focus:border-white"
+                  />
+                  <button
+                    type="button"
+                    (click)="editShowMasterAdminPassword = !editShowMasterAdminPassword"
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors focus:outline-none p-1"
+                    [title]="editShowMasterAdminPassword ? 'Hide password' : 'Show password'"
+                    aria-label="Toggle master password visibility"
+                  >
+                    <svg *ngIf="editShowMasterAdminPassword" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                    </svg>
+                    <svg *ngIf="!editShowMasterAdminPassword" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1476,15 +1510,32 @@
             <span class="text-zinc-200 font-semibold">Master Admin Password *</span>
             <span class="text-[10px] text-zinc-500 font-normal">Required for Administrator assignment</span>
           </label>
-          <input
-            type="password"
-            [(ngModel)]="newUserMasterAdminPassword"
-            name="masterAdminPassword"
-            placeholder="••••••••••••"
-            autocomplete="new-password"
-            required
-            class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-700 text-white focus:outline-none focus:border-white font-mono"
-          />
+          <div class="relative">
+            <input
+              [type]="newUserShowMasterAdminPassword ? 'text' : 'password'"
+              [(ngModel)]="newUserMasterAdminPassword"
+              name="masterAdminPassword"
+              placeholder="••••••••••••"
+              autocomplete="new-password"
+              required
+              class="w-full pl-3 pr-10 py-2 rounded-xl bg-[#09090b] border border-zinc-700 text-white focus:outline-none focus:border-white font-mono"
+            />
+            <button
+              type="button"
+              (click)="newUserShowMasterAdminPassword = !newUserShowMasterAdminPassword"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors focus:outline-none p-1"
+              [title]="newUserShowMasterAdminPassword ? 'Hide password' : 'Show password'"
+              aria-label="Toggle master admin password visibility"
+            >
+              <svg *ngIf="newUserShowMasterAdminPassword" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+              </svg>
+              <svg *ngIf="!newUserShowMasterAdminPassword" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <!-- Departments -->
