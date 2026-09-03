@@ -53,6 +53,9 @@ export class DocumentEntity {
   @Prop({ required: false, default: '' })
   folder?: string;
 
+  @Prop({ type: String, enum: ['inherit', 'allowed', 'restricted'], default: 'inherit' })
+  downloadPolicy: string;
+
   @Prop({ required: false })
   errorMessage?: string;
 

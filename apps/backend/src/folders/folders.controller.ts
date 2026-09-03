@@ -37,6 +37,16 @@ export class FoldersController {
     return this.foldersService.create(userId, dto);
   }
 
+  @Patch('by-name/:name/download-policy')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async updateDownloadPolicyByName(
+    @Param('name') name: string,
+    @Body('downloadPolicy') downloadPolicy: 'allowed' | 'restricted',
+  ): Promise<IFolder> {
+    return this.foldersService.updateDownloadPolicy(decodeURIComponent(name), downloadPolicy);
+  }
+
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)

@@ -35,6 +35,7 @@ async def chat_endpoint(request: ChatRequest):
             generatedTable=final_state.get("analysis_table"),
             pythonCode=final_state.get("python_code"),
             executionOutput=final_state.get("execution_output"),
+            downloadableFile=final_state.get("downloadable_file"),
         )
     except Exception as e:
         import traceback
@@ -80,6 +81,7 @@ async def chat_stream_endpoint(request: ChatRequest):
                 "generatedTable": table_spec.model_dump() if hasattr(table_spec, "model_dump") else table_spec,
                 "pythonCode": final_state.get("python_code"),
                 "executionOutput": final_state.get("execution_output"),
+                "downloadableFile": final_state.get("downloadable_file"),
                 "intent": final_state.get("intent", "general_chat"),
             }
             yield f"event: metadata\ndata: {json.dumps(metadata)}\n\n"

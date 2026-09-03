@@ -25,9 +25,17 @@ export class FoldersService {
     const cleanName = dto.name.trim();
     const existing = await this.folderModel.findOne({ name: cleanName }).exec();
     if (existing) {
-      // If already exists, update departments
+      // If already exists, update departments and downloadPolicy if provided
+      let changed = false;
       if (dto.allowedDepartments !== undefined) {
         existing.allowedDepartments = dto.allowedDepartments;
+        changed = true;
+      }
+      if (dto.downloadPolicy !== undefined) {
+        existing.downloadPolicy = dto.downloadPolicy;
+        changed = true;
+      }
+      if (changed) {
         const updated = await existing.save();
         return this.toIFolder(updated);
       }
@@ -37,6 +45,7 @@ export class FoldersService {
     const folder = new this.folderModel({
       name: cleanName,
       allowedDepartments: dto.allowedDepartments || [],
+      downloadPolicy: dto.downloadPolicy || 'allowed',
       createdBy: Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : undefined,
     });
 
@@ -48,11 +57,22 @@ export class FoldersService {
     const update: any = {};
     if (dto.name !== undefined) update.name = dto.name.trim();
     if (dto.allowedDepartments !== undefined) update.allowedDepartments = dto.allowedDepartments;
+    if (dto.downloadPolicy !== undefined) update.downloadPolicy = dto.downloadPolicy;
 
     const folder = await this.folderModel.findByIdAndUpdate(id, { $set: update }, { new: true }).exec();
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }
+    return this.toIFolder(folder);
+  }
+
+  async updateDownloadPolicy(idOrName: string, policy: 'allowed' | 'restricted'): Promise<IFolder> {
+    const filter = Types.ObjectId.isValid(idOrName) ? { _id: idOrName } : { name: idOrName.trim() };
+    const folder = await this.folderModel.findOneAndUpdate(
+      filter,
+      { $set: { downloadPolicy: policy } },
+      { new: true, upsert: true },
+    ).exec();
     return this.toIFolder(folder);
   }
 
@@ -77,6 +97,7 @@ export class FoldersService {
       id: doc._id.toString(),
       name: doc.name,
       allowedDepartments: doc.allowedDepartments || [],
+      downloadPolicy: (doc.downloadPolicy as any) || 'allowed',
       createdBy: doc.createdBy?.toString(),
       createdAt: doc.createdAt?.toISOString(),
       updatedAt: doc.updatedAt?.toISOString(),

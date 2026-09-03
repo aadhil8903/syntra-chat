@@ -9,6 +9,7 @@ import { OwnershipService } from '../permissions/services/ownership.service';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import { MentionsService } from '../mentions/mentions.service';
 import { CollectionsService } from '../collections/collections.service';
+import { DocumentsService } from '../documents/documents.service';
 import { MessageRole } from '@enter-chat/shared-types';
 
 describe('MessagesService — Spec Round 22 Active Scope Persistence', () => {
@@ -21,6 +22,7 @@ describe('MessagesService — Spec Round 22 Active Scope Persistence', () => {
   let mockAiGatewayService: any;
   let mockMentionsService: any;
   let mockCollectionsService: any;
+  let mockDocumentsService: any;
 
   const mockUserId = new Types.ObjectId().toString();
   const mockConvId = new Types.ObjectId().toString();
@@ -183,6 +185,11 @@ describe('MessagesService — Spec Round 22 Active Scope Persistence', () => {
       updateSharedMemory: jest.fn().mockResolvedValue(undefined),
     };
 
+    mockDocumentsService = {
+      resolvePdfRequest: jest.fn().mockResolvedValue({ found: false }),
+      canUserDownloadDocument: jest.fn().mockResolvedValue({ canDownload: false }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MessagesService,
@@ -194,6 +201,7 @@ describe('MessagesService — Spec Round 22 Active Scope Persistence', () => {
         { provide: AiGatewayService, useValue: mockAiGatewayService },
         { provide: MentionsService, useValue: mockMentionsService },
         { provide: CollectionsService, useValue: mockCollectionsService },
+        { provide: DocumentsService, useValue: mockDocumentsService },
       ],
     }).compile();
 

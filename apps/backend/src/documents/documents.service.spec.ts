@@ -61,11 +61,31 @@ describe('DocumentsService - Dynamic Duplicate Filename Handling', () => {
       };
     });
 
-    mockDocumentModel.findById = jest.fn().mockImplementation((id: string) => ({
-      exec: jest.fn().mockResolvedValue(
-        existingDocuments.find((d) => d._id.toString() === id.toString()) || null,
-      ),
-    }));
+    mockDocumentModel.findById = jest.fn().mockImplementation((id: string) => {
+      const found = existingDocuments.find((d) => d._id.toString() === id.toString()) || null;
+      return {
+        ...(found || {}),
+        _id: found?._id,
+        userId: found?.userId,
+        originalName: found?.originalName,
+        folder: found?.folder,
+        downloadPolicy: found?.downloadPolicy,
+        storagePath: found?.storagePath,
+        fileType: found?.fileType,
+        sourceType: found?.sourceType,
+        status: found?.status,
+        chunkCount: found?.chunkCount,
+        mimeType: found?.mimeType,
+        fileSize: found?.fileSize,
+        then: (resolve: any) => Promise.resolve(found).then(resolve),
+        exec: jest.fn().mockResolvedValue(found),
+      };
+    });
+
+    mockDocumentModel.countDocuments = jest.fn().mockImplementation((filter: any) => {
+      const count = existingDocuments.filter((d) => (d.folder || '') === (filter.folder || '')).length;
+      return Promise.resolve(count);
+    });
 
     mockDocumentModel.findByIdAndUpdate = jest.fn().mockImplementation((id: string, update: any) => {
       const doc = existingDocuments.find((d) => d._id.toString() === id.toString());
@@ -138,7 +158,14 @@ describe('DocumentsService - Dynamic Duplicate Filename Handling', () => {
         },
         {
           provide: FoldersService,
-          useValue: {},
+          useValue: {
+            findByName: jest.fn().mockImplementation((name: string) => {
+              if (name === 'Finance') return Promise.resolve({ name: 'Finance', downloadPolicy: 'restricted' });
+              if (name === 'Sales') return Promise.resolve({ name: 'Sales', downloadPolicy: 'allowed' });
+              if (name === 'HR') return Promise.resolve({ name: 'HR', downloadPolicy: 'allowed' });
+              return Promise.resolve(null);
+            }),
+          },
         },
       ],
     }).compile();
@@ -336,6 +363,155 @@ describe('DocumentsService - Dynamic Duplicate Filename Handling', () => {
       await expect(
         service.replaceDocument('507f1f77bcf86cd799439022', initialDoc.id, replacementFile),
       ).rejects.toThrow();
+    });
+  });
+
+  describe('Move File - Folder Navigation & Policy Recalculation', () => {
+    it('1. should move document to destination folder and recalculate inherited download policy', async () => {
+      const file: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'report.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 2048,
+        buffer: Buffer.from('%PDF-1.4 report'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      // Upload to Sales (allowed download policy), default inherit
+      const doc = await service.uploadDocument('507f1f77bcf86cd799439011', file, 'Sales');
+      expect(doc.effectiveDownloadPolicy).toBe('allowed');
+
+      // Move to Finance (restricted download policy)
+      const moved = await service.updateFolderAndDeps('507f1f77bcf86cd799439011', doc.id, 'Finance');
+      expect(moved.folder).toBe('Finance');
+      expect(moved.effectiveDownloadPolicy).toBe('restricted');
+    });
+
+    it('2. should handle duplicate filename collision on move by appending suffix', async () => {
+      const file1: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'budget.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF-1.4 budget 1'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      const file2: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'budget.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF-1.4 budget 2'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+
+      // file1 in Finance
+      await service.uploadDocument('507f1f77bcf86cd799439011', file1, 'Finance');
+      // file2 in Sales
+      const doc2 = await service.uploadDocument('507f1f77bcf86cd799439011', file2, 'Sales');
+
+      // Move doc2 to Finance where budget.pdf already exists
+      const moved = await service.updateFolderAndDeps('507f1f77bcf86cd799439011', doc2.id, 'Finance');
+      expect(moved.folder).toBe('Finance');
+      expect(moved.originalName).toBe('budget (1).pdf');
+    });
+
+    it('3. should move document to Root ("") and set download policy as allowed', async () => {
+      const file: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'guide.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF-1.4 guide'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      const doc = await service.uploadDocument('507f1f77bcf86cd799439011', file, 'Finance');
+      expect(doc.effectiveDownloadPolicy).toBe('restricted');
+
+      // Move to Root
+      const moved = await service.updateFolderAndDeps('507f1f77bcf86cd799439011', doc.id, '');
+      expect(moved.folder).toBe('');
+      expect(moved.effectiveDownloadPolicy).toBe('allowed');
+    });
+
+    it('4. should preserve explicit file download override when moved to a restricted folder', async () => {
+      const file: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'public_release.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF-1.4 public release'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      // Explicit allowed override
+      const doc = await service.uploadDocument('507f1f77bcf86cd799439011', file, 'Sales', undefined, 'allowed');
+      expect(doc.downloadPolicy).toBe('allowed');
+      expect(doc.effectiveDownloadPolicy).toBe('allowed');
+
+      // Move to Finance (which has restricted folder policy)
+      const moved = await service.updateFolderAndDeps('507f1f77bcf86cd799439011', doc.id, 'Finance');
+      expect(moved.folder).toBe('Finance');
+      expect(moved.downloadPolicy).toBe('allowed');
+      expect(moved.effectiveDownloadPolicy).toBe('allowed');
+    });
+
+    it('5. should reject move when user is not admin and not owner', async () => {
+      const file: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'secret.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF-1.4 secret'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      const doc = await service.uploadDocument('507f1f77bcf86cd799439011', file, 'Sales');
+
+      await expect(
+        service.updateFolderAndDeps('507f1f77bcf86cd799439022', doc.id, 'HR'),
+      ).rejects.toThrow('You do not have permission to move this document');
+    });
+
+    it('6. should reject move when destination folder does not exist', async () => {
+      const file: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'notes.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF-1.4 notes'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+      const doc = await service.uploadDocument('507f1f77bcf86cd799439011', file, 'Sales');
+
+      await expect(
+        service.updateFolderAndDeps('507f1f77bcf86cd799439011', doc.id, 'NonExistentFolder_12345'),
+      ).rejects.toThrow('Destination folder "NonExistentFolder_12345" not found');
     });
   });
 });

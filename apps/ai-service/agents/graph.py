@@ -266,6 +266,18 @@ async def route_intent_node(state: AgentState) -> Dict[str, Any]:
     resolved_datasets = state.get("resolved_datasets", [])
     shared_memory = state.get("shared_memory")
 
+    # 0. File / PDF Discovery and Download Requests -> Priority 0
+    file_keywords = ["pdf", "file", "document", "handbook", "guide", "report", "policy", "manual"]
+    file_request_verbs = [
+        "give me", "can i get", "can i download", "download", "find", "get me", "where is",
+        "send me", "show me", "fetch", "locate"
+    ]
+    is_file_request = (
+        any(k in message for k in file_keywords) and any(v in message for v in file_request_verbs)
+    ) or (re.match(r"^(download|get)\s+", message) is not None)
+    if is_file_request:
+        return {"intent": AgentIntent.FILE_REQUEST}
+
     # 1. Chart / Graph / Visualization Requests -> Priority 1 (Action-oriented, never refuse)
     chart_explicit_keywords = [
         "plot", "chart", "charts", "graph", "graphs", "visualize", "visualization", "visualizations",
@@ -593,11 +605,141 @@ CRITICAL ACCESS CONTROL & ANTI-DATA-LEAK RULES (HIGHEST PRIORITY):
 
 
 # -------------------------------------------------------------
+# Node: Secure File & PDF Discovery
+# -------------------------------------------------------------
+async def file_request_node(state: AgentState) -> Dict[str, Any]:
+    user_id = state.get("user_id", "")
+    message = state.get("message", "")
+    active_scope = state.get("active_scope")
+    resolved_docs = state.get("resolved_documents", [])
+
+    db = get_database()
+    folders_col = db["folders"]
+    folder_policies: Dict[str, str] = {}
+    for f in folders_col.find():
+        folder_policies[f.get("name", "")] = f.get("downloadPolicy", "allowed")
+
+    def get_effective_policy(doc: Dict[str, Any]) -> str:
+        policy = doc.get("downloadPolicy", "inherit")
+        if policy == "allowed":
+            return "allowed"
+        if policy == "restricted":
+            return "restricted"
+        folder_name = (doc.get("folder") or "").strip()
+        if folder_name in folder_policies:
+            return folder_policies[folder_name]
+        return "allowed"
+
+    # Filter accessible PDFs
+    accessible_pdfs = [
+        d for d in resolved_docs
+        if str(d.get("fileType", "")).lower() == "pdf" or str(d.get("originalName", "")).lower().endswith(".pdf")
+    ]
+
+    # Clean query
+    raw_clean = re.sub(
+        r"^(give me the|give me|can i get the|can i get|can i download the|can i download|download the|download|find the pdf for the|find the pdf for|find the pdf|find the|find|get me the pdf from the|get me the pdf from|get me the pdf|get me the|get me|where is the|please send me the|show me the pdf for|show me the pdf|show me the|fetch the|open the)\s+",
+        "",
+        message,
+        flags=re.IGNORECASE,
+    )
+    raw_clean = re.sub(r"\s+(?:from|in)\s+(?:the\s+)?([a-zA-Z0-9_\-\s]+?)\s+folder$", "", raw_clean, flags=re.IGNORECASE)
+    raw_clean = re.sub(r"\s+(pdf|file|document)$", "", raw_clean, flags=re.IGNORECASE)
+    raw_clean = re.sub(r"\.pdf$", "", raw_clean, flags=re.IGNORECASE).strip().lower()
+
+    folder_hint = ""
+    folder_match = re.search(r"(?:from|in)\s+(?:the\s+)?([a-zA-Z0-9_\-\s]+?)\s+folder", message, re.IGNORECASE)
+    if folder_match:
+        folder_hint = folder_match.group(1).strip().lower()
+    elif active_scope and active_scope.get("type") == "folder":
+        folder_hint = str(active_scope.get("name", "")).strip().lower()
+
+    # 1. Exact match search
+    exact_candidates = []
+    for d in accessible_pdfs:
+        orig = d.get("originalName", "")
+        name_no_ext = re.sub(r"\.pdf$", "", orig, flags=re.IGNORECASE).strip().lower()
+        full_name = orig.lower()
+        if name_no_ext == raw_clean or full_name == raw_clean or full_name == f"{raw_clean}.pdf":
+            if folder_hint:
+                if (d.get("folder") or "").lower() == folder_hint:
+                    exact_candidates.append(d)
+            else:
+                exact_candidates.append(d)
+
+    if not exact_candidates and folder_hint:
+        for d in accessible_pdfs:
+            orig = d.get("originalName", "")
+            name_no_ext = re.sub(r"\.pdf$", "", orig, flags=re.IGNORECASE).strip().lower()
+            full_name = orig.lower()
+            if name_no_ext == raw_clean or full_name == raw_clean or full_name == f"{raw_clean}.pdf":
+                exact_candidates.append(d)
+
+    if exact_candidates:
+        doc = exact_candidates[0]
+        effective_policy = get_effective_policy(doc)
+        if effective_policy == "allowed":
+            downloadable = {
+                "documentId": str(doc.get("_id") or doc.get("id")),
+                "fileName": doc.get("originalName"),
+                "fileSize": doc.get("fileSize", 0),
+                "mimeType": doc.get("mimeType", "application/pdf"),
+                "folder": doc.get("folder"),
+            }
+            return {
+                "final_answer": "Sure, I found the PDF.",
+                "downloadable_file": downloadable,
+                "intent": AgentIntent.FILE_REQUEST,
+            }
+        else:
+            return {
+                "final_answer": f"{doc.get('originalName')} is available, but this file is restricted from downloading.",
+                "downloadable_file": None,
+                "intent": AgentIntent.FILE_REQUEST,
+            }
+
+    # 2. Alternative search
+    if len(raw_clean) >= 3:
+        tokens = [t for t in raw_clean.split() if len(t) > 2]
+        scored = []
+        for d in accessible_pdfs:
+            doc_name = d.get("originalName", "").lower()
+            score = 0
+            if folder_hint and (d.get("folder") or "").lower() == folder_hint:
+                score += 3
+            if raw_clean in doc_name:
+                score += 5
+            for t in tokens:
+                if t in doc_name:
+                    score += 2
+            if score >= 5:
+                scored.append((score, d))
+
+        if scored:
+            scored.sort(key=lambda x: x[0], reverse=True)
+            best_alt = scored[0][1]
+            folder_part = f" in the {best_alt.get('folder')} folder" if best_alt.get('folder') else ""
+            return {
+                "final_answer": f"I couldn't find that exact PDF, but I found '{best_alt.get('originalName')}'{folder_part}. Is that the file you're looking for?",
+                "downloadable_file": None,
+                "intent": AgentIntent.FILE_REQUEST,
+            }
+
+    return {
+        "final_answer": "Sorry, I couldn't find that PDF.",
+        "downloadable_file": None,
+        "intent": AgentIntent.FILE_REQUEST,
+    }
+
+
+# -------------------------------------------------------------
 # Router Condition
 # -------------------------------------------------------------
-def route_next_step(state: AgentState) -> Literal["document_rag", "data_analysis", "chart_request", "calculator", "general_chat"]:
+def route_next_step(state: AgentState) -> Literal["file_request", "document_rag", "data_analysis", "chart_request", "calculator", "general_chat"]:
     intent = state.get("intent", AgentIntent.GENERAL_CHAT)
-    if intent == AgentIntent.DOCUMENT_RAG:
+    if intent == AgentIntent.FILE_REQUEST:
+        return "file_request"
+    elif intent == AgentIntent.DOCUMENT_RAG:
         return "document_rag"
     elif intent in [AgentIntent.DATA_ANALYSIS, AgentIntent.COMBINED]:
         return "data_analysis"
@@ -617,6 +759,7 @@ def build_agent_graph():
 
     workflow.add_node("resolve_context", resolve_context_node)
     workflow.add_node("route_intent", route_intent_node)
+    workflow.add_node("file_request", file_request_node)
     workflow.add_node("document_rag", document_rag_node)
     workflow.add_node("data_analysis", data_analysis_node)
     workflow.add_node("chart_builder", chart_builder_node)
@@ -630,6 +773,7 @@ def build_agent_graph():
         "route_intent",
         route_next_step,
         {
+            "file_request": "file_request",
             "document_rag": "document_rag",
             "data_analysis": "data_analysis",
             "chart_request": "data_analysis",
@@ -637,6 +781,8 @@ def build_agent_graph():
             "general_chat": "general_chat",
         },
     )
+
+    workflow.add_edge("file_request", END)
 
     # Build charts if intent is CHART_REQUEST or user message requests visualization
     def should_build_chart_from_analysis(state: AgentState) -> Literal["chart_builder", "__end__"]:

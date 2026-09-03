@@ -28,4 +28,5 @@ class AgentState(TypedDict, total=False):
 
     # Final Result
     final_answer: str
+    downloadable_file: Optional[Dict[str, Any]]
 

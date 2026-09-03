@@ -10,6 +10,7 @@ class AgentIntent(str, Enum):
     CALCULATION = "calculation"
     COMBINED = "combined"
     GENERAL_CHAT = "general_chat"
+    FILE_REQUEST = "file_request"
 
 
 class ChartType(str, Enum):
@@ -77,6 +78,14 @@ class ChatRequest(BaseModel):
     history: List[ChatMessageItem] = Field(default_factory=list)
 
 
+class DownloadableFile(BaseModel):
+    documentId: str
+    fileName: str
+    fileSize: int
+    mimeType: str = "application/pdf"
+    folder: Optional[str] = None
+
+
 class ChatResponse(BaseModel):
     answer: str
     intent: AgentIntent
@@ -86,5 +95,6 @@ class ChatResponse(BaseModel):
     generatedTable: Optional[TableSpec] = None
     pythonCode: Optional[str] = None
     executionOutput: Optional[str] = None
+    downloadableFile: Optional[DownloadableFile] = None
     tokensUsed: Optional[int] = 0
 

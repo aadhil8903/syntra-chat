@@ -16,6 +16,9 @@ export enum SupportedDocumentFormat {
   XLS = 'xls',
 }
 
+export type DocumentDownloadPolicy = 'inherit' | 'allowed' | 'restricted';
+export type DownloadPolicyState = 'allowed' | 'restricted';
+
 export interface IDocument {
   id: string;
   userId: string;
@@ -29,6 +32,8 @@ export interface IDocument {
   hasAccess?: boolean;
   requestStatus?: 'pending' | 'approved' | 'rejected' | null;
   folder?: string;
+  downloadPolicy?: DocumentDownloadPolicy;
+  effectiveDownloadPolicy?: DownloadPolicyState;
   status: DocumentStatus;
   chunkCount: number;
   sheetNames?: string[];

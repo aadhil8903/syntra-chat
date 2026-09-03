@@ -76,6 +76,11 @@ describe('DocumentsComponent (Responsive Navigation & Modal UX)', () => {
 
     mockApiService = {
       getDocuments: jest.fn().mockReturnValue(of(mockDocuments)),
+      getFolders: jest.fn().mockReturnValue(of([])),
+      updateFolderDownloadPolicy: jest.fn().mockReturnValue(of({ name: 'Sales', downloadPolicy: 'restricted' })),
+      updateDocumentDownloadPolicy: jest.fn().mockReturnValue(of({ ...mockDocuments[0], downloadPolicy: 'allowed' })),
+      downloadDocument: jest.fn().mockReturnValue(of(new Blob())),
+      triggerFileDownload: jest.fn().mockResolvedValue(undefined),
       createFolder: jest.fn().mockReturnValue(of({ success: true })),
       deleteFolder: jest.fn().mockReturnValue(of({ success: true })),
       uploadDocument: jest.fn().mockReturnValue(of(mockDocuments[0])),
@@ -388,6 +393,136 @@ describe('DocumentsComponent (Responsive Navigation & Modal UX)', () => {
 
       component.selectedSort = 'oldest';
       expect(component.filteredDocuments.map((d) => d.id)).toEqual(['d-1', 'd-2']);
+    });
+  });
+
+  describe('File-Manager Style Move Modal Workflow', () => {
+    beforeEach(() => {
+      component.documents = mockDocuments as any;
+      component.folderList = [
+        { id: 'f-1', name: 'Sales', allowedDepartments: [], downloadPolicy: 'allowed' },
+        { id: 'f-2', name: 'Sales/2026', allowedDepartments: [], downloadPolicy: 'allowed' },
+        { id: 'f-3', name: 'Sales/2026/Q1', allowedDepartments: [], downloadPolicy: 'allowed' },
+        { id: 'f-4', name: 'Finance', allowedDepartments: [], downloadPolicy: 'restricted' },
+        { id: 'f-5', name: 'HR', allowedDepartments: [], downloadPolicy: 'allowed' },
+      ];
+    });
+
+    it('21. should open move modal with target doc and reset navigation state', () => {
+      const doc = mockDocuments[0]; // in 'Sales/2026/Q1'
+      component.openMoveModal(doc as any);
+
+      expect(component.showMoveModal).toBe(true);
+      expect(component.moveTargetDoc).toBe(doc);
+      expect(component.moveModalCurrentNavPath).toBe('');
+      expect(component.moveSelectedDestination).toBeNull();
+      expect(component.isMovingFile).toBe(false);
+      expect(component.moveErrorMessage).toBeNull();
+    });
+
+    it('22. should compute breadcrumbs correctly for root and nested paths', () => {
+      component.moveModalCurrentNavPath = '';
+      expect(component.moveBreadcrumbSegments).toEqual([{ label: 'All Files', path: '' }]);
+
+      component.moveModalCurrentNavPath = 'Sales/2026/Q1';
+      expect(component.moveBreadcrumbSegments).toEqual([
+        { label: 'All Files', path: '' },
+        { label: 'Sales', path: 'Sales' },
+        { label: '2026', path: 'Sales/2026' },
+        { label: 'Q1', path: 'Sales/2026/Q1' },
+      ]);
+    });
+
+    it('23. should return subfolders for current navigation level', () => {
+      // At root level
+      const rootSubs = component.getMoveSubfolders('');
+      const names = rootSubs.map((s) => s.name);
+      expect(names).toContain('Sales');
+      expect(names).toContain('Finance');
+      expect(names).toContain('HR');
+
+      // Under Sales
+      const salesSubs = component.getMoveSubfolders('Sales');
+      expect(salesSubs.map((s) => s.name)).toEqual(['2026']);
+      expect(salesSubs[0].fullPath).toBe('Sales/2026');
+
+      // Under Sales/2026
+      const yearSubs = component.getMoveSubfolders('Sales/2026');
+      expect(yearSubs.map((s) => s.name)).toEqual(['Q1']);
+    });
+
+    it('24. should navigate folders and navigate up properly', () => {
+      component.navigateMoveFolder('Sales/2026');
+      expect(component.moveModalCurrentNavPath).toBe('Sales/2026');
+
+      component.navigateMoveFolderUp();
+      expect(component.moveModalCurrentNavPath).toBe('Sales');
+
+      component.navigateMoveFolderUp();
+      expect(component.moveModalCurrentNavPath).toBe('');
+
+      // Navigating up from root should remain root
+      component.navigateMoveFolderUp();
+      expect(component.moveModalCurrentNavPath).toBe('');
+    });
+
+    it('25. should identify when selected destination is the file current folder', () => {
+      component.moveTargetDoc = mockDocuments[0] as any; // folder: 'Sales/2026/Q1'
+
+      component.selectMoveDestination('Sales/2026/Q1');
+      expect(component.isDestinationCurrentLocation()).toBe(true);
+
+      component.selectMoveDestination('Finance');
+      expect(component.isDestinationCurrentLocation()).toBe(false);
+
+      component.selectMoveDestination('');
+      expect(component.isDestinationCurrentLocation()).toBe(false);
+    });
+
+    it('26. should execute move and refresh documents and folders', () => {
+      component.openMoveModal(mockDocuments[0] as any);
+      component.selectMoveDestination('Finance');
+
+      component.executeMove();
+
+      expect(mockApiService.updateDocumentFolder).toHaveBeenCalledWith('doc-1', 'Finance');
+      expect(component.showMoveModal).toBe(false);
+      expect(component.isMovingFile).toBe(false);
+      expect(mockApiService.getDocuments).toHaveBeenCalled();
+      expect(mockApiService.getFolders).toHaveBeenCalled();
+    });
+
+    it('27. should prevent move if selected destination is the current location', () => {
+      component.openMoveModal(mockDocuments[0] as any);
+      component.selectMoveDestination('Sales/2026/Q1');
+
+      component.executeMove();
+
+      expect(mockApiService.updateDocumentFolder).not.toHaveBeenCalled();
+    });
+
+    it('28. should handle move errors and keep modal open with error message', () => {
+      mockApiService.updateDocumentFolder.mockReturnValue(
+        throwError(() => ({ error: { message: 'Destination folder is locked' } }))
+      );
+
+      component.openMoveModal(mockDocuments[0] as any);
+      component.selectMoveDestination('Finance');
+
+      component.executeMove();
+
+      expect(component.isMovingFile).toBe(false);
+      expect(component.showMoveModal).toBe(true);
+      expect(component.moveErrorMessage).toBe('Destination folder is locked');
+    });
+
+    it('29. should close modal on closeMoveModal or escape key', () => {
+      component.openMoveModal(mockDocuments[0] as any);
+      expect(component.showMoveModal).toBe(true);
+
+      component.onEscapeKey(new KeyboardEvent('keydown', { key: 'Escape' }));
+      expect(component.showMoveModal).toBe(false);
+      expect(component.moveTargetDoc).toBeNull();
     });
   });
 });

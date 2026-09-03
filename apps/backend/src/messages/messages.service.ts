@@ -12,11 +12,19 @@ import { Model, Types } from 'mongoose';
 import { MessageEntity, MessageEntityDocument } from './schemas/message.schema';
 import { ConversationEntity, ConversationEntityDocument } from '../conversations/schemas/conversation.schema';
 import { SendMessageDto } from './dto/send-message.dto';
-import { IMessage, MessageRole, ISendMessageResponse, IActiveScope } from '@enter-chat/shared-types';
+import {
+  IMessage,
+  MessageRole,
+  ISendMessageResponse,
+  IActiveScope,
+  IDownloadableFile,
+  AgentIntent,
+} from '@enter-chat/shared-types';
 import { OwnershipService } from '../permissions/services/ownership.service';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import { MentionsService } from '../mentions/mentions.service';
 import { CollectionsService } from '../collections/collections.service';
+import { DocumentsService } from '../documents/documents.service';
 
 interface IResolvedScopeData {
   explicitMentionedIds: string[];
@@ -35,21 +43,6 @@ function isClearlyUnrelatedQuestion(content: string): boolean {
   const trimmed = content.trim().toLowerCase();
   if (!trimmed) return true;
 
-  // Contextual keywords that clearly reference conversation scope or document queries
-  const contextualTerms = [
-    'file', 'files', 'document', 'documents', 'doc', 'docs', 'folder', 'folders',
-    'it', 'its', 'this', 'that', 'these', 'those', 'them',
-    'inside', 'summary', 'summarize', 'explain', 'tell me more', 'elaborate',
-    'key points', 'mention', 'section', 'sections', 'page', 'pages', 'table', 'sheet', 'data',
-    'policy', 'leave', 'vacation', 'holiday', 'handbook', 'guide', 'procedure', 'rule', 'rules',
-    'what about', 'what does', 'show me', 'list', 'details', 'points', 'who is mentioned',
-    'analyze', 'breakdown', 'chart', 'graph', 'average', 'total', 'calculate', 'cagr', 'profit'
-  ];
-
-  if (contextualTerms.some((term) => new RegExp(`\\b${term}\\b`, 'i').test(trimmed))) {
-    return false;
-  }
-
   // Pure general trivia or small talk patterns
   const generalTriviaPatterns = [
     /^what is the capital of/i,
@@ -60,7 +53,34 @@ function isClearlyUnrelatedQuestion(content: string): boolean {
     /^(how are you|hello|hi|hey|good morning|good evening)$/i,
   ];
 
-  return generalTriviaPatterns.some((pattern) => pattern.test(trimmed));
+  if (generalTriviaPatterns.some((pattern) => pattern.test(trimmed))) {
+    return true;
+  }
+
+  // Contextual keywords that clearly reference conversation scope or document queries
+  const contextualTerms = [
+    'file', 'files', 'document', 'documents', 'doc', 'docs', 'folder', 'folders',
+    'dataset', 'datasets', 'table', 'chart', 'summary', 'summarize', 'analyze', 'explain',
+    'this', 'that', 'it', 'them', 'these', 'those', 'here', 'above', 'previous', 'show',
+    'find', 'get', 'calculate', 'average', 'total',
+  ];
+
+  if (contextualTerms.some((term) => trimmed.includes(term))) {
+    return false;
+  }
+
+  return false;
+}
+
+/**
+ * Detects if a user message is explicitly asking to find, get, or download a PDF or file.
+ */
+function isPdfDiscoveryRequest(content: string): boolean {
+  const lower = content.toLowerCase().trim();
+  const fileKeywords = /\b(pdf|file|document|handbook|guide|report|policy|agreement|manual)\b/i;
+  const requestKeywords = /\b(give me|can i get|can i download|download|find|get me|where is|send me|show me|fetch|locate)\b/i;
+  const directDownload = /^(download|get)\s+/i;
+  return (fileKeywords.test(lower) && requestKeywords.test(lower)) || directDownload.test(lower);
 }
 
 @Injectable()
@@ -82,6 +102,7 @@ export class MessagesService {
     private readonly aiGatewayService: AiGatewayService,
     private readonly mentionsService: MentionsService,
     private readonly collectionsService: CollectionsService,
+    private readonly documentsService: DocumentsService,
   ) {}
 
   getActiveGenerations(userId: string): string[] {
@@ -440,6 +461,23 @@ export class MessagesService {
       }
 
       // 8. Call AI Service via AiGateway with structured activeScope
+      const isFileReq = isPdfDiscoveryRequest(content);
+      let authoritativeDownloadableFile: IDownloadableFile | undefined;
+      let fileRes: any = null;
+
+      if (isFileReq) {
+        fileRes = await this.documentsService.resolvePdfRequest(userId, content, scopeData.activeScope);
+        if (fileRes.matchType === 'exact' && fileRes.found && fileRes.document && fileRes.canDownload) {
+          authoritativeDownloadableFile = {
+            documentId: fileRes.document.id,
+            fileName: fileRes.document.originalName,
+            fileSize: fileRes.document.fileSize,
+            mimeType: fileRes.document.mimeType || 'application/pdf',
+            folder: fileRes.document.folder,
+          };
+        }
+      }
+
       const aiResponse = await this.aiGatewayService.chat({
         userId,
         userRole,
@@ -450,6 +488,36 @@ export class MessagesService {
         sharedMemory: sharedMemory || undefined,
         history,
       });
+
+      // Authoritative security check: Validate any AI-suggested downloadableFile
+      if (aiResponse.downloadableFile?.documentId) {
+        const canDl = await this.documentsService.canUserDownloadDocument(userId, aiResponse.downloadableFile.documentId);
+        if (canDl.canDownload) {
+          authoritativeDownloadableFile = aiResponse.downloadableFile;
+        } else {
+          authoritativeDownloadableFile = undefined;
+        }
+      }
+
+      // Enforce clean, natural, accurate response wording for file requests
+      if (isFileReq && fileRes) {
+        if (fileRes.matchType === 'exact') {
+          if (!fileRes.canDownload) {
+            authoritativeDownloadableFile = undefined;
+            aiResponse.answer = `${fileRes.document?.originalName || 'This file'} is available, but this file is restricted from downloading.`;
+          } else if (!aiResponse.answer || aiResponse.answer.toLowerCase().includes("couldn't find") || aiResponse.answer.toLowerCase().includes("cannot find")) {
+            aiResponse.answer = `Sure, I found the PDF.`;
+          }
+        } else if (fileRes.matchType === 'alternative' && fileRes.alternativeDocument) {
+          authoritativeDownloadableFile = undefined;
+          aiResponse.answer = `I couldn't find that exact PDF, but I found '${fileRes.alternativeDocument.originalName}'${fileRes.alternativeDocument.folder ? ` in the ${fileRes.alternativeDocument.folder} folder` : ''}. Is that the file you're looking for?`;
+        } else if (fileRes.matchType === 'none') {
+          authoritativeDownloadableFile = undefined;
+          if (!aiResponse.answer || aiResponse.intent === AgentIntent.FILE_REQUEST || aiResponse.answer.toLowerCase().includes("couldn't find") || aiResponse.answer.toLowerCase().includes("cannot find")) {
+            aiResponse.answer = `Sorry, I couldn't find that PDF.`;
+          }
+        }
+      }
 
       // 9. Save Assistant Message
       const assistantMsgDoc = new this.messageModel({
@@ -464,6 +532,7 @@ export class MessagesService {
         generatedTable: aiResponse.generatedTable,
         pythonCode: aiResponse.pythonCode,
         executionOutput: aiResponse.executionOutput,
+        downloadableFile: authoritativeDownloadableFile,
       });
       const savedAssistantMsg = await assistantMsgDoc.save();
 
@@ -625,6 +694,23 @@ export class MessagesService {
       let fullAnswer = '';
       let metadata: any = {};
 
+      const isFileReq = isPdfDiscoveryRequest(content);
+      let authoritativeDownloadableFile: IDownloadableFile | undefined;
+      let fileRes: any = null;
+
+      if (isFileReq) {
+        fileRes = await this.documentsService.resolvePdfRequest(userId, content, scopeData.activeScope);
+        if (fileRes.matchType === 'exact' && fileRes.found && fileRes.document && fileRes.canDownload) {
+          authoritativeDownloadableFile = {
+            documentId: fileRes.document.id,
+            fileName: fileRes.document.originalName,
+            fileSize: fileRes.document.fileSize,
+            mimeType: fileRes.document.mimeType || 'application/pdf',
+            folder: fileRes.document.folder,
+          };
+        }
+      }
+
       try {
         const stream = await this.aiGatewayService.streamChat({
           userId,
@@ -647,7 +733,6 @@ export class MessagesService {
 
             for (const block of lines) {
               if (!block.trim()) continue;
-              res.write(`${block}\n\n`);
 
               const eventMatch = block.match(/event:\s*(\w+)/);
               const dataMatch = block.match(/data:\s*(.+)/);
@@ -657,10 +742,17 @@ export class MessagesService {
                   const parsed = JSON.parse(dataMatch[1]);
                   if (eventType === 'token' && parsed.token) {
                     fullAnswer += parsed.token;
+                    res.write(`${block}\n\n`);
                   } else if (eventType === 'metadata') {
                     metadata = parsed;
+                  } else {
+                    res.write(`${block}\n\n`);
                   }
-                } catch (e) {}
+                } catch (e) {
+                  res.write(`${block}\n\n`);
+                }
+              } else {
+                res.write(`${block}\n\n`);
               }
             }
           });
@@ -688,6 +780,7 @@ export class MessagesService {
           generatedTable: chatRes.generatedTable,
           pythonCode: chatRes.pythonCode,
           executionOutput: chatRes.executionOutput,
+          downloadableFile: chatRes.downloadableFile,
           intent: chatRes.intent || 'general_chat',
         };
 
@@ -698,9 +791,48 @@ export class MessagesService {
           res.write(`event: token\ndata: ${JSON.stringify({ token: chunk })}\n\n`);
           await new Promise((r) => setTimeout(r, 15));
         }
-
-        res.write(`event: metadata\ndata: ${JSON.stringify(metadata)}\n\n`);
       }
+
+      // Security check on AI metadata for downloadableFile
+      if (metadata.downloadableFile?.documentId) {
+        const canDl = await this.documentsService.canUserDownloadDocument(userId, metadata.downloadableFile.documentId);
+        if (canDl.canDownload) {
+          authoritativeDownloadableFile = metadata.downloadableFile;
+        } else {
+          authoritativeDownloadableFile = undefined;
+          delete metadata.downloadableFile;
+        }
+      }
+
+      // Enforce clean, natural, accurate response wording for file requests
+      if (isFileReq && fileRes) {
+        if (fileRes.matchType === 'exact') {
+          if (!fileRes.canDownload) {
+            authoritativeDownloadableFile = undefined;
+            delete metadata.downloadableFile;
+            if (!fullAnswer || !fullAnswer.toLowerCase().includes('restricted')) {
+              fullAnswer = `${fileRes.document?.originalName || 'This file'} is available, but this file is restricted from downloading.`;
+            }
+          }
+        } else if (fileRes.matchType === 'alternative' && fileRes.alternativeDocument) {
+          authoritativeDownloadableFile = undefined;
+          delete metadata.downloadableFile;
+          if (!fullAnswer || fullAnswer.toLowerCase().includes("couldn't find") || fullAnswer.toLowerCase().includes("cannot find")) {
+            fullAnswer = `I couldn't find that exact PDF, but I found '${fileRes.alternativeDocument.originalName}'${fileRes.alternativeDocument.folder ? ` in the ${fileRes.alternativeDocument.folder} folder` : ''}. Is that the file you're looking for?`;
+          }
+        } else if (fileRes.matchType === 'none') {
+          authoritativeDownloadableFile = undefined;
+          delete metadata.downloadableFile;
+          if (!fullAnswer || metadata.intent === AgentIntent.FILE_REQUEST || fullAnswer.toLowerCase().includes("couldn't find") || fullAnswer.toLowerCase().includes("cannot find")) {
+            fullAnswer = `Sorry, I couldn't find that PDF.`;
+          }
+        }
+      }
+
+      if (authoritativeDownloadableFile) {
+        metadata.downloadableFile = authoritativeDownloadableFile;
+      }
+      res.write(`event: metadata\ndata: ${JSON.stringify(metadata)}\n\n`);
 
       // Save Assistant Message
       const assistantMsgDoc = new this.messageModel({
@@ -715,6 +847,7 @@ export class MessagesService {
         generatedTable: metadata.generatedTable,
         pythonCode: metadata.pythonCode,
         executionOutput: metadata.executionOutput,
+        downloadableFile: authoritativeDownloadableFile,
       });
       const savedAssistantMsg = await assistantMsgDoc.save();
 
@@ -796,6 +929,7 @@ export class MessagesService {
       generatedTable: doc.generatedTable,
       pythonCode: doc.pythonCode,
       executionOutput: doc.executionOutput,
+      downloadableFile: doc.downloadableFile,
       createdAt: doc.createdAt?.toISOString() || new Date().toISOString(),
     };
   }

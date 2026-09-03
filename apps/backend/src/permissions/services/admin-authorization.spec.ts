@@ -94,6 +94,7 @@ describe('Administrator Authorization Override & Isolation (Datasets & Documents
 
     foldersService = {
       findAll: jest.fn().mockResolvedValue([]),
+      findByName: jest.fn().mockResolvedValue(null),
     };
 
     mockDatasetModel = {

@@ -7,6 +7,7 @@ import { DatasetEntity, DatasetSchema } from '../datasets/schemas/dataset.schema
 import { MentionsModule } from '../mentions/mentions.module';
 import { CollectionsModule } from '../collections/collections.module';
 import { AiGatewayModule } from '../ai-gateway/ai-gateway.module';
+import { DocumentsModule } from '../documents/documents.module';
 import { MessagesService } from './messages.service';
 import { MessagesController } from './messages.controller';
 
@@ -21,6 +22,7 @@ import { MessagesController } from './messages.controller';
     MentionsModule,
     CollectionsModule,
     AiGatewayModule,
+    DocumentsModule,
   ],
   controllers: [MessagesController],
   providers: [MessagesService],

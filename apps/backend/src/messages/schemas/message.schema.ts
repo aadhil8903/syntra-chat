@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document as MongoDocument, Types } from 'mongoose';
-import { MessageRole, ICitation, IChartSpec, ITableSpec } from '@enter-chat/shared-types';
+import { MessageRole, ICitation, IChartSpec, ITableSpec, IDownloadableFile } from '@enter-chat/shared-types';
 
 export type MessageEntityDocument = MessageEntity & MongoDocument;
 
@@ -40,6 +40,9 @@ export class MessageEntity {
 
   @Prop({ required: false })
   executionOutput?: string;
+
+  @Prop({ type: Object, required: false })
+  downloadableFile?: IDownloadableFile;
 
   createdAt: Date;
   updatedAt: Date;

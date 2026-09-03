@@ -4,7 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
-import { IDocument, DocumentStatus, ResourceType } from '@enter-chat/shared-types';
+import {
+  IDocument,
+  DocumentStatus,
+  ResourceType,
+  IFolder,
+  DocumentDownloadPolicy,
+  FolderDownloadPolicy,
+} from '@enter-chat/shared-types';
 import { AuthService } from '../../core/services/auth.service';
 import { ModalDialogService } from '../../core/services/modal-dialog.service';
 import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder.util';
@@ -200,60 +207,354 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
         </div>
       }
 
-      <!-- Move Document to Folder Modal -->
+      <!-- Move Document to Folder Modal (File-Manager Style) -->
       @if (showMoveModal && moveTargetDoc) {
         <div
-          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+          class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-sm animate-fade-in"
           (click)="closeMoveModal()"
         >
           <div
-            class="w-full max-w-md bg-[#111114] border border-zinc-800 rounded-2xl shadow-2xl p-6 space-y-4"
+            class="w-full max-w-lg bg-[#111114] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
             (click)="$event.stopPropagation()"
           >
-            <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-4 sm:p-5 border-b border-zinc-800 flex-shrink-0">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 flex-shrink-0">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                   </svg>
                 </div>
-                <div>
-                  <h3 class="text-sm font-semibold text-white">Move File to Folder</h3>
-                  <p class="text-xs text-zinc-400 font-mono truncate max-w-xs">{{ moveTargetDoc.originalName }}</p>
+                <div class="min-w-0">
+                  <h3 class="text-sm font-semibold text-white truncate" [title]="moveTargetDoc.originalName">
+                    Move "{{ moveTargetDoc.originalName }}"
+                  </h3>
+                  <p class="text-xs text-zinc-400 mt-0.5">Select destination folder</p>
                 </div>
               </div>
-              <button (click)="closeMoveModal()" class="text-zinc-400 hover:text-white" title="Close (Esc)">
+              <button
+                (click)="closeMoveModal()"
+                class="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                title="Close (Esc)"
+              >
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            <div class="space-y-2">
-              <label class="block text-xs font-medium text-zinc-400">Select Destination Folder</label>
-              <select
-                [(ngModel)]="moveSelectedFolder"
-                class="w-full px-3 py-2.5 rounded-xl bg-[#09090b] border border-zinc-800 text-xs text-white focus:outline-none focus:border-zinc-500"
-              >
-                <option value="">Root / Unfiled</option>
-                @for (f of availableFolderList; track f) {
-                  <option [value]="f">{{ f }}</option>
+            <!-- Modal Body (Scrollable) -->
+            <div class="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
+              <!-- Breadcrumb Navigation Bar -->
+              <div class="flex items-center gap-1.5 p-2 rounded-xl bg-[#09090b] border border-zinc-800 text-xs overflow-x-auto">
+                @if (moveModalCurrentNavPath) {
+                  <button
+                    type="button"
+                    (click)="navigateMoveFolderUp()"
+                    class="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors flex-shrink-0"
+                    title="Go to parent folder"
+                  >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                  </button>
                 }
-              </select>
+
+                <div class="flex items-center gap-1 min-w-0 flex-wrap">
+                  @for (crumb of moveBreadcrumbSegments; track crumb.path; let last = $last) {
+                    @if (!$first) {
+                      <span class="text-zinc-600 font-mono">/</span>
+                    }
+                    <button
+                      type="button"
+                      (click)="navigateMoveFolder(crumb.path)"
+                      class="px-2 py-1 rounded-lg transition-colors font-mono truncate max-w-[120px]"
+                      [ngClass]="last ? 'bg-zinc-800 text-white font-semibold' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/60'"
+                    >
+                      {{ crumb.label }}
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <!-- Folder Navigation & Destination List -->
+              <div class="space-y-1.5">
+                <!-- Option to Select Current Directory itself -->
+                <div
+                  (click)="selectMoveDestination(moveModalCurrentNavPath)"
+                  class="flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all duration-150 min-h-[44px]"
+                  [ngClass]="moveSelectedDestination === moveModalCurrentNavPath ? 'bg-red-950/30 border-red-500/50 text-white' : 'bg-zinc-900/40 border-zinc-800 hover:bg-zinc-800/40 text-zinc-300'"
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <span
+                      class="w-5 h-5 rounded-full flex items-center justify-center border text-[10px]"
+                      [ngClass]="moveSelectedDestination === moveModalCurrentNavPath ? 'border-red-500 bg-red-500 text-white' : 'border-zinc-600 text-transparent'"
+                    >
+                      ✓
+                    </span>
+                    <span class="text-xs font-semibold truncate">
+                      {{ moveModalCurrentNavPath ? '📁 Place in: ' + moveModalCurrentNavPath : '📁 All Files (Root Directory)' }}
+                    </span>
+                  </div>
+                  <span class="text-[11px] text-zinc-500 font-mono flex-shrink-0">
+                    {{ moveSelectedDestination === moveModalCurrentNavPath ? 'Selected' : 'Choose current folder' }}
+                  </span>
+                </div>
+
+                <!-- Subfolders List -->
+                @let subfolders = getMoveSubfolders(moveModalCurrentNavPath);
+                @if (subfolders.length > 0) {
+                  <div class="space-y-1 pt-1 max-h-[260px] overflow-y-auto pr-1">
+                    @for (sub of subfolders; track sub.fullPath) {
+                      <div
+                        (click)="selectMoveDestination(sub.fullPath)"
+                        class="group flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all duration-150 min-h-[44px]"
+                        [ngClass]="moveSelectedDestination === sub.fullPath ? 'bg-red-950/30 border-red-500/50 text-white' : 'bg-[#111114] border-zinc-800/80 hover:bg-zinc-800/40 hover:border-zinc-700 text-zinc-300'"
+                      >
+                        <!-- Left: Folder icon and name -->
+                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                          <span
+                            class="w-5 h-5 rounded-full flex items-center justify-center border text-[10px] flex-shrink-0"
+                            [ngClass]="moveSelectedDestination === sub.fullPath ? 'border-red-500 bg-red-500 text-white' : 'border-zinc-700 text-transparent group-hover:border-zinc-500'"
+                          >
+                            ✓
+                          </span>
+                          <span class="text-base flex-shrink-0">📁</span>
+                          <span class="text-xs font-medium text-zinc-200 group-hover:text-white truncate" [title]="sub.name">
+                            {{ sub.name }}
+                          </span>
+                        </div>
+
+                        <!-- Right: Subfolder count badge & drill-down action -->
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                          @if (sub.subfolderCount > 0) {
+                            <span class="text-[10px] text-zinc-500 font-mono px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800">
+                              {{ sub.subfolderCount }} sub
+                            </span>
+                          }
+                          <button
+                            type="button"
+                            (click)="$event.stopPropagation(); navigateMoveFolder(sub.fullPath)"
+                            class="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 border border-transparent hover:border-zinc-700 transition-colors flex items-center gap-1 text-xs"
+                            title="Open subfolder"
+                          >
+                            <span>Open</span>
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                } @else {
+                  <div class="p-6 text-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-xl">
+                    No subfolders in this directory
+                  </div>
+                }
+              </div>
+
+              <!-- Location & Selection Feedback -->
+              <div class="p-3 rounded-xl bg-[#09090b] border border-zinc-800 text-xs space-y-1.5">
+                <div class="flex items-center justify-between text-zinc-400">
+                  <span>Current location:</span>
+                  <span class="text-zinc-200 font-mono">{{ moveTargetDoc.folder ? moveTargetDoc.folder : 'All Files (Root)' }}</span>
+                </div>
+
+                @if (moveSelectedDestination !== null) {
+                  <div class="flex items-center justify-between text-zinc-400 pt-1 border-t border-zinc-800/80">
+                    <span>Target destination:</span>
+                    <span class="text-white font-mono font-semibold">{{ moveSelectedDestination ? moveSelectedDestination : 'All Files (Root)' }}</span>
+                  </div>
+                }
+
+                @if (isDestinationCurrentLocation()) {
+                  <div class="text-[11px] text-amber-400 flex items-center gap-1.5 pt-1">
+                    <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span>File is already in this folder.</span>
+                  </div>
+                }
+
+                @if (moveErrorMessage) {
+                  <div class="text-[11px] text-red-400 pt-1">
+                    {{ moveErrorMessage }}
+                  </div>
+                }
+              </div>
             </div>
 
-            <div class="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
+            <!-- Footer -->
+            <div class="p-4 sm:p-5 border-t border-zinc-800 flex items-center justify-end gap-2.5 flex-shrink-0 bg-[#111114]">
               <button
+                type="button"
                 (click)="closeMoveModal()"
-                class="px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-colors"
+                [disabled]="isMovingFile"
+                class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 (click)="executeMove()"
-                class="px-4 py-1.5 rounded-lg bg-white hover:bg-zinc-200 text-black text-xs font-semibold transition-colors"
+                [disabled]="isMovingFile || moveSelectedDestination === null || isDestinationCurrentLocation()"
+                class="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-400 active:bg-red-600 text-white text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
               >
-                Move File
+                @if (isMovingFile) {
+                  <svg class="w-3.5 h-3.5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Moving file...</span>
+                } @else {
+                  <span>Move Here</span>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Admin File Download Policy Modal -->
+      @if (editingDownloadPolicyDoc && isAdmin) {
+        <div
+          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+          (click)="closeDownloadPolicyModal()"
+        >
+          <div
+            class="w-full max-w-md bg-[#111114] border border-zinc-800 rounded-2xl p-6 space-y-5 shadow-2xl"
+            (click)="$event.stopPropagation()"
+          >
+            <!-- Header -->
+            <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-sm font-semibold text-white">Download Permission</h3>
+                  <p class="text-xs text-zinc-400 font-mono truncate max-w-[220px]" [title]="editingDownloadPolicyDoc.originalName">
+                    {{ editingDownloadPolicyDoc.originalName }}
+                  </p>
+                </div>
+              </div>
+              <button
+                (click)="closeDownloadPolicyModal()"
+                class="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              >
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Current Effective Status Info -->
+            <div class="p-3.5 rounded-xl bg-zinc-900/80 border border-zinc-800 text-xs space-y-2">
+              <div class="flex items-center justify-between text-zinc-400">
+                <span>Folder:</span>
+                <span class="text-zinc-200 font-mono">{{ editingDownloadPolicyDoc.folder || 'Root' }}</span>
+              </div>
+              <div class="flex items-center justify-between text-zinc-400">
+                <span>Folder Policy:</span>
+                <span class="font-medium" [ngClass]="getFolderPolicy(editingDownloadPolicyDoc.folder) === 'restricted' ? 'text-red-400' : 'text-zinc-200'">
+                  {{ getFolderPolicy(editingDownloadPolicyDoc.folder) | titlecase }}
+                </span>
+              </div>
+              <div class="flex items-center justify-between text-zinc-400 pt-1.5 border-t border-zinc-800/80">
+                <span>Effective Permission:</span>
+                <span class="font-semibold" [ngClass]="editingDownloadPolicyDoc.effectiveDownloadPolicy === 'restricted' ? 'text-red-400' : 'text-zinc-200'">
+                  {{ editingDownloadPolicyDoc.effectiveDownloadPolicy | titlecase }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Policy Options -->
+            <div class="space-y-2.5">
+              <label class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block">Policy Setting</label>
+
+              <!-- Option 1: Inherit -->
+              <label
+                (click)="selectedDocDownloadPolicy = 'inherit'"
+                class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors"
+                [ngClass]="selectedDocDownloadPolicy === 'inherit' ? 'bg-zinc-800/90 border-zinc-500' : 'bg-zinc-900/50 border-zinc-800 hover:bg-zinc-800/40'"
+              >
+                <input
+                  type="radio"
+                  name="downloadPolicyOption"
+                  value="inherit"
+                  [checked]="selectedDocDownloadPolicy === 'inherit'"
+                  class="mt-0.5 accent-white"
+                />
+                <div>
+                  <div class="text-xs font-semibold text-white">Use folder setting (Default)</div>
+                  <div class="text-[11px] text-zinc-400 mt-0.5">
+                    Inherits from {{ editingDownloadPolicyDoc.folder ? editingDownloadPolicyDoc.folder : 'Root' }} (currently {{ getFolderPolicy(editingDownloadPolicyDoc.folder) }}).
+                  </div>
+                </div>
+              </label>
+
+              <!-- Option 2: Always Allowed -->
+              <label
+                (click)="selectedDocDownloadPolicy = 'allowed'"
+                class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors"
+                [ngClass]="selectedDocDownloadPolicy === 'allowed' ? 'bg-zinc-800/90 border-zinc-500' : 'bg-zinc-900/50 border-zinc-800 hover:bg-zinc-800/40'"
+              >
+                <input
+                  type="radio"
+                  name="downloadPolicyOption"
+                  value="allowed"
+                  [checked]="selectedDocDownloadPolicy === 'allowed'"
+                  class="mt-0.5 accent-white"
+                />
+                <div>
+                  <div class="text-xs font-semibold text-white">Always Allowed (Override)</div>
+                  <div class="text-[11px] text-zinc-400 mt-0.5">
+                    Authorized users can download this file regardless of folder restrictions.
+                  </div>
+                </div>
+              </label>
+
+              <!-- Option 3: Restricted -->
+              <label
+                (click)="selectedDocDownloadPolicy = 'restricted'"
+                class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors"
+                [ngClass]="selectedDocDownloadPolicy === 'restricted' ? 'bg-zinc-800/90 border-zinc-500' : 'bg-zinc-900/50 border-zinc-800 hover:bg-zinc-800/40'"
+              >
+                <input
+                  type="radio"
+                  name="downloadPolicyOption"
+                  value="restricted"
+                  [checked]="selectedDocDownloadPolicy === 'restricted'"
+                  class="mt-0.5 accent-white"
+                />
+                <div>
+                  <div class="text-xs font-semibold text-white">Restricted (Override)</div>
+                  <div class="text-[11px] text-zinc-400 mt-0.5">
+                    Blocks in-chat and manual download for all users.
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <!-- Footer Buttons -->
+            <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-800">
+              <button
+                type="button"
+                (click)="closeDownloadPolicyModal()"
+                class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                (click)="saveDocumentDownloadPolicy()"
+                [disabled]="isSavingDocDownloadPolicy"
+                class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-semibold transition-colors disabled:opacity-50"
+              >
+                {{ isSavingDocDownloadPolicy ? 'Saving...' : 'Save Setting' }}
               </button>
             </div>
           </div>
@@ -276,6 +577,30 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
         <div class="flex items-center gap-2.5 flex-wrap">
           @if (isAdmin) {
             @if (activeFolder) {
+              <!-- Folder Download Policy Toggle (Admin) -->
+              <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs">
+                <span class="text-zinc-400">Downloads:</span>
+                <button
+                  type="button"
+                  (click)="toggleActiveFolderDownloadPolicy()"
+                  class="flex items-center gap-1.5 font-medium px-2.5 py-1 rounded-lg transition-colors text-xs"
+                  [ngClass]="activeFolderDownloadPolicy === 'restricted' ? 'bg-red-950/40 hover:bg-red-950/60 text-red-300 border border-red-500/40' : 'bg-[#18181b] hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-700/80'"
+                  [title]="'Click to toggle folder download policy (currently ' + activeFolderDownloadPolicy + ')'"
+                >
+                  @if (activeFolderDownloadPolicy === 'restricted') {
+                    <svg class="w-3.5 h-3.5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span>Restricted</span>
+                  } @else {
+                    <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                    </svg>
+                    <span>Allowed</span>
+                  }
+                </button>
+              </div>
+
               <button
                 (click)="deleteFolder(activeFolder)"
                 class="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 text-xs font-medium transition-colors flex items-center gap-1.5"
@@ -534,6 +859,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                   <th class="px-4 py-3.5 min-w-[110px]">Folder</th>
                   <th class="px-3 py-3.5 text-center min-w-[75px]">Format</th>
                   <th class="px-4 py-3.5 min-w-[105px]">Status</th>
+                  <th class="px-3 py-3.5 text-center min-w-[110px]">Download</th>
                   <th class="px-4 py-3.5 font-mono min-w-[110px]">Chunks / Rows</th>
                   <th class="px-4 py-3.5 font-mono min-w-[80px]">Size</th>
                   <th class="px-4 py-3.5 min-w-[110px]">Uploaded</th>
@@ -592,32 +918,79 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                     <!-- Status -->
                     <td class="px-4 py-3.5">
                       @if (doc.status === DocumentStatus.READY) {
-                        <span class="inline-flex items-center gap-1.5 text-[11px] font-mono px-2 py-0.5 rounded-md bg-zinc-900 text-zinc-200 border border-zinc-800 font-semibold">
-                          <svg class="w-3 h-3 text-zinc-300" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                          </svg>
-                          Ready
+                        <span class="inline-flex items-center gap-2 text-xs font-mono text-zinc-300">
+                          <span class="w-2 h-2 rounded-full bg-zinc-200"></span>
+                          <span>Indexed</span>
                         </span>
                       } @else if (doc.status === DocumentStatus.PROCESSING) {
-                        <span class="inline-flex items-center gap-1.5 text-[11px] font-mono px-2 py-0.5 rounded-md bg-zinc-900 text-zinc-300 border border-zinc-800 font-semibold">
-                          <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-                          Processing
+                        <span class="inline-flex items-center gap-2 text-xs font-mono text-zinc-400">
+                          <span class="w-2 h-2 rounded-full bg-zinc-400 animate-pulse"></span>
+                          <span>Indexing...</span>
                         </span>
                       } @else {
-                        <div class="inline-flex items-center gap-1.5">
-                          <span class="inline-flex items-center gap-1.5 text-[11px] font-mono px-2 py-0.5 rounded-md bg-zinc-900 text-zinc-400 border border-zinc-800 font-semibold">
-                            <span class="w-1.5 h-1.5 rounded-full border border-zinc-500"></span>
-                            Failed
+                        <div class="inline-flex items-center gap-2">
+                          <span class="inline-flex items-center gap-1.5 text-xs font-mono text-red-400">
+                            <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                            <span>Failed</span>
                           </span>
                           <button
                             *ngIf="isAdmin"
                             (click)="$event.stopPropagation(); retryDoc(doc.id)"
                             class="px-2 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] border border-zinc-700 transition-colors"
-                            title="Retry AI ingestion"
+                            title="Retry ingestion"
                           >
                             Retry
                           </button>
                         </div>
+                      }
+                    </td>
+
+                    <!-- Download Permission Button -->
+                    <td class="px-3 py-3.5 text-center" (click)="$event.stopPropagation()">
+                      @if (doc.effectiveDownloadPolicy === 'restricted') {
+                        <button
+                          type="button"
+                          (click)="isAdmin ? openDownloadPolicyModal(doc) : null"
+                          [class.cursor-pointer]="isAdmin"
+                          [class.cursor-default]="!isAdmin"
+                          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-950/40 hover:bg-red-950/60 text-red-300 hover:text-red-200 border border-red-500/40 hover:border-red-500/60 text-xs font-medium transition-all shadow-sm group/perm"
+                          [title]="isAdmin ? 'Click to change download permission' : 'Download permission: Restricted'"
+                        >
+                          <svg class="w-3.5 h-3.5 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                          <span>Restricted</span>
+                          @if (doc.downloadPolicy === 'inherit') {
+                            <span class="text-[10px] text-red-400/70 font-mono font-normal">(Inherited)</span>
+                          }
+                          @if (isAdmin) {
+                            <svg class="w-3 h-3 text-red-400/60 group-hover/perm:text-red-300 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                          }
+                        </button>
+                      } @else {
+                        <button
+                          type="button"
+                          (click)="isAdmin ? openDownloadPolicyModal(doc) : null"
+                          [class.cursor-pointer]="isAdmin"
+                          [class.cursor-default]="!isAdmin"
+                          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#18181b] hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-700/80 hover:border-zinc-500 text-xs font-medium transition-all shadow-sm group/perm"
+                          [title]="isAdmin ? 'Click to change download permission' : 'Download permission: Allowed'"
+                        >
+                          <svg class="w-3.5 h-3.5 text-zinc-400 group-hover/perm:text-white transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                          </svg>
+                          <span>Allowed</span>
+                          @if (doc.downloadPolicy === 'inherit') {
+                            <span class="text-[10px] text-zinc-500 font-mono font-normal">(Inherited)</span>
+                          }
+                          @if (isAdmin) {
+                            <svg class="w-3 h-3 text-zinc-500 group-hover/perm:text-zinc-300 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                          }
+                        </button>
                       }
                     </td>
 
@@ -650,6 +1023,18 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                             title="Preview spreadsheet schema and sample data"
                           >
                             Preview
+                          </button>
+                        }
+                        @if (doc.effectiveDownloadPolicy !== 'restricted') {
+                          <button
+                            (click)="downloadDoc(doc)"
+                            class="text-zinc-300 hover:text-white px-2.5 py-1 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700 text-xs font-medium transition-colors inline-flex items-center gap-1"
+                            title="Download this file"
+                          >
+                            <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            <span>Download</span>
                           </button>
                         }
                         <button
@@ -746,19 +1131,38 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                 <div class="flex items-center justify-between text-xs font-mono pt-1">
                   <div>
                     @if (doc.status === DocumentStatus.READY) {
-                      <span class="inline-flex items-center gap-1 text-[11px] text-zinc-200">
-                        <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
-                        Ready
+                      <span class="inline-flex items-center gap-1.5 text-[11px] text-zinc-300">
+                        <span class="w-1.5 h-1.5 rounded-full bg-zinc-200"></span>
+                        Indexed
                       </span>
                     } @else if (doc.status === DocumentStatus.PROCESSING) {
-                      <span class="inline-flex items-center gap-1 text-[11px] text-zinc-300">
-                        <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-                        Processing
+                      <span class="inline-flex items-center gap-1.5 text-[11px] text-zinc-400">
+                        <span class="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-pulse"></span>
+                        Indexing...
                       </span>
                     } @else {
-                      <span class="inline-flex items-center gap-1 text-[11px] text-zinc-400">
-                        <span class="w-1.5 h-1.5 rounded-full border border-zinc-500"></span>
+                      <span class="inline-flex items-center gap-1.5 text-[11px] text-red-400">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
                         Failed
+                      </span>
+                    }
+                  </div>
+
+                  <!-- Download Status -->
+                  <div>
+                    @if (doc.effectiveDownloadPolicy === 'restricted') {
+                      <span class="inline-flex items-center gap-1 text-[10px] font-mono text-red-400">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        Restricted
+                      </span>
+                    } @else {
+                      <span class="inline-flex items-center gap-1 text-[10px] font-mono text-zinc-300">
+                        <svg class="w-3 h-3 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                        </svg>
+                        Allowed
                       </span>
                     }
                   </div>
@@ -775,6 +1179,17 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                 <!-- Actions Grid for Mobile -->
                 <div class="pt-2 border-t border-zinc-800/80 flex items-center gap-2 flex-wrap" (click)="$event.stopPropagation()">
                   @if (doc.hasAccess) {
+                    @if (doc.effectiveDownloadPolicy !== 'restricted') {
+                      <button
+                        (click)="downloadDoc(doc)"
+                        class="min-h-[40px] px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700 flex items-center justify-center gap-1 flex-1"
+                      >
+                        <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download
+                      </button>
+                    }
                     @if (isTabular(doc) && doc.sheets && doc.sheets.length > 0) {
                       <button
                         (click)="openTabularPreview(doc)"
@@ -784,6 +1199,13 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                       </button>
                     }
                     @if (isAdmin) {
+                      <button
+                        (click)="openDownloadPolicyModal(doc)"
+                        class="min-h-[40px] px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700 flex items-center justify-center gap-1 flex-1"
+                        title="Configure download permission"
+                      >
+                        Policy
+                      </button>
                       <button
                         (click)="triggerReplace(doc, replaceFileInput)"
                         class="min-h-[40px] px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700 flex items-center justify-center gap-1 flex-1"
@@ -878,7 +1300,10 @@ export class DocumentsComponent implements OnInit, OnDestroy {
 
   showMoveModal = false;
   moveTargetDoc: IDocument | null = null;
-  moveSelectedFolder = '';
+  moveModalCurrentNavPath = '';
+  moveSelectedDestination: string | null = null;
+  isMovingFile = false;
+  moveErrorMessage: string | null = null;
 
   showAccessModal = false;
   targetAccessItem: { id: string; name: string; type: ResourceType } | null = null;
@@ -889,8 +1314,18 @@ export class DocumentsComponent implements OnInit, OnDestroy {
   selectedTabularDoc: IDocument | null = null;
   activeSheetIndex = 0;
 
+  // Folder & Document Download Policy Management
+  folderList: IFolder[] = [];
+  editingDownloadPolicyDoc: IDocument | null = null;
+  selectedDocDownloadPolicy: DocumentDownloadPolicy = 'inherit';
+  isSavingDocDownloadPolicy = false;
+
   @HostListener('document:keydown.escape', ['$event'])
   onEscapeKey(_event: KeyboardEvent): void {
+    if (this.editingDownloadPolicyDoc) {
+      this.closeDownloadPolicyModal();
+      return;
+    }
     if (this.selectedTabularDoc) {
       this.closeTabularPreview();
       return;
@@ -1040,7 +1475,97 @@ export class DocumentsComponent implements OnInit, OnDestroy {
       const normalized = folderParam && typeof folderParam === 'string' && folderParam.trim() ? folderParam.trim() : null;
       this.activeFolder = normalized;
     });
+    this.loadFolders();
     this.loadDocuments();
+  }
+
+  loadFolders(): void {
+    if (typeof this.apiService?.getFolders === 'function') {
+      this.apiService.getFolders().subscribe({
+        next: (folders) => {
+          this.folderList = folders || [];
+        },
+        error: () => {},
+      });
+    }
+  }
+
+  getFolderPolicy(folderName?: string): FolderDownloadPolicy {
+    if (!folderName || !folderName.trim()) return 'allowed';
+    const f = this.folderList.find((x) => x.name.toLowerCase() === folderName.trim().toLowerCase());
+    return f?.downloadPolicy || 'allowed';
+  }
+
+  get activeFolderDownloadPolicy(): FolderDownloadPolicy {
+    return this.getFolderPolicy(this.activeFolder || '');
+  }
+
+  toggleActiveFolderDownloadPolicy(): void {
+    if (!this.activeFolder || !this.isAdmin) return;
+    const current = this.activeFolderDownloadPolicy;
+    const nextPolicy: FolderDownloadPolicy = current === 'allowed' ? 'restricted' : 'allowed';
+    this.apiService.updateFolderDownloadPolicy(this.activeFolder, nextPolicy).subscribe({
+      next: (updated) => {
+        const idx = this.folderList.findIndex((x) => x.name.toLowerCase() === this.activeFolder!.toLowerCase());
+        if (idx !== -1) {
+          this.folderList[idx] = updated;
+        } else {
+          this.folderList.push(updated);
+        }
+        this.loadDocuments();
+        this.showToast(`Folder download policy set to ${nextPolicy}`);
+      },
+      error: (err) => {
+        console.error('Failed to update folder policy:', err);
+        this.showToast(err?.error?.message || 'Failed to update folder download policy');
+      },
+    });
+  }
+
+  openDownloadPolicyModal(doc: IDocument): void {
+    if (!this.isAdmin) return;
+    this.editingDownloadPolicyDoc = doc;
+    this.selectedDocDownloadPolicy = (doc.downloadPolicy as DocumentDownloadPolicy) || 'inherit';
+  }
+
+  closeDownloadPolicyModal(): void {
+    this.editingDownloadPolicyDoc = null;
+    this.isSavingDocDownloadPolicy = false;
+  }
+
+  saveDocumentDownloadPolicy(): void {
+    if (!this.editingDownloadPolicyDoc) return;
+    this.isSavingDocDownloadPolicy = true;
+    const docId = this.editingDownloadPolicyDoc.id;
+    const policy = this.selectedDocDownloadPolicy;
+
+    this.apiService.updateDocumentDownloadPolicy(docId, policy).subscribe({
+      next: (updatedDoc) => {
+        const idx = this.documents.findIndex((d) => d.id === docId);
+        if (idx !== -1) {
+          this.documents[idx] = updatedDoc;
+        }
+        this.isSavingDocDownloadPolicy = false;
+        this.closeDownloadPolicyModal();
+        this.showToast(`Download policy updated for ${updatedDoc.originalName}`);
+      },
+      error: (err) => {
+        this.isSavingDocDownloadPolicy = false;
+        this.showToast(err?.error?.message || 'Failed to update download policy');
+      },
+    });
+  }
+
+  downloadDoc(doc: IDocument): void {
+    if (!doc.hasAccess) return;
+    if (doc.effectiveDownloadPolicy === 'restricted') {
+      this.showToast('This file is restricted from downloading.');
+      return;
+    }
+    this.apiService.triggerFileDownload(doc.id, doc.originalName).catch((err) => {
+      console.error('File download error:', err);
+      this.showToast(err?.error?.message || 'This file is restricted from downloading.');
+    });
   }
 
   ngOnDestroy(): void {
@@ -1239,28 +1764,133 @@ export class DocumentsComponent implements OnInit, OnDestroy {
     });
   }
 
+  getAllDistinctFolderPaths(): string[] {
+    const set = new Set<string>();
+    for (const f of this.folderList) {
+      if (f.name && f.name.trim()) set.add(f.name.trim());
+    }
+    for (const doc of this.documents) {
+      if (doc.folder && doc.folder.trim()) set.add(doc.folder.trim());
+    }
+    return Array.from(set).sort();
+  }
+
+  get moveBreadcrumbSegments(): { label: string; path: string }[] {
+    const segments = [{ label: 'All Files', path: '' }];
+    if (!this.moveModalCurrentNavPath) return segments;
+    const parts = this.moveModalCurrentNavPath.split('/').filter(Boolean);
+    let accumulated = '';
+    for (const part of parts) {
+      accumulated = accumulated ? `${accumulated}/${part}` : part;
+      segments.push({ label: part, path: accumulated });
+    }
+    return segments;
+  }
+
+  getMoveSubfolders(currentNavPath: string): { name: string; fullPath: string; hasSubfolders: boolean; subfolderCount: number }[] {
+    const allPaths = this.getAllDistinctFolderPaths();
+    const prefix = currentNavPath ? `${currentNavPath}/` : '';
+    const childrenMap = new Map<string, { fullPath: string; hasSubfolders: boolean; subfolderCount: number }>();
+
+    for (const p of allPaths) {
+      if (!currentNavPath) {
+        const topLevel = p.split('/')[0];
+        const existing = childrenMap.get(topLevel);
+        const fullPath = topLevel;
+        const isDeeper = p.includes('/');
+        if (!existing) {
+          childrenMap.set(topLevel, { fullPath, hasSubfolders: isDeeper, subfolderCount: isDeeper ? 1 : 0 });
+        } else if (isDeeper) {
+          existing.hasSubfolders = true;
+          existing.subfolderCount++;
+        }
+      } else if (p.startsWith(prefix) && p !== currentNavPath) {
+        const remainder = p.slice(prefix.length);
+        const directChild = remainder.split('/')[0];
+        const fullChildPath = `${prefix}${directChild}`;
+        const isDeeper = remainder.includes('/');
+        const existing = childrenMap.get(directChild);
+        if (!existing) {
+          childrenMap.set(directChild, { fullPath: fullChildPath, hasSubfolders: isDeeper, subfolderCount: isDeeper ? 1 : 0 });
+        } else if (isDeeper) {
+          existing.hasSubfolders = true;
+          existing.subfolderCount++;
+        }
+      }
+    }
+
+    return Array.from(childrenMap.entries())
+      .map(([name, data]) => ({
+        name,
+        fullPath: data.fullPath,
+        hasSubfolders: data.hasSubfolders,
+        subfolderCount: data.subfolderCount,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  navigateMoveFolder(path: string): void {
+    this.moveModalCurrentNavPath = (path || '').trim();
+    this.moveErrorMessage = null;
+  }
+
+  navigateMoveFolderUp(): void {
+    if (!this.moveModalCurrentNavPath) return;
+    const parts = this.moveModalCurrentNavPath.split('/').filter(Boolean);
+    parts.pop();
+    this.moveModalCurrentNavPath = parts.join('/');
+    this.moveErrorMessage = null;
+  }
+
+  selectMoveDestination(path: string): void {
+    this.moveSelectedDestination = (path || '').trim();
+    this.moveErrorMessage = null;
+  }
+
+  isDestinationCurrentLocation(): boolean {
+    if (!this.moveTargetDoc || this.moveSelectedDestination === null) return false;
+    const currentLoc = (this.moveTargetDoc.folder || '').trim();
+    return this.moveSelectedDestination === currentLoc;
+  }
+
   openMoveModal(doc: IDocument): void {
     this.moveTargetDoc = doc;
-    this.moveSelectedFolder = doc.folder || '';
+    this.moveModalCurrentNavPath = '';
+    this.moveSelectedDestination = null;
+    this.moveErrorMessage = null;
+    this.isMovingFile = false;
     this.showMoveModal = true;
   }
 
   closeMoveModal(): void {
     this.showMoveModal = false;
     this.moveTargetDoc = null;
-    this.moveSelectedFolder = '';
+    this.moveModalCurrentNavPath = '';
+    this.moveSelectedDestination = null;
+    this.moveErrorMessage = null;
+    this.isMovingFile = false;
   }
 
   executeMove(): void {
-    if (!this.moveTargetDoc) return;
-    this.apiService.updateDocumentFolder(this.moveTargetDoc.id, this.moveSelectedFolder).subscribe({
+    if (!this.moveTargetDoc || this.moveSelectedDestination === null) return;
+    if (this.isDestinationCurrentLocation()) return;
+
+    this.isMovingFile = true;
+    this.moveErrorMessage = null;
+    const docToMove = this.moveTargetDoc;
+    const targetFolder = this.moveSelectedDestination;
+
+    this.apiService.updateDocumentFolder(docToMove.id, targetFolder).subscribe({
       next: () => {
-        this.triggerToast(`Moved "${this.moveTargetDoc?.originalName}"`);
+        this.isMovingFile = false;
+        this.triggerToast('File moved successfully.');
         this.closeMoveModal();
         this.loadDocuments();
+        this.loadFolders();
       },
       error: (err) => {
-        this.uploadError = err.error?.message || 'Failed to move document';
+        this.isMovingFile = false;
+        this.moveErrorMessage = err.error?.message || 'Failed to move file. Please try again.';
       },
     });
   }
@@ -1306,6 +1936,10 @@ export class DocumentsComponent implements OnInit, OnDestroy {
     setTimeout(() => {
       this.toastMessage = '';
     }, 3000);
+  }
+
+  showToast(msg: string): void {
+    this.triggerToast(msg);
   }
 
   onDocDragStart(event: DragEvent, doc: IDocument): void {

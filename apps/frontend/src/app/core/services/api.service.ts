@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, timeout } from 'rxjs';
+import { Observable, timeout, firstValueFrom } from 'rxjs';
 import {
   IDocument,
   IDataset,
@@ -22,6 +22,8 @@ import {
   IFolder,
   ICreateFolderDto,
   IUpdateFolderDto,
+  DocumentDownloadPolicy,
+  FolderDownloadPolicy,
 } from '@enter-chat/shared-types';
 import { getApiBaseUrl } from '../config/app-config';
 
@@ -44,13 +46,51 @@ export class ApiService {
     return this.http.get<IDocument>(`${this.baseUrl}/documents/${id}`);
   }
 
-  uploadDocument(file: File, folder: string = ''): Observable<IDocument> {
+  uploadDocument(
+    file: File,
+    folder: string = '',
+    allowedDepartments: string[] = [],
+    downloadPolicy?: DocumentDownloadPolicy,
+  ): Observable<IDocument> {
     const formData = new FormData();
     formData.append('file', file);
     if (folder) {
       formData.append('folder', folder);
     }
+    if (allowedDepartments && allowedDepartments.length > 0) {
+      formData.append('allowedDepartments', JSON.stringify(allowedDepartments));
+    }
+    if (downloadPolicy) {
+      formData.append('downloadPolicy', downloadPolicy);
+    }
     return this.http.post<IDocument>(`${this.baseUrl}/documents/upload`, formData);
+  }
+
+  downloadDocument(id: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/documents/${id}/download`, {
+      responseType: 'blob',
+    });
+  }
+
+  async triggerFileDownload(id: string, fileName: string): Promise<void> {
+    const blob = await firstValueFrom(this.downloadDocument(id));
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName || 'document.pdf');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }
+
+  updateDocumentDownloadPolicy(
+    id: string,
+    downloadPolicy: DocumentDownloadPolicy,
+  ): Observable<IDocument> {
+    return this.http.patch<IDocument>(`${this.baseUrl}/documents/${id}/download-policy`, {
+      downloadPolicy,
+    });
   }
 
   replaceDocument(id: string, file: File): Observable<IDocument> {
@@ -273,6 +313,16 @@ export class ApiService {
 
   updateFolder(id: string, dto: IUpdateFolderDto): Observable<IFolder> {
     return this.http.patch<IFolder>(`${this.baseUrl}/folders/${id}`, dto);
+  }
+
+  updateFolderDownloadPolicy(
+    folderName: string,
+    downloadPolicy: FolderDownloadPolicy,
+  ): Observable<IFolder> {
+    return this.http.patch<IFolder>(
+      `${this.baseUrl}/folders/by-name/${encodeURIComponent(folderName)}/download-policy`,
+      { downloadPolicy },
+    );
   }
 
   deleteFolder(idOrName: string): Observable<void> {

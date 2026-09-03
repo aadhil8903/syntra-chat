@@ -11,6 +11,7 @@ import {
   UploadedFile,
   HttpCode,
   HttpStatus,
+  Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DocumentsService } from './documents.service';
@@ -33,9 +34,10 @@ export class DocumentsController {
     @UploadedFile() file: Express.Multer.File,
     @Body('folder') folder?: string,
     @Body('allowedDepartments') allowedDepartments?: string,
+    @Body('downloadPolicy') downloadPolicy?: 'inherit' | 'allowed' | 'restricted',
   ): Promise<IDocument> {
     const deps = allowedDepartments ? allowedDepartments.split(',').map(d => d.trim()).filter(d => d) : [];
-    return this.documentsService.uploadDocument(userId, file, folder || '', deps);
+    return this.documentsService.uploadDocument(userId, file, folder || '', deps, downloadPolicy || 'inherit');
   }
 
   @Post(':id/replace')
@@ -79,6 +81,25 @@ export class DocumentsController {
     @Param('id') id: string,
   ): Promise<IDocument> {
     return this.documentsService.findOneAccessible(userId, id);
+  }
+
+  @Get(':id/download')
+  async download(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @Res() res: any,
+  ): Promise<void> {
+    return this.documentsService.downloadDocument(userId, id, res);
+  }
+
+  @Patch(':id/download-policy')
+  @Roles(UserRole.ADMIN)
+  async updateDownloadPolicy(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @Body('downloadPolicy') downloadPolicy: 'inherit' | 'allowed' | 'restricted',
+  ): Promise<IDocument> {
+    return this.documentsService.updateDownloadPolicy(userId, id, downloadPolicy);
   }
 
   @Delete(':id')

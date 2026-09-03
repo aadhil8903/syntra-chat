@@ -18,6 +18,14 @@ export interface ICitation {
   score?: number;
 }
 
+export interface IDownloadableFile {
+  documentId: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  folder?: string;
+}
+
 export interface IMessage {
   id: string;
   conversationId: string;
@@ -31,6 +39,7 @@ export interface IMessage {
   generatedTable?: ITableSpec;
   pythonCode?: string;
   executionOutput?: string;
+  downloadableFile?: IDownloadableFile;
   createdAt: string;
 }
 

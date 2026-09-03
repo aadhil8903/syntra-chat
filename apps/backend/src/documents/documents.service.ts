@@ -16,6 +16,9 @@ import {
   IUser,
   UserRole,
   isUserAdmin,
+  IActiveScope,
+  DocumentDownloadPolicy,
+  DownloadPolicyState,
 } from '@enter-chat/shared-types';
 import { IStorageService, STORAGE_SERVICE } from '../storage/storage.interface';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
@@ -76,7 +79,8 @@ export class DocumentsService {
     userId: string,
     file: Express.Multer.File,
     folder: string = '',
-    allowedDepartments: string[] = []
+    allowedDepartments: string[] = [],
+    downloadPolicy: 'inherit' | 'allowed' | 'restricted' = 'inherit',
   ): Promise<IDocument> {
     if (!file) {
       throw new BadRequestException('No file provided');
@@ -112,6 +116,7 @@ export class DocumentsService {
       storagePath: saveResult.storagePath,
       folder: targetFolder,
       allowedDepartments,
+      downloadPolicy: downloadPolicy || 'inherit',
       status: DocumentStatus.PROCESSING,
       sourceType: isTabular ? 'tabular' : 'narrative',
       chunkCount: 0,
@@ -126,7 +131,13 @@ export class DocumentsService {
     // Trigger AI RAG Ingestion asynchronously in background with canonical unique originalName
     this.triggerIngestion(userId, docId, saveResult.storagePath, savedDoc.originalName, fileType);
 
-    return this.toIDocument(savedDoc);
+    let folderPolicy: string | undefined;
+    if (targetFolder && this.foldersService?.findByName) {
+      const f = await this.foldersService.findByName(targetFolder);
+      if (f) folderPolicy = f.downloadPolicy;
+    }
+
+    return this.toIDocument(savedDoc, folderPolicy);
   }
 
   async replaceDocument(
@@ -321,9 +332,30 @@ export class DocumentsService {
       throw new NotFoundException('Document not found');
     }
 
-    const targetFolder = normalizeFolder(folder);
-    let finalOriginalName = existingDoc.originalName;
+    const user = await this.usersService.findById(userId);
+    const isAdmin = isUserAdmin(user);
+    if (!isAdmin && existingDoc.userId.toString() !== userId) {
+      throw new ForbiddenException('You do not have permission to move this document');
+    }
 
+    const targetFolder = normalizeFolder(folder);
+
+    let folderPolicy: string | undefined;
+    if (targetFolder) {
+      if (this.foldersService?.findByName) {
+        const targetFolderDoc = await this.foldersService.findByName(targetFolder);
+        if (!targetFolderDoc) {
+          const count = await this.documentModel.countDocuments({ folder: targetFolder });
+          if (count === 0) {
+            throw new NotFoundException(`Destination folder "${targetFolder}" not found`);
+          }
+        } else {
+          folderPolicy = targetFolderDoc.downloadPolicy;
+        }
+      }
+    }
+
+    let finalOriginalName = existingDoc.originalName;
     if (existingDoc.folder !== targetFolder) {
       finalOriginalName = await resolveUniqueFilenameForModel(
         this.documentModel,
@@ -344,7 +376,7 @@ export class DocumentsService {
       { new: true },
     );
 
-    return this.toIDocument(doc!);
+    return this.toIDocument(doc!, folderPolicy);
   }
 
   private buildAccessQuery(user: IUser, approvedIds: string[] = []): any {
@@ -382,6 +414,258 @@ export class DocumentsService {
     return { $or: baseClauses };
   }
 
+  getEffectiveDownloadPolicy(
+    doc: { downloadPolicy?: string; folder?: string },
+    folderPolicy?: string,
+  ): DownloadPolicyState {
+    if (doc.downloadPolicy === 'allowed') return 'allowed';
+    if (doc.downloadPolicy === 'restricted') return 'restricted';
+    // 'inherit' or default
+    if (folderPolicy) {
+      return folderPolicy === 'restricted' ? 'restricted' : 'allowed';
+    }
+    return 'allowed';
+  }
+
+  async canUserDownloadDocument(
+    userId: string,
+    documentId: string,
+  ): Promise<{ canDownload: boolean; reason?: string; document?: DocumentEntityDocument }> {
+    if (!Types.ObjectId.isValid(documentId)) {
+      return { canDownload: false, reason: 'DOCUMENT_NOT_FOUND' };
+    }
+    const doc = await this.documentModel.findById(documentId).exec();
+    if (!doc) {
+      return { canDownload: false, reason: 'DOCUMENT_NOT_FOUND' };
+    }
+
+    const user = await this.usersService.findById(userId);
+    if (!user || user.status === 'suspended') {
+      return { canDownload: false, reason: 'UNAUTHORIZED_USER' };
+    }
+
+    const isAdmin = isUserAdmin(user);
+    let hasAccess = false;
+
+    if (isAdmin) {
+      hasAccess = true;
+    } else if (doc.userId.toString() === userId) {
+      hasAccess = true;
+    } else {
+      const approvedIds = await this.accessRequestsService.getApprovedResourceIdsForUser(userId);
+      if (approvedIds.includes(doc._id.toString())) {
+        hasAccess = true;
+      } else {
+        const userDepartments = user.departments || [];
+        const hasDeptAccess =
+          !doc.allowedDepartments ||
+          doc.allowedDepartments.length === 0 ||
+          doc.allowedDepartments.some((dept) => userDepartments.includes(dept));
+
+        let hasFolderAccess = true;
+        if (doc.folder && doc.folder.trim()) {
+          const folderDoc = await this.foldersService.findByName(doc.folder.trim());
+          const foldersMap = new Map<string, string[]>();
+          if (folderDoc) {
+            foldersMap.set(folderDoc.name, folderDoc.allowedDepartments || []);
+          }
+          hasFolderAccess = await this.aclResolver.canUserAccessFolder(
+            userId,
+            doc.folder.trim(),
+            user,
+            foldersMap,
+          );
+        }
+        hasAccess = hasDeptAccess && hasFolderAccess;
+      }
+    }
+
+    if (!hasAccess) {
+      return { canDownload: false, reason: 'ACCESS_DENIED', document: doc };
+    }
+
+    // Determine folder policy
+    let folderPolicy: string | undefined;
+    if (doc.folder && doc.folder.trim() && this.foldersService?.findByName) {
+      const folderDoc = await this.foldersService.findByName(doc.folder.trim());
+      if (folderDoc) folderPolicy = folderDoc.downloadPolicy;
+    }
+
+    const effectivePolicy = this.getEffectiveDownloadPolicy(doc, folderPolicy);
+    if (effectivePolicy === 'restricted') {
+      return { canDownload: false, reason: 'DOWNLOAD_RESTRICTED', document: doc };
+    }
+
+    return { canDownload: true, document: doc };
+  }
+
+  async updateDownloadPolicy(
+    userId: string,
+    documentId: string,
+    policy: DocumentDownloadPolicy,
+  ): Promise<IDocument> {
+    if (!Types.ObjectId.isValid(documentId)) {
+      throw new NotFoundException('Document not found');
+    }
+    const doc = await this.documentModel.findByIdAndUpdate(
+      documentId,
+      { $set: { downloadPolicy: policy } },
+      { new: true },
+    ).exec();
+    if (!doc) {
+      throw new NotFoundException('Document not found');
+    }
+
+    let folderPolicy: string | undefined;
+    if (doc.folder && doc.folder.trim() && this.foldersService?.findByName) {
+      const folderDoc = await this.foldersService.findByName(doc.folder.trim());
+      if (folderDoc) folderPolicy = folderDoc.downloadPolicy;
+    }
+
+    return this.toIDocument(doc, folderPolicy);
+  }
+
+  async downloadDocument(userId: string, documentId: string, res: any): Promise<void> {
+    const check = await this.canUserDownloadDocument(userId, documentId);
+    if (!check.canDownload || !check.document) {
+      if (check.reason === 'DOWNLOAD_RESTRICTED') {
+        throw new ForbiddenException('This file is restricted from downloading.');
+      }
+      if (check.reason === 'ACCESS_DENIED') {
+        throw new ForbiddenException('You do not have access to download this document.');
+      }
+      throw new NotFoundException('Document not found or inaccessible.');
+    }
+
+    const doc = check.document;
+    const exists = await this.storageService.fileExists(doc.storagePath);
+    if (!exists) {
+      throw new NotFoundException('File not found in storage.');
+    }
+
+    const stream = await this.storageService.getFileStream(doc.storagePath);
+    const safeFilename = encodeURIComponent(doc.originalName).replace(/['()]/g, escape);
+    res.setHeader('Content-Type', doc.mimeType || 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${doc.originalName.replace(/"/g, '')}"; filename*=UTF-8''${safeFilename}`,
+    );
+    if (doc.fileSize) {
+      res.setHeader('Content-Length', doc.fileSize);
+    }
+    stream.pipe(res);
+  }
+
+  async resolvePdfRequest(
+    userId: string,
+    query: string,
+    activeScope?: IActiveScope | null,
+  ): Promise<{
+    matchType: 'exact' | 'alternative' | 'none';
+    found: boolean;
+    document?: IDocument;
+    alternativeDocument?: IDocument;
+    canDownload: boolean;
+    reason?: string;
+  }> {
+    const accessibleDocs = await this.findAllAccessible(userId);
+    const accessiblePdfs = accessibleDocs.filter(
+      (d) => d.hasAccess && d.fileType === SupportedDocumentFormat.PDF,
+    );
+
+    if (accessiblePdfs.length === 0) {
+      return { matchType: 'none', found: false, canDownload: false, reason: 'NO_ACCESSIBLE_PDFS' };
+    }
+
+    // Clean user query for filename extraction
+    const rawClean = query
+      .replace(/^(give me the|give me|can i get the|can i get|can i download the|can i download|download the|download|find the pdf for the|find the pdf for|find the pdf|find the|find|get me the pdf from the|get me the pdf from|get me the pdf|get me the|get me|where is the|please send me the|show me the pdf for|show me the pdf|show me the|fetch the|open the)\s+/i, '')
+      .replace(/\s+(?:from|in)\s+(?:the\s+)?([a-zA-Z0-9_\-\s]+?)\s+folder$/i, '')
+      .replace(/\s+(pdf|file|document)$/i, '')
+      .replace(/\.pdf$/i, '')
+      .trim()
+      .toLowerCase();
+
+    // Check if query specifies a folder context
+    let folderHint = '';
+    const folderMatch = query.match(/(?:from|in)\s+(?:the\s+)?([a-zA-Z0-9_\-\s]+?)\s+folder/i);
+    if (folderMatch && folderMatch[1]) {
+      folderHint = folderMatch[1].trim().toLowerCase();
+    } else if (activeScope && (activeScope.type === 'folder' || activeScope.id?.startsWith('folder:'))) {
+      folderHint = (activeScope.id?.replace(/^folder:/, '') || activeScope.name || '').trim().toLowerCase();
+    }
+
+    // 1. Try Exact Match
+    let exactCandidates = accessiblePdfs.filter((d) => {
+      const nameWithoutExt = d.originalName.replace(/\.pdf$/i, '').trim().toLowerCase();
+      const fullName = d.originalName.toLowerCase();
+      const matchesName = nameWithoutExt === rawClean || fullName === rawClean || fullName === `${rawClean}.pdf`;
+      if (!matchesName) return false;
+      if (folderHint) {
+        return (d.folder || '').toLowerCase() === folderHint;
+      }
+      return true;
+    });
+
+    if (exactCandidates.length === 0 && folderHint) {
+      // Fallback exact match across all folders
+      exactCandidates = accessiblePdfs.filter((d) => {
+        const nameWithoutExt = d.originalName.replace(/\.pdf$/i, '').trim().toLowerCase();
+        const fullName = d.originalName.toLowerCase();
+        return nameWithoutExt === rawClean || fullName === rawClean || fullName === `${rawClean}.pdf`;
+      });
+    }
+
+    if (exactCandidates.length > 0) {
+      const bestDoc = exactCandidates[0];
+      const authCheck = await this.canUserDownloadDocument(userId, bestDoc.id);
+      return {
+        matchType: 'exact',
+        found: true,
+        document: bestDoc,
+        canDownload: authCheck.canDownload,
+        reason: authCheck.reason,
+      };
+    }
+
+    // 2. Try Plausible Alternative Match
+    if (rawClean.length >= 3) {
+      const tokens = rawClean.split(/\s+/).filter((t) => t.length > 2);
+      let scoredCandidates = accessiblePdfs.map((doc) => {
+        const docNameLower = doc.originalName.toLowerCase();
+        let score = 0;
+        if (folderHint && (doc.folder || '').toLowerCase() === folderHint) {
+          score += 3;
+        }
+        if (docNameLower.includes(rawClean)) {
+          score += 5;
+        }
+        for (const token of tokens) {
+          if (docNameLower.includes(token)) {
+            score += 2;
+          }
+        }
+        return { doc, score };
+      });
+
+      scoredCandidates = scoredCandidates
+        .filter((c) => c.score >= 5)
+        .sort((a, b) => b.score - a.score);
+
+      if (scoredCandidates.length > 0) {
+        const bestAlt = scoredCandidates[0].doc;
+        return {
+          matchType: 'alternative',
+          found: false,
+          alternativeDocument: bestAlt,
+          canDownload: false,
+        };
+      }
+    }
+
+    return { matchType: 'none', found: false, canDownload: false };
+  }
+
   async findAllAccessible(userId: string): Promise<IDocument[]> {
     const user = await this.usersService.findById(userId);
     const isAdmin = isUserAdmin(user);
@@ -402,15 +686,18 @@ export class DocumentsService {
     const allDocs = await this.documentModel.find({}).sort({ createdAt: -1 }).exec();
     const userDepartments = user?.departments || [];
 
-    const allFolders = await this.foldersService.findAll();
+    const allFolders = this.foldersService?.findAll ? await this.foldersService.findAll() : [];
     const foldersMap = new Map<string, string[]>();
+    const folderPolicyMap = new Map<string, string>();
     for (const f of allFolders) {
       foldersMap.set(f.name, f.allowedDepartments || []);
+      folderPolicyMap.set(f.name, f.downloadPolicy || 'allowed');
     }
 
     const results: IDocument[] = [];
     for (const d of allDocs) {
-      const docDto = this.toIDocument(d);
+      const folderPolicy = folderPolicyMap.get(d.folder || '');
+      const docDto = this.toIDocument(d, folderPolicy);
       const docIdStr = d._id.toString();
 
       if (isAdmin) {
@@ -460,8 +747,14 @@ export class DocumentsService {
       throw new NotFoundException('Document not found');
     }
 
+    let folderPolicy: string | undefined;
+    if (doc.folder && doc.folder.trim() && this.foldersService?.findByName) {
+      const folderDoc = await this.foldersService.findByName(doc.folder.trim());
+      if (folderDoc) folderPolicy = folderDoc.downloadPolicy;
+    }
+
     if (isAdmin) {
-      const docDto = this.toIDocument(doc);
+      const docDto = this.toIDocument(doc, folderPolicy);
       docDto.hasAccess = true;
       return docDto;
     }
@@ -478,7 +771,7 @@ export class DocumentsService {
       throw new NotFoundException('Document not found or access denied');
     }
 
-    const docDto = this.toIDocument(doc);
+    const docDto = this.toIDocument(doc, folderPolicy);
     docDto.hasAccess = true;
     return docDto;
   }
@@ -500,7 +793,8 @@ export class DocumentsService {
     await this.storageService.deleteFile(doc.storagePath);
   }
 
-  toIDocument(doc: DocumentEntityDocument): IDocument {
+  toIDocument(doc: DocumentEntityDocument | any, folderPolicy?: string): IDocument {
+    const effectiveDownloadPolicy = this.getEffectiveDownloadPolicy(doc, folderPolicy);
     return {
       id: doc._id.toString(),
       userId: doc.userId.toString(),
@@ -512,6 +806,8 @@ export class DocumentsService {
       storagePath: doc.storagePath,
       allowedDepartments: doc.allowedDepartments || [],
       folder: doc.folder || '',
+      downloadPolicy: (doc.downloadPolicy as any) || 'inherit',
+      effectiveDownloadPolicy,
       status: doc.status,
       chunkCount: doc.chunkCount || 0,
       sheetNames: doc.sheetNames || [],

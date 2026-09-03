@@ -1,4 +1,4 @@
-import { ICitation } from './message.types';
+import { ICitation, IDownloadableFile } from './message.types';
 import { IActiveScope } from './conversation.types';
 
 export enum ChartType {
@@ -40,6 +40,7 @@ export enum AgentIntent {
   CALCULATION = 'calculation',
   COMBINED = 'combined',
   GENERAL_CHAT = 'general_chat',
+  FILE_REQUEST = 'file_request',
 }
 
 export interface IAiChatRequest {
@@ -64,6 +65,7 @@ export interface IAiChatResponse {
   generatedTable?: ITableSpec;
   pythonCode?: string;
   executionOutput?: string;
+  downloadableFile?: IDownloadableFile;
   tokensUsed?: number;
 }
 

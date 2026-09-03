@@ -13,6 +13,9 @@ export class FolderEntity {
   @Prop({ type: [String], default: [] })
   allowedDepartments: string[];
 
+  @Prop({ type: String, enum: ['allowed', 'restricted'], default: 'allowed' })
+  downloadPolicy: string;
+
   @Prop({ type: Types.ObjectId, ref: 'User', required: false })
   createdBy?: Types.ObjectId;
 

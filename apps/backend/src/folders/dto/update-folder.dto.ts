@@ -8,4 +8,8 @@ export class UpdateFolderDto {
   @IsArray()
   @IsOptional()
   allowedDepartments?: string[];
+
+  @IsString()
+  @IsOptional()
+  downloadPolicy?: 'allowed' | 'restricted';
 }

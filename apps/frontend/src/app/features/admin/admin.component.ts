@@ -4,14 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { ModalDialogService } from '../../core/services/modal-dialog.service';
 import { IUser, UserRole, ICreateUserDto } from '@enter-chat/shared-types';
-import { FolderTreePickerComponent } from '../../shared/components/folder-tree-picker/folder-tree-picker.component';
 import { forkJoin, of } from 'rxjs';
 import { catchError, finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, FolderTreePickerComponent],
+  imports: [CommonModule, FormsModule],
   templateUrl: './admin.component.html',
   styleUrls: ['./admin.component.scss'],
 })

@@ -25,6 +25,7 @@ import {
   IMessage,
   IMentionOption,
   MentionResourceType,
+  IDownloadableFile,
 } from '@enter-chat/shared-types';
 import { CollectionsWalkthroughService } from '../../core/services/collections-walkthrough.service';
 import { VoiceRecognitionService } from '../../core/services/voice-recognition.service';
@@ -536,6 +537,63 @@ export interface IDynamicStarterCard {
                     }
                   </div>
 
+                  <!-- Downloadable PDF File Card -->
+                  @if (msg.downloadableFile) {
+                    <div class="mt-3.5 mb-2 w-full max-w-md">
+                      <div
+                        (click)="downloadChatFile(msg.downloadableFile)"
+                        class="group/file-card relative flex items-center justify-between gap-3 p-3.5 rounded-xl border border-red-500/30 bg-gradient-to-r from-red-950/40 via-red-900/20 to-zinc-900/60 hover:from-red-950/60 hover:via-red-900/30 hover:to-zinc-900/80 hover:border-red-500/50 shadow-lg shadow-red-950/20 cursor-pointer transition-all duration-200"
+                        [class.opacity-75]="isDownloadingFile(msg.downloadableFile.documentId)"
+                      >
+                        <!-- Left: PDF Icon & File Metadata -->
+                        <div class="flex items-center gap-3 min-w-0 flex-1">
+                          <div class="flex-shrink-0 w-11 h-11 rounded-lg bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 group-hover/file-card:scale-105 transition-transform">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M7 2a2 2 0 00-2 2v16a2 2 0 002 2h10a2 2 0 002-2V8l-6-6H7zm6 1.5L17.5 8H13V3.5zM8.5 12h2.25c.97 0 1.75.78 1.75 1.75s-.78 1.75-1.75 1.75H9.75v1.75H8.5V12zm1.25 1.2v1.1h1c.41 0 .75-.34.75-.75s-.34-.35-.75-.35h-1zm5.25-.2h2v1.1h-2v.8h1.75v1.1H15v1.85h-1.25V12zm-3.5 0h1.5c1.1 0 2 .9 2 2v1.25c0 1.1-.9 2-2 2h-1.5V12zm1.25 1.2v2.85h.25c.41 0 .75-.34.75-.75V14c0-.41-.34-.75-.75-.75h-.25z" />
+                            </svg>
+                          </div>
+                          <div class="min-w-0 flex-1">
+                            <div class="text-sm font-semibold text-zinc-100 truncate pr-2 group-hover/file-card:text-white transition-colors" [title]="msg.downloadableFile.fileName">
+                              {{ msg.downloadableFile.fileName }}
+                            </div>
+                            <div class="flex items-center gap-2 text-xs text-red-300/80 font-medium mt-0.5">
+                              <span>PDF</span>
+                              @if (msg.downloadableFile.fileSize) {
+                                <span>•</span>
+                                <span>{{ formatFileSize(msg.downloadableFile.fileSize) }}</span>
+                              }
+                              @if (msg.downloadableFile.folder) {
+                                <span>•</span>
+                                <span class="truncate max-w-[120px]">{{ msg.downloadableFile.folder }}</span>
+                              }
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Right: Min 44x44px Touch Target Circular Download Button -->
+                        <button
+                          type="button"
+                          (click)="$event.stopPropagation(); downloadChatFile(msg.downloadableFile)"
+                          [disabled]="isDownloadingFile(msg.downloadableFile.documentId)"
+                          class="flex-shrink-0 w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-red-500 hover:bg-red-400 active:bg-red-600 text-white shadow-md shadow-red-500/30 flex items-center justify-center transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-red-400/50"
+                          title="Download PDF"
+                          aria-label="Download PDF"
+                        >
+                          @if (isDownloadingFile(msg.downloadableFile.documentId)) {
+                            <svg class="w-5 h-5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          } @else {
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                          }
+                        </button>
+                      </div>
+                    </div>
+                  }
+
                   <!-- Sources & Citations (if available) -->
                   @if (msg.citations && msg.citations.length > 0) {
                     <div data-tour="chat-citations">
@@ -702,6 +760,17 @@ export interface IDynamicStarterCard {
           </div>
         </div>
       </div>
+
+      <!-- File Download Error Toast -->
+      @if (fileDownloadError) {
+        <div class="fixed bottom-24 right-6 z-50 flex items-center gap-2 bg-red-950/90 border border-red-500/40 text-red-200 px-4 py-2.5 rounded-xl shadow-xl backdrop-blur-sm text-xs font-medium animate-fadeIn">
+          <svg class="w-4 h-4 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span>{{ fileDownloadError }}</span>
+          <button (click)="fileDownloadError = null" class="ml-2 text-red-300 hover:text-white">&times;</button>
+        </div>
+      }
     </div>
   `,
   styles: [
@@ -990,6 +1059,47 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   private autoScrollRafId: number | null = null;
   private autoScrollSpeed = 0;
   undoToast: { message: string; conversationId: string; previousCollectionId: string | null; timer: any } | null = null;
+  downloadingFileIds = new Set<string>();
+  fileDownloadError: string | null = null;
+  private fileDownloadErrorTimer: any = null;
+
+  isDownloadingFile(id?: string): boolean {
+    return !!id && this.downloadingFileIds.has(id);
+  }
+
+  formatFileSize(bytes?: number): string {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  async downloadChatFile(file?: IDownloadableFile): Promise<void> {
+    if (!file || !file.documentId) return;
+    if (this.downloadingFileIds.has(file.documentId)) return;
+
+    this.downloadingFileIds.add(file.documentId);
+    try {
+      await this.api.triggerFileDownload(file.documentId, file.fileName);
+    } catch (err: any) {
+      console.error('File download error:', err);
+      const msg = err?.error?.message || 'This file is restricted from downloading.';
+      this.showFileDownloadError(msg);
+    } finally {
+      this.downloadingFileIds.delete(file.documentId);
+    }
+  }
+
+  showFileDownloadError(msg: string): void {
+    if (this.fileDownloadErrorTimer) {
+      clearTimeout(this.fileDownloadErrorTimer);
+    }
+    this.fileDownloadError = msg;
+    this.fileDownloadErrorTimer = setTimeout(() => {
+      this.fileDownloadError = null;
+    }, 4500);
+  }
 
   get displayedCollections(): ICollection[] {
     if (this.collectionsWalkthrough.isDemoMode() && this.collections.length === 0) {
