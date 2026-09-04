@@ -320,7 +320,7 @@ In `.env` and `apps/ai-service/.env`:
 ```ini
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-3.5-flash-lite
+GEMINI_MODEL=gemini-3.6-flash
 ```
 
 ### Option B: Switch to Local Ollama / DeepSeek / Llama 3

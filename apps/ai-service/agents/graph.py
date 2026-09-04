@@ -56,7 +56,12 @@ Communication Rules:
 # -------------------------------------------------------------
 async def resolve_context_node(state: AgentState) -> Dict[str, Any]:
     user_id = state.get("user_id", "")
-    resource_ids = state.get("resource_ids", [])
+    resource_ids = list(state.get("resource_ids", []))
+    active_scope = state.get("active_scope")
+    if active_scope and active_scope.get("id") and active_scope.get("type") in ["document", "dataset", "file"]:
+        scope_id = str(active_scope["id"])
+        if scope_id not in [str(r) for r in resource_ids]:
+            resource_ids.append(scope_id)
 
     resolved_docs: List[Dict[str, Any]] = []
     resolved_datasets: List[Dict[str, Any]] = []
@@ -230,16 +235,29 @@ async def resolve_context_node(state: AgentState) -> Dict[str, Any]:
             if resolved_docs or resolved_datasets:
                 is_scoped = True
             else:
-                # Only load all docs if the user is explicitly requesting a library / inventory overview
+                # Load docs if the user is requesting inventory overview or natural language file search/discovery
                 is_inventory_query = bool(re.search(
                     r"\b(what files|list files|show files|available files|what documents|what data do you have|what files do you have|what is in my files|what is in my library|all files|all documents)\b",
                     raw_msg_lower
                 ))
-                if is_inventory_query:
+                file_keywords = ["pdf", "file", "document", "handbook", "guide", "report", "policy", "agreement", "manual", "spreadsheet", "dataset"]
+                file_request_verbs = [
+                    "give me", "can i get", "can i have", "can i download", "i wanna download", "i want to download",
+                    "download", "find", "get me", "where is", "send me", "show me", "fetch", "locate", "i need"
+                ]
+                has_file_kw = any(k in raw_msg_lower for k in file_keywords) or ".pdf" in raw_msg_lower or "@" in raw_msg_lower
+                has_verb = any(v in raw_msg_lower for v in file_request_verbs)
+                is_resource_query = (has_file_kw and has_verb) or bool(re.match(r"^(download|get)\s+", raw_msg_lower)) or "i wanna download" in raw_msg_lower or "can i download" in raw_msg_lower
+
+                if is_inventory_query or is_resource_query:
                     for d in all_accessible_docs:
                         d["id"] = str(d["_id"])
                         if not any(rd["id"] == d["id"] for rd in resolved_docs):
                             resolved_docs.append(d)
+                    for ds in all_accessible_datasets:
+                        ds["id"] = str(ds["_id"])
+                        if not any(rds["id"] == ds["id"] for rds in resolved_datasets):
+                            resolved_datasets.append(ds)
         except Exception as e:
             logger.warning(f"Error loading user resources: {e}")
 
@@ -790,12 +808,23 @@ async def general_chat_node(state: AgentState) -> Dict[str, Any]:
     resolved_datasets = state.get("resolved_datasets", [])
     active_scope = state.get("active_scope")
     is_scoped = state.get("is_scoped", False) or len(state.get("resource_ids", [])) > 0
-    workspace_manifest = format_workspace_manifest(resolved_docs, resolved_datasets, active_scope=active_scope, is_scoped=is_scoped)
     shared_memory = state.get("shared_memory")
-    shared_mem_str = f"\nCOLLECTION SHARED MEMORY (Established facts & decisions from related chats in this collection):\n{shared_memory}\n" if shared_memory else ""
     llm = get_llm_provider()
 
-    system_prompt = f"""{ENTERPRISE_AI_PERSONA}
+    clean_msg = message.lower().strip()
+    inventory_keywords = [
+        "what file", "what document", "what dataset", "what spreadsheet", "list file", "list document",
+        "show file", "show document", "what do you have", "what info do you have", "what data do you have",
+        "what is in my files", "what is in my library", "available files", "available documents",
+        "available datasets", "which files", "which documents", "which datasets", "inventory", "library",
+        "workspace files", "my files", "my documents", "my datasets"
+    ]
+    needs_manifest = is_scoped or bool(shared_memory) or any(k in clean_msg for k in inventory_keywords)
+
+    if needs_manifest:
+        workspace_manifest = format_workspace_manifest(resolved_docs, resolved_datasets, active_scope=active_scope, is_scoped=is_scoped)
+        shared_mem_str = f"\nCOLLECTION SHARED MEMORY (Established facts & decisions from related chats in this collection):\n{shared_memory}\n" if shared_memory else ""
+        system_prompt = f"""{ENTERPRISE_AI_PERSONA}
 {shared_mem_str}
 WORKSPACE SCOPE & INVENTORY:
 {workspace_manifest}
@@ -807,14 +836,20 @@ CRITICAL ACCESS CONTROL & GROUNDING RULES (HIGHEST PRIORITY):
    - Never claim access to restricted items or quote figures from restricted resources.
 3. NEVER dump a list of available files unless the user explicitly asks you what files exist in the workspace.
 4. Answer all authorized topics plainly, helpfully, and without emojis."""
+    else:
+        system_prompt = f"""{ENTERPRISE_AI_PERSONA}
+
+CRITICAL ACCESS CONTROL & GROUNDING RULES:
+1. Speak plainly, directly, and helpfully without using emojis.
+2. If the user asks for specific company documents, data analysis, or file comparisons, assist them appropriately with the authorized resources."""
 
     messages = [SystemMessage(content=system_prompt)]
-    for h in history[-30:]:
+    for h in history[-10:]:
         if h["role"] == "user":
             messages.append(HumanMessage(content=h["content"]))
         elif h["role"] == "assistant":
             messages.append(AIMessage(content=h["content"]))
-    messages.append(HumanMessage(content=f"{message}\n\n[System Instruction: If the question relates to collection context, answer using COLLECTION SHARED MEMORY. Verify files against Current Authorized Workspace Inventory. If an unauthorized resource is requested, decline access. No emojis.]"))
+    messages.append(HumanMessage(content=message))
 
     answer = await llm.generate_response(messages, temperature=0.15)
     return {"final_answer": answer}

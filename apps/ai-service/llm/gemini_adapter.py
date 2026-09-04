@@ -13,11 +13,11 @@ logger = logging.getLogger(__name__)
 # Official Google Gemini models with high speed and reliability
 FALLBACK_MODELS = [
     "gemini-3.6-flash",
-    "gemini-3.5-flash",
-    "gemini-3.5-flash-lite",
     "gemini-flash-latest",
 ]
 
+
+_llm_call_count = 0
 
 class GeminiAdapter(LLMProvider):
     def __init__(self, api_key: Optional[str] = None, model_name: Optional[str] = None):
@@ -39,6 +39,9 @@ class GeminiAdapter(LLMProvider):
         messages: List[BaseMessage],
         temperature: float = 0.2,
     ) -> str:
+        global _llm_call_count
+        _llm_call_count += 1
+        call_num = _llm_call_count
         candidates = [self.model_name]
         for m in FALLBACK_MODELS:
             if m not in candidates:
@@ -48,6 +51,8 @@ class GeminiAdapter(LLMProvider):
 
         for model_cand in candidates:
             try:
+                msg_preview = (messages[-1].content if messages else "")[:80].replace("\n", " ")
+                logger.info(f"[LLM CALL] call_number={call_num} model={model_cand} message_count={len(messages)} snippet='{msg_preview}'")
                 model = self.get_chat_model(model_name=model_cand, temperature=temperature)
                 result = await model.ainvoke(messages)
 

@@ -36,8 +36,12 @@ app.include_router(datasets.router)
 
 @app.on_event("startup")
 async def on_startup():
+    from llm.factory import get_llm_provider
     logger.info(f"Starting {settings.SERVICE_NAME} on port {settings.PORT}")
-    logger.info(f"LLM Provider: {settings.LLM_PROVIDER} (model: {settings.GEMINI_MODEL})")
+    effective_model = getattr(get_llm_provider(), "model_name", settings.GEMINI_MODEL)
+    logger.info(f"LLM Provider: {settings.LLM_PROVIDER}")
+    logger.info(f"Configured model: {settings.GEMINI_MODEL}")
+    logger.info(f"Effective model: {effective_model}")
     provider = (settings.EMBEDDING_PROVIDER or "bge_local").strip().strip("'\"").lower()
     if provider == "gemini":
         clean_model = settings.GEMINI_EMBEDDING_MODEL.replace("models/", "")
