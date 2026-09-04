@@ -41,6 +41,7 @@ export enum AgentIntent {
   COMBINED = 'combined',
   GENERAL_CHAT = 'general_chat',
   FILE_REQUEST = 'file_request',
+  CLARIFICATION = 'clarification',
 }
 
 export interface IAiChatRequest {

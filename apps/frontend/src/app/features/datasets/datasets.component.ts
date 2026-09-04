@@ -69,7 +69,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
               <svg class="w-4 h-4 text-zinc-300" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h5l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
               </svg>
-              <span>+ New Folder</span>
+              <span>New Folder</span>
             </button>
     
             <label class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors cursor-pointer inline-flex items-center gap-2">
@@ -227,7 +227,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
               <svg class="w-3.5 h-3.5 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
               </svg>
-              <span>+ Subfolder</span>
+              <span>Subfolder</span>
             </button>
           </div>
         }

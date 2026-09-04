@@ -85,6 +85,71 @@ export function isPdfDiscoveryRequest(content: string): boolean {
   return hasRequest && hasFile;
 }
 
+/**
+ * Detects if a user message is requesting a target-dependent operation (comparison,
+ * non-specific plural summarization, or analysis) without sufficient target resources.
+ * Returns deterministic clarification prompt to prevent LLM hallucinations.
+ */
+export function detectUnresolvedTargetOperation(
+  content: string,
+  effectiveResourceIds: string[],
+  activeScope: IActiveScope | null,
+): { isUnresolved: boolean; clarificationAnswer?: string } {
+  const clean = content.toLowerCase().trim();
+
+  // Target count from explicit resources or active scope
+  const targetIds = new Set(effectiveResourceIds || []);
+  if (activeScope && activeScope.id) {
+    targetIds.add(activeScope.id);
+  }
+  const targetCount = targetIds.size;
+
+  // 1. Comparison Operation Detection
+  const compPatterns = [
+    /\bcompare\b/i,
+    /\bcomparing\b/i,
+    /\bcomparison\b/i,
+    /\bdiffer(?:ence|ences)?\s+between\b/i,
+    /\bcontrast\s+between\b/i,
+    /\bhow\s+do\s+(?:these|the\s+following|the\s+two)\s+(?:files|documents|datasets|spreadsheets)?\s*differ\b/i,
+    /\bwhat\s+(?:is|are)\s+the\s+differences?\s+between\s+(?:these|the\s+following|the\s+two)\b/i,
+  ];
+
+  const isComparison = compPatterns.some((p) => p.test(clean));
+  if (isComparison) {
+    if (targetCount < 2) {
+      if (targetCount === 1 && activeScope?.name) {
+        return {
+          isUnresolved: true,
+          clarificationAnswer: `Which file would you like to compare with '${activeScope.name}'?`,
+        };
+      }
+      return {
+        isUnresolved: true,
+        clarificationAnswer: 'Which files would you like me to compare?',
+      };
+    }
+  }
+
+  // 2. Non-specific plural operation check (summarize / analyze / extract without targets)
+  const pluralOps: Array<[RegExp, string]> = [
+    [/\b(?:summarize|summarise)\s+(?:the\s+following|these|the)\s+(?:files|documents|spreadsheets|datasets)\b/i, 'Which files would you like me to summarize?'],
+    [/\b(?:analyze|analyse)\s+(?:the\s+following|these|the)\s+(?:files|documents|spreadsheets|datasets)\b/i, 'Which files would you like me to analyze?'],
+    [/\bextract\s+(?:data|information)\s+from\s+(?:the\s+following|these|the)\s+(?:files|documents|spreadsheets|datasets)\b/i, 'Which files would you like me to extract data from?'],
+  ];
+
+  for (const [pattern, prompt] of pluralOps) {
+    if (pattern.test(clean) && targetCount === 0) {
+      return {
+        isUnresolved: true,
+        clarificationAnswer: prompt,
+      };
+    }
+  }
+
+  return { isUnresolved: false };
+}
+
 @Injectable()
 export class MessagesService {
   private readonly logger = new Logger(MessagesService.name);
@@ -194,6 +259,43 @@ export class MessagesService {
         }
       }
     }
+
+    // 3. Check for plaintext filename mentions in message (e.g. 25_org_chart.xlsx, 10_employee_directory.xlsx)
+    try {
+      const lowerContent = content.toLowerCase();
+      const [allDocs, allDatasets] = await Promise.all([
+        this.documentModel.find().select('_id originalName title').exec(),
+        this.datasetModel.find().select('_id originalName name').exec(),
+      ]);
+
+      for (const d of allDocs) {
+        const orig = (d.originalName || d.title || '').toLowerCase();
+        const noExt = orig.replace(/\.[a-z0-9]+$/i, '');
+        if (orig && (lowerContent.includes(orig) || (noExt.length >= 4 && lowerContent.includes(noExt)))) {
+          const idStr = d._id.toString();
+          if (!explicitMentionedIds.includes(idStr)) {
+            explicitMentionedIds.push(idStr);
+            if (!primaryMention) {
+              primaryMention = { type: 'document', id: idStr, name: d.originalName || d.title || 'Document' };
+            }
+          }
+        }
+      }
+
+      for (const ds of allDatasets) {
+        const orig = (ds.originalName || ds.name || '').toLowerCase();
+        const noExt = orig.replace(/\.[a-z0-9]+$/i, '');
+        if (orig && (lowerContent.includes(orig) || (noExt.length >= 4 && lowerContent.includes(noExt)))) {
+          const idStr = ds._id.toString();
+          if (!explicitMentionedIds.includes(idStr)) {
+            explicitMentionedIds.push(idStr);
+            if (!primaryMention) {
+              primaryMention = { type: 'dataset', id: idStr, name: ds.originalName || ds.name || 'Dataset' };
+            }
+          }
+        }
+      }
+    } catch (e) {}
 
     // Include any DTO referencedResourceIds
     for (const rId of referencedResourceIds) {
@@ -428,6 +530,51 @@ export class MessagesService {
         referencedResourceIds: scopeData.explicitMentionedIds,
       });
       const savedUserMsg = await userMsgDoc.save();
+
+      // Check for ungrounded / unresolved operational intent
+      const unresolvedCheck = detectUnresolvedTargetOperation(content, scopeData.effectiveResourceIds, scopeData.activeScope);
+      if (unresolvedCheck.isUnresolved && unresolvedCheck.clarificationAnswer) {
+        const assistantMsgDoc = new this.messageModel({
+          conversationId: new Types.ObjectId(conversationId),
+          userId: new Types.ObjectId(userId),
+          role: MessageRole.ASSISTANT,
+          content: unresolvedCheck.clarificationAnswer,
+          referencedResourceIds: [],
+          citations: [],
+        });
+        const savedAssistantMsg = await assistantMsgDoc.save();
+
+        const updatePayload: any = { lastMessageAt: new Date() };
+        if (scopeData.updatedActiveScopePayload !== undefined) {
+          updatePayload.activeScope = scopeData.updatedActiveScopePayload;
+        }
+
+        const updatedConv = await this.conversationModel.findByIdAndUpdate(
+          conversationId,
+          { $set: updatePayload },
+          { new: true },
+        );
+
+        return {
+          userMessage: this.toIMessage(savedUserMsg),
+          assistantMessage: this.toIMessage(savedAssistantMsg),
+          conversation: updatedConv ? {
+            id: updatedConv._id.toString(),
+            title: updatedConv.title,
+            userId: updatedConv.userId.toString(),
+            collectionId: updatedConv.collectionId ? updatedConv.collectionId.toString() : null,
+            attachedResourceIds: updatedConv.attachedResourceIds,
+            activeScope: updatedConv.activeScope ? {
+              type: updatedConv.activeScope.type,
+              id: updatedConv.activeScope.id,
+              name: updatedConv.activeScope.name,
+              updatedAt: updatedConv.activeScope.updatedAt instanceof Date ? updatedConv.activeScope.updatedAt.toISOString() : (updatedConv.activeScope.updatedAt as any)?.toString?.(),
+            } : undefined,
+            createdAt: updatedConv.createdAt.toISOString(),
+            updatedAt: updatedConv.updatedAt.toISOString(),
+          } : undefined,
+        };
+      }
 
       // 5. Validate and filter ANY legacy attached resources from the conversation
       const validConvAttachedIds: string[] = [];
@@ -665,6 +812,41 @@ export class MessagesService {
       });
       const savedUserMsg = await userMsgDoc.save();
 
+      // Send initial user message event to frontend
+      res.write(`event: user_message\ndata: ${JSON.stringify(this.toIMessage(savedUserMsg))}\n\n`);
+
+      // Check for ungrounded / unresolved operational intent
+      const unresolvedCheck = detectUnresolvedTargetOperation(content, scopeData.effectiveResourceIds, scopeData.activeScope);
+      if (unresolvedCheck.isUnresolved && unresolvedCheck.clarificationAnswer) {
+        const words = unresolvedCheck.clarificationAnswer.split(' ');
+        for (let i = 0; i < words.length; i++) {
+          const chunk = i === words.length - 1 ? words[i] : words[i] + ' ';
+          res.write(`event: token\ndata: ${JSON.stringify({ token: chunk })}\n\n`);
+          await new Promise((r) => setTimeout(r, 15));
+        }
+
+        res.write(`event: metadata\ndata: ${JSON.stringify({ citations: [], intent: 'clarification' })}\n\n`);
+        res.write(`event: done\ndata: {}\n\n`);
+
+        const assistantMsgDoc = new this.messageModel({
+          conversationId: new Types.ObjectId(conversationId),
+          userId: new Types.ObjectId(userId),
+          role: MessageRole.ASSISTANT,
+          content: unresolvedCheck.clarificationAnswer,
+          referencedResourceIds: [],
+          citations: [],
+        });
+        await assistantMsgDoc.save();
+
+        const updatePayload: any = { lastMessageAt: new Date() };
+        if (scopeData.updatedActiveScopePayload !== undefined) {
+          updatePayload.activeScope = scopeData.updatedActiveScopePayload;
+        }
+        await this.conversationModel.findByIdAndUpdate(conversationId, { $set: updatePayload });
+        res.end();
+        return;
+      }
+
       // 5. Validate and filter ANY legacy attached resources from the conversation
       const validConvAttachedIds: string[] = [];
       if (conv.attachedResourceIds && conv.attachedResourceIds.length > 0) {
@@ -697,9 +879,6 @@ export class MessagesService {
       if (conv.collectionId) {
         sharedMemory = await this.collectionsService.getSharedMemory(userId, conv.collectionId.toString());
       }
-
-      // Send initial user message event to frontend
-      res.write(`event: user_message\ndata: ${JSON.stringify(this.toIMessage(savedUserMsg))}\n\n`);
 
       let fullAnswer = '';
       let metadata: any = {};

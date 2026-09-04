@@ -11,6 +11,7 @@ class AgentIntent(str, Enum):
     COMBINED = "combined"
     GENERAL_CHAT = "general_chat"
     FILE_REQUEST = "file_request"
+    CLARIFICATION = "clarification"
 
 
 class ChartType(str, Enum):

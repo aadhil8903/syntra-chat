@@ -4,6 +4,7 @@ import {
   OnDestroy,
   inject,
   ElementRef,
+  ViewChild,
   HostListener,
   AfterViewInit,
   signal,
@@ -96,40 +97,40 @@ interface ICardPosition {
         <!-- Contextual Compact Tour Card -->
         <div
           #tourCard
-          class="absolute z-10 w-80 sm:w-88 max-w-[calc(100vw-2rem)] bg-[#111114] border border-[#27272a] rounded-2xl overflow-hidden flex flex-col p-4 space-y-3 transition-all duration-300 ease-out focus:outline-none"
+          class="absolute z-10 w-84 sm:w-[390px] max-w-[calc(100vw-2rem)] bg-[#111114] border border-[#27272a] rounded-2xl overflow-hidden flex flex-col p-4 sm:p-5 space-y-3.5 shadow-2xl shadow-black/50 transition-all duration-300 ease-out focus:outline-none"
           [style.top.px]="cardPosition().top"
           [style.left.px]="cardPosition().left"
           tabindex="0"
         >
           <!-- Card Header: Title & Step counter -->
-          <div class="flex items-start justify-between gap-2">
-            <h3 class="text-sm font-bold text-white tracking-tight leading-snug">
+          <div class="flex items-start justify-between gap-3">
+            <h3 class="text-sm sm:text-base font-bold text-white tracking-tight leading-snug">
               {{ currentStep().title }}
             </h3>
-            <span class="text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-[#18181b] border border-[#27272a] text-[#a1a1aa] flex-shrink-0">
+            <span class="text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-[#18181b] border border-[#27272a] text-[#a1a1aa] flex-shrink-0">
               {{ walkthrough.currentStepIndex() + 1 }}/{{ walkthrough.totalSteps() }}
             </span>
           </div>
 
           <!-- Card Body: Description & Optional Tip -->
-          <div class="space-y-2 text-xs text-zinc-300 leading-relaxed">
-            <p class="text-[12px] text-zinc-300">
+          <div class="space-y-2.5 text-xs text-zinc-300 leading-relaxed">
+            <p class="text-[12px] sm:text-[13px] text-zinc-300 leading-normal">
               {{ currentStep().description }}
             </p>
 
             @if (currentStep().tip) {
-              <div class="p-2.5 rounded-xl bg-[#0c0c0e] border border-[#27272a]/80 text-[11px] text-zinc-400">
+              <div class="p-3 rounded-xl bg-[#0c0c0e] border border-[#27272a]/80 text-[11px] sm:text-[12px] text-zinc-400 leading-relaxed">
                 <span class="font-semibold text-white">Tip:</span> {{ currentStep().tip }}
               </div>
             }
           </div>
 
           <!-- Card Footer Actions: Skip, Back, Next / Finish -->
-          <div class="pt-2 border-t border-[#27272a] flex items-center justify-between">
+          <div class="pt-3 border-t border-[#27272a] flex items-center justify-between">
             <button
               type="button"
               (click)="skip()"
-              class="text-xs text-[#a1a1aa] hover:text-white font-medium transition-colors px-1.5 py-1 rounded-lg hover:bg-zinc-900"
+              class="text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white font-medium transition-colors px-2.5 py-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
               aria-label="Skip walkthrough tour"
             >
               Skip
@@ -140,7 +141,7 @@ interface ICardPosition {
                 <button
                   type="button"
                   (click)="previous()"
-                  class="px-2.5 py-1 text-xs font-medium text-zinc-300 hover:text-white bg-[#18181b] hover:bg-[#27272a] rounded-xl border border-[#27272a] transition-colors"
+                  class="px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-white bg-[#18181b] hover:bg-[#27272a] rounded-xl border border-[#27272a] transition-colors"
                   aria-label="Previous step"
                 >
                   Back
@@ -151,7 +152,7 @@ interface ICardPosition {
                 <button
                   type="button"
                   (click)="next()"
-                  class="px-3.5 py-1 text-xs font-semibold text-black bg-white hover:bg-zinc-200 rounded-xl transition-colors"
+                  class="px-4 py-1.5 text-xs font-semibold text-black bg-white hover:bg-zinc-200 rounded-xl transition-colors shadow-xs"
                   aria-label="Next step"
                 >
                   Next &rarr;
@@ -160,7 +161,7 @@ interface ICardPosition {
                 <button
                   type="button"
                   (click)="finish()"
-                  class="px-3.5 py-1 text-xs font-semibold text-black bg-white hover:bg-zinc-200 rounded-xl transition-colors"
+                  class="px-4 py-1.5 text-xs font-semibold text-black bg-white hover:bg-zinc-200 rounded-xl transition-colors shadow-xs"
                   aria-label="Finish walkthrough tour"
                 >
                   Finish
@@ -183,6 +184,8 @@ interface ICardPosition {
 export class OnboardingWalkthroughComponent implements OnInit, OnDestroy, AfterViewInit {
   readonly walkthrough = inject(WalkthroughService);
   private readonly cdr = inject(ChangeDetectorRef);
+
+  @ViewChild('tourCard', { static: false }) tourCardRef?: ElementRef<HTMLDivElement>;
 
   currentStep = this.walkthrough.currentStep;
 
@@ -287,8 +290,14 @@ export class OnboardingWalkthroughComponent implements OnInit, OnDestroy, AfterV
     const targetEl = document.querySelector(step.targetSelector) as HTMLElement | null;
 
     if (targetEl && targetEl.offsetParent !== null) {
+      const initialRect = targetEl.getBoundingClientRect();
+      const needsScroll = initialRect.top < 70 || initialRect.bottom > window.innerHeight - 70;
+      if (needsScroll) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
       const rect = targetEl.getBoundingClientRect();
-      const padding = 6;
+      const padding = 8;
 
       const spot: ISpotlightRect = {
         top: Math.max(0, rect.top - padding),
@@ -309,9 +318,11 @@ export class OnboardingWalkthroughComponent implements OnInit, OnDestroy, AfterV
   }
 
   private calculateCardPosition(spot: ISpotlightRect): void {
-    const cardWidth = Math.min(352, window.innerWidth - 32);
-    const cardHeight = 220; // Estimated max height
-    const margin = 12;
+    const cardEl = this.tourCardRef?.nativeElement;
+    const actualHeight = cardEl ? cardEl.offsetHeight : 0;
+    const cardHeight = Math.max(actualHeight, 280);
+    const cardWidth = Math.min(390, window.innerWidth - 32);
+    const margin = 16;
 
     const vWidth = window.innerWidth;
     const vHeight = window.innerHeight;
@@ -320,26 +331,26 @@ export class OnboardingWalkthroughComponent implements OnInit, OnDestroy, AfterV
     let left = 0;
     let placement: ICardPosition['placement'] = 'bottom';
 
-    // 1. Try placing to the right if target is in left sidebar
-    if (spot.left + spot.width + cardWidth + margin < vWidth) {
+    // 1. Try placing to the right if target is in left sidebar (narrow target on the left side)
+    if (spot.width < vWidth * 0.45 && spot.left + spot.width + cardWidth + margin < vWidth) {
       placement = 'right';
       left = spot.left + spot.width + margin;
       top = Math.max(margin, Math.min(spot.top, vHeight - cardHeight - margin));
     }
-    // 2. Try placing on top if target is near the bottom (e.g. chat input bar)
-    else if (spot.top - cardHeight - margin > 0) {
+    // 2. Try placing on top if target has enough clearance above
+    else if (spot.top - cardHeight - margin >= 16) {
       placement = 'top';
       top = spot.top - cardHeight - margin;
       left = Math.max(margin, Math.min(spot.left, vWidth - cardWidth - margin));
     }
-    // 3. Try placing below
-    else if (spot.top + spot.height + cardHeight + margin < vHeight) {
+    // 3. Try placing below if target has clearance below
+    else if (spot.top + spot.height + cardHeight + margin <= vHeight - 16) {
       placement = 'bottom';
       top = spot.top + spot.height + margin;
       left = Math.max(margin, Math.min(spot.left, vWidth - cardWidth - margin));
     }
     // 4. Try placing on left
-    else if (spot.left - cardWidth - margin > 0) {
+    else if (spot.left - cardWidth - margin >= 16) {
       placement = 'left';
       left = spot.left - cardWidth - margin;
       top = Math.max(margin, Math.min(spot.top, vHeight - cardHeight - margin));
@@ -355,8 +366,10 @@ export class OnboardingWalkthroughComponent implements OnInit, OnDestroy, AfterV
   }
 
   private calculateFallbackCenterCard(): void {
-    const cardWidth = Math.min(352, window.innerWidth - 32);
-    const cardHeight = 220;
+    const cardEl = this.tourCardRef?.nativeElement;
+    const actualHeight = cardEl ? cardEl.offsetHeight : 0;
+    const cardHeight = Math.max(actualHeight, 280);
+    const cardWidth = Math.min(390, window.innerWidth - 32);
     const vWidth = window.innerWidth;
     const vHeight = window.innerHeight;
 

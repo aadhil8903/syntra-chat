@@ -85,6 +85,15 @@ export class WalkthroughService {
       route: '/settings',
     },
     {
+      id: 'theme',
+      title: 'Appearance & Themes',
+      description:
+        'Customize your visual experience by switching between Dark Mode, Light Mode, or matching your System preferences at any time.',
+      tip: 'Toggle between themes instantly to match your work environment.',
+      targetSelector: '[data-tour="settings-theme"]',
+      route: '/settings',
+    },
+    {
       id: 'admin',
       title: 'Manage your workspace',
       description:

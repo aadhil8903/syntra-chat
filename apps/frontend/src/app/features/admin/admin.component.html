@@ -1,14 +1,14 @@
-<div class="p-6 lg:p-8 max-w-7xl mx-auto space-y-6 animate-fade-in text-zinc-200">
+<div class="p-6 lg:p-8 max-w-7xl mx-auto space-y-6 animate-fade-in text-zinc-900 dark:text-zinc-200">
   <!-- Header -->
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800/80 pb-6">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800/80 pb-6">
     <div>
       <div class="flex items-center gap-3">
-        <h1 class="text-2xl font-bold text-white tracking-tight">Enterprise Administration</h1>
-        <span class="px-2.5 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-400">
+        <h1 class="text-2xl font-bold text-zinc-900 dark:text-white tracking-tight">Enterprise Administration</h1>
+        <span class="px-2.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-xs font-mono text-zinc-700 dark:text-zinc-400">
           {{ users.length }} Users &bull; {{ roles.length }} Roles
         </span>
       </div>
-      <p class="text-xs sm:text-sm text-zinc-400 mt-1 max-w-2xl">
+      <p class="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1 max-w-2xl">
         Manage employee accounts, configure granular security roles, assign folder permissions, and process access requests.
       </p>
     </div>
@@ -17,27 +17,27 @@
       <button
         *ngIf="activeTab === 'users'"
         (click)="openCreateModal()"
-        class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors flex items-center gap-2"
+        class="px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-colors flex items-center gap-2 shadow-sm"
       >
-        <svg class="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg class="w-4 h-4 text-white dark:text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
         </svg>
-        <span>+ Add User</span>
+        <span>Add User</span>
       </button>
 
       <button
         *ngIf="activeTab === 'roles'"
         (click)="openCreateRoleModal()"
-        class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors flex items-center gap-2"
+        class="px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-colors flex items-center gap-2 shadow-sm"
       >
-        <svg class="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg class="w-4 h-4 text-white dark:text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-        <span>+ Create Role</span>
+        <span>Create Role</span>
       </button>
 
-      <span *ngIf="pendingRequests.length > 0" class="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-300 flex items-center gap-1.5">
-        <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+      <span *ngIf="pendingRequests.length > 0" class="px-3 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-xs font-mono text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
         {{ pendingRequests.length }} Pending Request{{ pendingRequests.length === 1 ? '' : 's' }}
       </span>
     </div>
@@ -48,7 +48,7 @@
     <!-- Tab 1: Users -->
     <button
       class="px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-2 border"
-      [ngClass]="activeTab === 'users' ? 'bg-white text-black font-semibold border-white' : 'bg-[#111114] text-zinc-400 hover:text-white border-zinc-800 hover:bg-zinc-800'"
+      [ngClass]="activeTab === 'users' ? 'bg-white text-zinc-900 font-semibold border-zinc-300 shadow-sm dark:bg-white dark:text-black dark:border-white' : 'bg-transparent text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 border-transparent dark:bg-[#111114] dark:text-zinc-400 dark:hover:text-white dark:border-zinc-800 dark:hover:bg-zinc-800'"
       (click)="activeTab = 'users'"
     >
       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -60,7 +60,7 @@
     <!-- Tab 2: Roles -->
     <button
       class="px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-2 border"
-      [ngClass]="activeTab === 'roles' ? 'bg-white text-black font-semibold border-white' : 'bg-[#111114] text-zinc-400 hover:text-white border-zinc-800 hover:bg-zinc-800'"
+      [ngClass]="activeTab === 'roles' ? 'bg-white text-zinc-900 font-semibold border-zinc-300 shadow-sm dark:bg-white dark:text-black dark:border-white' : 'bg-transparent text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 border-transparent dark:bg-[#111114] dark:text-zinc-400 dark:hover:text-white dark:border-zinc-800 dark:hover:bg-zinc-800'"
       (click)="activeTab = 'roles'"
     >
       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -72,14 +72,20 @@
     <!-- Tab 3: Access Requests & Audit Log -->
     <button
       class="px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-2 border"
-      [ngClass]="activeTab === 'requests' ? 'bg-white text-black font-semibold border-white' : 'bg-[#111114] text-zinc-400 hover:text-white border-zinc-800 hover:bg-zinc-800'"
+      [ngClass]="activeTab === 'requests' ? 'bg-white text-zinc-900 font-semibold border-zinc-300 shadow-sm dark:bg-white dark:text-black dark:border-white' : 'bg-transparent text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 border-transparent dark:bg-[#111114] dark:text-zinc-400 dark:hover:text-white dark:border-zinc-800 dark:hover:bg-zinc-800'"
       (click)="activeTab = 'requests'"
     >
       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
       </svg>
       <span>Access Requests & Audit Log</span>
-      <span *ngIf="pendingRequests.length > 0" class="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-zinc-800 text-zinc-200 border border-zinc-700">
+      <span
+        *ngIf="pendingRequests.length > 0"
+        class="px-1.5 py-0.2 rounded-full text-[10px] font-mono border"
+        [ngClass]="activeTab === 'requests'
+          ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-black dark:text-white dark:border-black'
+          : 'bg-zinc-200 text-zinc-800 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700'"
+      >
         {{ pendingRequests.length }}
       </span>
     </button>
@@ -97,7 +103,7 @@
           type="text"
           [(ngModel)]="searchQuery"
           placeholder="Filter by name, email, department, or folder..."
-          class="w-full pl-10 pr-4 py-2 rounded-xl bg-[#111114] border border-zinc-800 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-white transition-colors"
+          class="w-full pl-10 pr-4 py-2 rounded-xl bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-zinc-900 dark:focus:border-white transition-colors shadow-sm dark:shadow-none"
         />
       </div>
 
@@ -107,11 +113,11 @@
     </div>
 
     <!-- Users Table (Desktop View >= 768px) -->
-    <div class="hidden md:block bg-[#111114] rounded-2xl border border-zinc-800/80 overflow-hidden">
+    <div class="hidden md:block bg-white dark:bg-[#111114] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 overflow-hidden shadow-sm dark:shadow-none">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-xs">
           <thead>
-            <tr class="bg-[#09090b] border-b border-zinc-800 text-zinc-400">
+            <tr class="bg-zinc-50 dark:bg-[#09090b] border-b border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
               <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px]">User Account</th>
               <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Security Role</th>
               <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Departments</th>
@@ -120,23 +126,23 @@
               <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] text-right">Actions</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-zinc-800/60">
+          <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800/60">
             @for (user of filteredUsers; track user.id) {
-              <tr class="hover:bg-zinc-800/30 transition-colors">
+              <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
                 <!-- User Account -->
                 <td class="py-3.5 px-5">
                   <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-xs text-zinc-300 flex-shrink-0 border border-zinc-700">
+                    <div class="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-xs text-zinc-700 dark:text-zinc-300 flex-shrink-0 border border-zinc-300 dark:border-zinc-700 shadow-sm">
                       {{ user.firstName[0] || 'U' }}{{ user.lastName[0] || '' }}
                     </div>
                     <div>
-                      <div class="font-semibold text-zinc-100 text-sm">
+                      <div class="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">
                         {{ user.firstName }} {{ user.lastName }}
-                        <span *ngIf="user.role === 'admin'" class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-mono bg-zinc-900 border border-zinc-700 text-zinc-200">
+                        <span *ngIf="user.role === 'admin'" class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-mono bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200">
                           ADMIN
                         </span>
                       </div>
-                      <div class="text-[11px] text-zinc-400 font-mono">{{ user.email }}</div>
+                      <div class="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono">{{ user.email }}</div>
                     </div>
                   </div>
                 </td>
@@ -154,7 +160,7 @@
                   <div *ngIf="editingUserId === user.id" class="space-y-1.5">
                     <select
                       [(ngModel)]="editRole"
-                      class="bg-[#09090b] border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-zinc-500"
+                      class="bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-500"
                     >
                       <option value="admin">Admin (System)</option>
                       <option value="manager">Manager (System)</option>
@@ -167,14 +173,14 @@
                       }
                     </select>
                     <div *ngIf="isTargetRoleAdmin() && !isUserAdmin(user)" class="space-y-0.5 animate-fade-in">
-                      <label class="block text-[10px] text-zinc-300 font-medium">Master Admin Password *</label>
+                      <label class="block text-[10px] text-zinc-700 dark:text-zinc-300 font-medium">Master Admin Password *</label>
                       <div class="relative">
                         <input
                           [type]="editShowMasterAdminPassword ? 'text' : 'password'"
                           [(ngModel)]="editMasterAdminPassword"
                           placeholder="Master password"
                           autocomplete="new-password"
-                          class="w-full pl-2 pr-7 py-1 rounded-lg bg-[#09090b] border border-zinc-700 text-[11px] text-white focus:outline-none focus:border-white"
+                          class="w-full pl-2 pr-7 py-1 rounded-lg bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-[11px] text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white"
                         />
                         <button
                           type="button"
@@ -200,12 +206,12 @@
                 <td class="py-3.5 px-4">
                   <div *ngIf="editingUserId !== user.id" class="flex flex-wrap gap-1">
                     @for (dep of user.departments; track dep) {
-                      <span class="px-2 py-0.5 bg-zinc-900 text-zinc-300 rounded-md text-[10px] border border-zinc-800 font-mono">
+                      <span class="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded-md text-[10px] border border-zinc-300 dark:border-zinc-800 font-mono">
                         {{ dep }}
                       </span>
                     }
                     @if (!user.departments.length) {
-                      <span class="text-zinc-600 text-[11px] font-mono">Unrestricted</span>
+                      <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">Unrestricted</span>
                     }
                   </div>
                   <div *ngIf="editingUserId === user.id">
@@ -213,7 +219,7 @@
                       type="text"
                       [(ngModel)]="editDepartmentsText"
                       placeholder="e.g. Sales, HR, Finance"
-                      class="w-full px-2.5 py-1 rounded-lg bg-[#09090b] border border-zinc-700 text-xs text-white focus:outline-none focus:border-zinc-500"
+                      class="w-full px-2.5 py-1 rounded-lg bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-500"
                     />
                   </div>
                 </td>
@@ -223,17 +229,17 @@
                   <!-- View Mode -->
                   <div *ngIf="editingUserId !== user.id" class="flex flex-wrap gap-1">
                     @if (user.role === 'admin') {
-                      <span class="px-2 py-0.5 bg-zinc-900 text-zinc-300 rounded-md text-[10px] border border-zinc-800 font-mono">
+                      <span class="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded-md text-[10px] border border-zinc-300 dark:border-zinc-800 font-mono">
                         All (Admin)
                       </span>
                     } @else if (user.allowedFolders && user.allowedFolders.length > 0) {
                       @for (f of user.allowedFolders; track f) {
-                        <span class="px-2 py-0.5 bg-zinc-900 text-zinc-300 rounded-md text-[10px] border border-zinc-800 flex items-center gap-1 font-mono">
+                        <span class="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded-md text-[10px] border border-zinc-300 dark:border-zinc-800 flex items-center gap-1 font-mono">
                           📁 {{ f }}
                         </span>
                       }
                     } @else {
-                      <span class="text-zinc-600 text-[11px] font-mono">No restricted folders</span>
+                      <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">No restricted folders</span>
                     }
                   </div>
 
@@ -241,7 +247,7 @@
                   <div *ngIf="editingUserId === user.id" class="space-y-1.5 min-w-[170px]">
                     <div class="flex flex-wrap gap-1">
                       @for (f of editSelectedFolders; track f) {
-                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-200 text-[10px] border border-zinc-700 font-mono">
+                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-[10px] border border-zinc-300 dark:border-zinc-700 font-mono">
                           📁 {{ f }}
                           <button type="button" (click)="removeItem(editSelectedFolders, f, $event)" class="text-zinc-400 hover:text-white">&times;</button>
                         </span>
@@ -251,18 +257,18 @@
                       <button
                         type="button"
                         (click)="toggleDropdown('edit-user-folders-' + user.id, $event)"
-                        class="px-2 py-1 rounded-lg bg-[#09090b] border border-zinc-700 text-[11px] text-zinc-300 hover:text-white flex items-center gap-1 w-full justify-between"
+                        class="px-2 py-1 rounded-lg bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-[11px] text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white flex items-center gap-1 w-full justify-between"
                       >
                         <span>{{ editSelectedFolders.length ? editSelectedFolders.length + ' folder(s)' : '+ Grant Folders' }}</span>
                         <span class="text-[9px] text-zinc-500">▼</span>
                       </button>
                       <div
                         *ngIf="openDropdownId === 'edit-user-folders-' + user.id"
-                        class="absolute left-0 top-8 z-50 w-56 bg-[#18181b] border border-zinc-700 rounded-xl p-2 space-y-2"
+                        class="absolute left-0 top-8 z-50 w-56 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-700 rounded-xl p-2 space-y-2 shadow-xl"
                       >
                         <div class="max-h-36 overflow-y-auto space-y-1">
                           @for (folder of availableFolders; track folder) {
-                            <label class="flex items-center gap-2 px-2 py-1 hover:bg-zinc-800 rounded text-[11px] cursor-pointer text-zinc-300">
+                            <label class="flex items-center gap-2 px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-[11px] cursor-pointer text-zinc-700 dark:text-zinc-300">
                               <input
                                 type="checkbox"
                                 [checked]="editSelectedFolders.includes(folder)"
@@ -285,16 +291,21 @@
                 <td class="py-3.5 px-4">
                   <div *ngIf="editingUserId !== user.id">
                     <span
-                      class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-mono border bg-zinc-900 text-zinc-300 border-zinc-800 font-medium"
+                      class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-mono border bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 font-medium"
                     >
-                      <span class="w-1.5 h-1.5 rounded-full" [ngClass]="user.status === 'suspended' ? 'border border-zinc-500 bg-transparent' : 'bg-white'"></span>
+                      <span
+                        class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                        [ngClass]="user.status === 'suspended'
+                          ? 'bg-rose-500 shadow-[0_0_5px_rgba(244,63,94,0.7)]'
+                          : 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]'"
+                      ></span>
                       {{ user.status || 'active' }}
                     </span>
                   </div>
                   <div *ngIf="editingUserId === user.id">
                     <select
                       [(ngModel)]="editStatus"
-                      class="bg-[#09090b] border border-zinc-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-zinc-500"
+                      class="bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-500"
                     >
                       <option value="active">Active</option>
                       <option value="suspended">Suspended</option>
@@ -307,14 +318,14 @@
                   <div *ngIf="editingUserId !== user.id" class="flex items-center justify-end gap-1.5">
                     <button
                       (click)="startEditingUser(user)"
-                      class="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-medium text-xs transition-colors border border-zinc-700"
+                      class="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 dark:hover:text-white font-medium text-xs transition-colors border border-zinc-300 dark:border-zinc-700"
                     >
                       Edit
                     </button>
                     <button
                       *ngIf="user.role !== 'admin'"
                       (click)="deleteUser(user)"
-                      class="p-1 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"
+                      class="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
                       title="Delete User Account"
                     >
                       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -325,13 +336,13 @@
                   <div *ngIf="editingUserId === user.id" class="flex items-center justify-end gap-1.5">
                     <button
                       (click)="saveUser(user)"
-                      class="px-3 py-1 rounded-lg bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors"
+                      class="px-3 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-colors shadow-sm"
                     >
                       Save
                     </button>
                     <button
                       (click)="cancelEditing()"
-                      class="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-medium text-xs transition-colors border border-zinc-700"
+                      class="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-400 font-medium text-xs transition-colors border border-zinc-300 dark:border-zinc-700"
                     >
                       Cancel
                     </button>
@@ -352,15 +363,15 @@
     <!-- Mobile User Cards (< 768px) -->
     <div class="block md:hidden space-y-3">
       @for (user of filteredUsers; track user.id) {
-        <div class="bg-[#111114] border border-zinc-800 rounded-2xl p-4 space-y-3.5 text-xs">
+        <div class="bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 space-y-3.5 text-xs shadow-sm dark:shadow-none">
           <!-- User Account Header -->
-          <div class="flex items-center justify-between gap-3 pb-3 border-b border-zinc-800">
+          <div class="flex items-center justify-between gap-3 pb-3 border-b border-zinc-200 dark:border-zinc-800">
             <div class="flex items-center gap-3 min-w-0">
-              <div class="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-xs text-zinc-300 flex-shrink-0 border border-zinc-700">
+              <div class="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-xs text-zinc-700 dark:text-zinc-300 flex-shrink-0 border border-zinc-300 dark:border-zinc-700">
                 {{ user.firstName[0] || 'U' }}{{ user.lastName[0] || '' }}
               </div>
               <div class="truncate">
-                <div class="font-semibold text-zinc-100 text-sm truncate flex items-center gap-1.5">
+                <div class="font-semibold text-zinc-900 dark:text-zinc-100 text-sm truncate flex items-center gap-1.5">
                   <span>{{ user.firstName }} {{ user.lastName }}</span>
                   <span *ngIf="user.role === 'admin'" class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-zinc-900 border border-zinc-700 text-zinc-200">
                     ADMIN
@@ -371,9 +382,14 @@
             </div>
 
             <span
-              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono border bg-zinc-900 text-zinc-300 border-zinc-800 font-medium flex-shrink-0"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono border bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 font-medium flex-shrink-0"
             >
-              <span class="w-1.5 h-1.5 rounded-full" [ngClass]="user.status === 'suspended' ? 'border border-zinc-500 bg-transparent' : 'bg-white'"></span>
+              <span
+                class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                [ngClass]="user.status === 'suspended'
+                  ? 'bg-rose-500 shadow-[0_0_5px_rgba(244,63,94,0.7)]'
+                  : 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]'"
+              ></span>
               {{ user.status || 'active' }}
             </span>
           </div>
@@ -392,7 +408,7 @@
             <div *ngIf="editingUserId === user.id" class="space-y-1.5">
               <select
                 [(ngModel)]="editRole"
-                class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-500"
+                class="w-full bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-500"
               >
                 <option value="admin">Admin (System)</option>
                 <option value="manager">Manager (System)</option>
@@ -405,14 +421,14 @@
                 }
               </select>
               <div *ngIf="isTargetRoleAdmin() && !isUserAdmin(user)" class="space-y-0.5 animate-fade-in">
-                <label class="block text-[10px] text-zinc-300 font-medium">Master Admin Password *</label>
+                <label class="block text-[10px] text-zinc-700 dark:text-zinc-300 font-medium">Master Admin Password *</label>
                 <div class="relative">
                   <input
                     [type]="editShowMasterAdminPassword ? 'text' : 'password'"
                     [(ngModel)]="editMasterAdminPassword"
                     placeholder="Master password"
                     autocomplete="new-password"
-                    class="w-full pl-3 pr-8 py-2 rounded-xl bg-[#09090b] border border-zinc-700 text-xs text-white focus:outline-none focus:border-white"
+                    class="w-full pl-3 pr-8 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white"
                   />
                   <button
                     type="button"
@@ -439,12 +455,12 @@
             <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-1">Departments</span>
             <div *ngIf="editingUserId !== user.id" class="flex flex-wrap gap-1">
               @for (dep of user.departments; track dep) {
-                <span class="px-2 py-0.5 bg-zinc-900 text-zinc-300 rounded-md text-[10px] border border-zinc-800 font-mono">
+                <span class="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded-md text-[10px] border border-zinc-300 dark:border-zinc-800 font-mono">
                   {{ dep }}
                 </span>
               }
               @if (!user.departments.length) {
-                <span class="text-zinc-600 text-[11px] font-mono">Unrestricted</span>
+                <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">Unrestricted</span>
               }
             </div>
             <div *ngIf="editingUserId === user.id">
@@ -452,7 +468,7 @@
                 type="text"
                 [(ngModel)]="editDepartmentsText"
                 placeholder="e.g. Sales, HR, Finance"
-                class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-700 text-xs text-white focus:outline-none focus:border-zinc-500"
+                class="w-full px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-500"
               />
             </div>
           </div>
@@ -462,23 +478,23 @@
             <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-1">Allowed Folders</span>
             <div *ngIf="editingUserId !== user.id" class="flex flex-wrap gap-1">
               @if (user.role === 'admin') {
-                <span class="px-2 py-0.5 bg-zinc-900 text-zinc-300 rounded-md text-[10px] border border-zinc-800 font-mono">
+                <span class="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded-md text-[10px] border border-zinc-300 dark:border-zinc-800 font-mono">
                   All (Admin)
                 </span>
               } @else if (user.allowedFolders && user.allowedFolders.length > 0) {
                 @for (f of user.allowedFolders; track f) {
-                  <span class="px-2 py-0.5 bg-zinc-900 text-zinc-300 rounded-md text-[10px] border border-zinc-800 flex items-center gap-1 font-mono">
+                  <span class="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded-md text-[10px] border border-zinc-300 dark:border-zinc-800 flex items-center gap-1 font-mono">
                     📁 {{ f }}
                   </span>
                 }
               } @else {
-                <span class="text-zinc-600 text-[11px] font-mono">No restricted folders</span>
+                <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">No restricted folders</span>
               }
             </div>
             <div *ngIf="editingUserId === user.id" class="space-y-1.5">
               <div class="flex flex-wrap gap-1">
                 @for (f of editSelectedFolders; track f) {
-                  <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-200 text-[10px] border border-zinc-700 font-mono">
+                  <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-[10px] border border-zinc-300 dark:border-zinc-700 font-mono">
                     📁 {{ f }}
                     <button type="button" (click)="removeItem(editSelectedFolders, f, $event)" class="text-zinc-400 hover:text-white">&times;</button>
                   </span>
@@ -488,18 +504,18 @@
                 <button
                   type="button"
                   (click)="toggleDropdown('edit-user-folders-' + user.id, $event)"
-                  class="px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-700 text-xs text-zinc-300 hover:text-white flex items-center gap-1 w-full justify-between min-h-[44px]"
+                  class="px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white flex items-center gap-1 w-full justify-between min-h-[44px]"
                 >
                   <span>{{ editSelectedFolders.length ? editSelectedFolders.length + ' folder(s) granted' : '+ Grant Folders' }}</span>
                   <span class="text-[9px] text-zinc-500">▼</span>
                 </button>
                 <div
                   *ngIf="openDropdownId === 'edit-user-folders-' + user.id"
-                  class="absolute left-0 top-12 z-50 w-full sm:w-64 bg-[#18181b] border border-zinc-700 rounded-xl p-2 space-y-2 shadow-xl"
+                  class="absolute left-0 top-12 z-50 w-full sm:w-64 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-700 rounded-xl p-2 space-y-2 shadow-xl"
                 >
                   <div class="max-h-44 overflow-y-auto space-y-1">
                     @for (folder of availableFolders; track folder) {
-                      <label class="flex items-center gap-2 px-2.5 py-2 hover:bg-zinc-800 rounded-lg text-xs cursor-pointer text-zinc-300 min-h-[36px]">
+                      <label class="flex items-center gap-2 px-2.5 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg text-xs cursor-pointer text-zinc-700 dark:text-zinc-300 min-h-[36px]">
                         <input
                           type="checkbox"
                           [checked]="editSelectedFolders.includes(folder)"
@@ -516,11 +532,11 @@
           </div>
 
           <!-- Actions -->
-          <div class="pt-3 border-t border-zinc-800 flex items-center gap-2">
+          <div class="pt-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center gap-2">
             <div *ngIf="editingUserId !== user.id" class="flex items-center gap-2 w-full">
               <button
                 (click)="startEditingUser(user)"
-                class="flex-1 min-h-[44px] px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white font-medium text-xs transition-colors border border-zinc-700 flex items-center justify-center gap-1.5"
+                class="flex-1 min-h-[44px] px-3 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 hover:text-black dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 dark:hover:text-white font-medium text-xs transition-colors border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5"
               >
                 <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -530,7 +546,7 @@
               <button
                 *ngIf="user.role !== 'admin'"
                 (click)="deleteUser(user)"
-                class="min-w-[44px] min-h-[44px] px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 flex items-center justify-center transition-colors"
+                class="min-w-[44px] min-h-[44px] px-3 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-900 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-400 dark:hover:text-white border border-zinc-200 dark:border-zinc-800 flex items-center justify-center transition-colors"
                 title="Delete User Account"
               >
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -541,13 +557,13 @@
             <div *ngIf="editingUserId === user.id" class="flex items-center gap-2 w-full">
               <button
                 (click)="saveUser(user)"
-                class="flex-1 min-h-[44px] px-3 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors flex items-center justify-center"
+                class="flex-1 min-h-[44px] px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-colors flex items-center justify-center shadow-sm"
               >
                 Save
               </button>
               <button
                 (click)="cancelEditing()"
-                class="min-h-[44px] px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-medium text-xs transition-colors border border-zinc-700 flex items-center justify-center"
+                class="min-h-[44px] px-4 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-400 font-medium text-xs transition-colors border border-zinc-300 dark:border-zinc-700 flex items-center justify-center"
               >
                 Cancel
               </button>
@@ -556,7 +572,7 @@
         </div>
       }
       @if (filteredUsers.length === 0) {
-        <div class="p-8 bg-[#111114] border border-zinc-800 rounded-2xl text-center text-zinc-500 text-xs">
+        <div class="p-8 bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl text-center text-zinc-500 text-xs shadow-sm dark:shadow-none">
           No users found matching your search query.
         </div>
       }
@@ -566,11 +582,11 @@
   <!-- Tab 2: Security Roles Management -->
   <div *ngIf="activeTab === 'roles'" class="space-y-4">
     <!-- Roles Table (Desktop View >= 768px) -->
-    <div class="hidden md:block bg-[#111114] rounded-2xl border border-zinc-800/80 overflow-hidden">
+    <div class="hidden md:block bg-white dark:bg-[#111114] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 overflow-hidden shadow-sm dark:shadow-none">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-xs">
           <thead>
-            <tr class="bg-[#09090b] border-b border-zinc-800 text-zinc-400">
+            <tr class="bg-zinc-50 dark:bg-[#09090b] border-b border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
               <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px]">Role Name & Key</th>
               <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Description</th>
               <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Restricted Folders</th>
@@ -578,20 +594,20 @@
               <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] text-right">Actions</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-zinc-800/60">
+          <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800/60">
             @for (role of roles; track (role._id || role.id || role.key)) {
-              <tr class="hover:bg-zinc-800/30 transition-colors">
+              <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
                 <!-- Name & Key -->
                 <td class="py-3.5 px-5">
                   <div *ngIf="editingRoleId !== (role._id || role.id)">
-                    <div class="font-semibold text-zinc-100 text-sm">{{ role.name }}</div>
+                    <div class="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">{{ role.name }}</div>
                     <div class="text-[10px] font-mono text-zinc-500 mt-0.5">key: <span class="text-zinc-300">{{ role.key }}</span></div>
                   </div>
                   <div *ngIf="editingRoleId === (role._id || role.id)" class="space-y-1">
                     <input
                       type="text"
                       [(ngModel)]="editRoleName"
-                      class="w-full px-2.5 py-1 rounded-lg bg-[#09090b] border border-zinc-700 text-xs text-white focus:outline-none focus:border-zinc-500"
+                      class="w-full px-2.5 py-1 rounded-lg bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-500"
                       placeholder="Role name"
                     />
                     <div class="text-[10px] font-mono text-zinc-500">Key: {{ role.key }}</div>
@@ -600,14 +616,14 @@
 
                 <!-- Description -->
                 <td class="py-3.5 px-4 max-w-xs">
-                  <div *ngIf="editingRoleId !== (role._id || role.id)" class="text-zinc-400 text-xs leading-relaxed">
+                  <div *ngIf="editingRoleId !== (role._id || role.id)" class="text-zinc-600 dark:text-zinc-400 text-xs leading-relaxed">
                     {{ role.description || 'No description provided.' }}
                   </div>
                   <div *ngIf="editingRoleId === (role._id || role.id)">
                     <textarea
                       [(ngModel)]="editRoleDescription"
                       rows="2"
-                      class="w-full px-2.5 py-1 rounded-lg bg-[#09090b] border border-zinc-700 text-xs text-white focus:outline-none focus:border-zinc-500"
+                      class="w-full px-2.5 py-1 rounded-lg bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-500"
                       placeholder="Role description"
                     ></textarea>
                   </div>
@@ -617,12 +633,12 @@
                 <td class="py-3.5 px-4">
                   <div *ngIf="editingRoleId !== (role._id || role.id)" class="flex flex-wrap gap-1">
                     @for (folder of (role.allowedFolders || []); track folder) {
-                      <span class="px-2 py-0.5 bg-zinc-900 text-zinc-300 rounded-md text-[10px] border border-zinc-800 font-mono">
+                      <span class="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded-md text-[10px] border border-zinc-300 dark:border-zinc-800 font-mono">
                         {{ folder }}
                       </span>
                     }
                     @if (!role.allowedFolders || !role.allowedFolders.length) {
-                      <span class="text-zinc-600 text-[11px] font-mono">All Workspaces</span>
+                      <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">All Workspaces</span>
                     }
                   </div>
                   <div *ngIf="editingRoleId === (role._id || role.id)" class="space-y-1.5">
@@ -638,17 +654,17 @@
                       <button
                         type="button"
                         (click)="toggleDropdown('edit-role-folders-' + (role._id || role.id), $event)"
-                        class="px-2.5 py-1 rounded-lg bg-[#09090b] border border-zinc-700 text-[11px] text-zinc-300 hover:text-white flex items-center gap-1"
+                        class="px-2.5 py-1 rounded-lg bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-[11px] text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white flex items-center gap-1"
                       >
-                        <span>+ Assign Folders</span>
+                        <span>Assign Folders</span>
                       </button>
                       <div
                         *ngIf="openDropdownId === 'edit-role-folders-' + (role._id || role.id)"
-                        class="absolute left-0 top-8 z-50 w-56 bg-[#18181b] border border-zinc-700 rounded-xl p-2 space-y-2"
+                        class="absolute left-0 top-8 z-50 w-56 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-700 rounded-xl p-2 space-y-2 shadow-xl"
                       >
                         <div class="max-h-36 overflow-y-auto space-y-1">
                           @for (folder of availableFolders; track folder) {
-                            <label class="flex items-center gap-2 px-2 py-1 hover:bg-zinc-800 rounded text-[11px] cursor-pointer text-zinc-300">
+                            <label class="flex items-center gap-2 px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-[11px] cursor-pointer text-zinc-700 dark:text-zinc-300">
                               <input
                                 type="checkbox"
                                 [checked]="editRoleSelectedFolders.includes(folder)"
@@ -659,17 +675,17 @@
                             </label>
                           }
                         </div>
-                        <div class="pt-1 border-t border-zinc-800 flex gap-1">
+                        <div class="pt-1 border-t border-zinc-200 dark:border-zinc-800 flex gap-1">
                           <input
                             type="text"
                             [(ngModel)]="customInputMap['edit-role-folders-' + (role._id || role.id)]"
                             placeholder="New folder..."
-                            class="flex-1 px-2 py-0.5 rounded-lg bg-[#09090b] border border-zinc-700 text-[10px] text-white"
+                            class="flex-1 px-2 py-0.5 rounded-lg bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-[10px] text-zinc-900 dark:text-white"
                           />
                           <button
                             type="button"
                             (click)="addCustomItem(editRoleSelectedFolders, 'folder', 'edit-role-folders-' + (role._id || role.id), $event)"
-                            class="px-2 py-0.5 bg-white text-black rounded-lg text-[10px] font-semibold"
+                            class="px-2 py-0.5 bg-zinc-900 text-white dark:bg-white dark:text-black rounded-lg text-[10px] font-semibold"
                           >
                             Add
                           </button>
@@ -683,7 +699,7 @@
                 <td class="py-3.5 px-4">
                   <span
                     class="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold uppercase border"
-                    [ngClass]="role.isSystem ? 'bg-zinc-900 text-zinc-400 border-zinc-800' : 'bg-zinc-900 text-zinc-200 border-zinc-700'"
+                    [ngClass]="role.isSystem ? 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-800' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border-zinc-300 dark:border-zinc-700'"
                   >
                     {{ role.isSystem ? 'System' : 'Custom' }}
                   </span>
@@ -695,14 +711,14 @@
                     <button
                       *ngIf="!role.isSystem"
                       (click)="startEditingRole(role)"
-                      class="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-medium text-xs transition-colors border border-zinc-700"
+                      class="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 dark:hover:text-white font-medium text-xs transition-colors border border-zinc-300 dark:border-zinc-700"
                     >
                       Edit
                     </button>
                     <button
                       *ngIf="!role.isSystem"
                       (click)="deleteRole(role)"
-                      class="p-1 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"
+                      class="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
                       title="Delete Custom Role"
                     >
                       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -714,13 +730,13 @@
                   <div *ngIf="editingRoleId === (role._id || role.id)" class="flex items-center justify-end gap-1.5">
                     <button
                       (click)="saveRole(role)"
-                      class="px-3 py-1 rounded-lg bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors"
+                      class="px-3 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-colors shadow-sm"
                     >
                       Save
                     </button>
                     <button
                       (click)="cancelEditingRole()"
-                      class="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-medium text-xs transition-colors border border-zinc-700"
+                      class="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-400 font-medium text-xs transition-colors border border-zinc-300 dark:border-zinc-700"
                     >
                       Cancel
                     </button>
@@ -736,19 +752,19 @@
     <!-- Mobile Role Cards (< 768px) -->
     <div class="block md:hidden space-y-3">
       @for (role of roles; track (role._id || role.id || role.key)) {
-        <div class="bg-[#111114] border border-zinc-800 rounded-2xl p-4 space-y-3.5 text-xs">
+        <div class="bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 space-y-3.5 text-xs shadow-sm dark:shadow-none">
           <!-- Role Header -->
-          <div class="flex items-center justify-between gap-3 pb-3 border-b border-zinc-800">
+          <div class="flex items-center justify-between gap-3 pb-3 border-b border-zinc-200 dark:border-zinc-800">
             <div>
               <div *ngIf="editingRoleId !== (role._id || role.id)">
-                <div class="font-semibold text-zinc-100 text-sm">{{ role.name }}</div>
+                <div class="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">{{ role.name }}</div>
                 <div class="text-[10px] font-mono text-zinc-500 mt-0.5">key: <span class="text-zinc-300">{{ role.key }}</span></div>
               </div>
               <div *ngIf="editingRoleId === (role._id || role.id)" class="space-y-1">
                 <input
                   type="text"
                   [(ngModel)]="editRoleName"
-                  class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-700 text-xs text-white focus:outline-none focus:border-zinc-500"
+                  class="w-full px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-500"
                   placeholder="Role name"
                 />
                 <div class="text-[10px] font-mono text-zinc-500">Key: {{ role.key }}</div>
@@ -757,7 +773,7 @@
 
             <span
               class="px-2.5 py-1 rounded-md text-[10px] font-mono font-semibold uppercase border flex-shrink-0"
-              [ngClass]="role.isSystem ? 'bg-zinc-900 text-zinc-400 border-zinc-800' : 'bg-zinc-900 text-zinc-200 border-zinc-700'"
+              [ngClass]="role.isSystem ? 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-800' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border-zinc-300 dark:border-zinc-700'"
             >
               {{ role.isSystem ? 'System' : 'Custom' }}
             </span>
@@ -766,14 +782,14 @@
           <!-- Description -->
           <div>
             <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-1">Description</span>
-            <div *ngIf="editingRoleId !== (role._id || role.id)" class="text-zinc-300 text-xs leading-relaxed">
+            <div *ngIf="editingRoleId !== (role._id || role.id)" class="text-zinc-700 dark:text-zinc-300 text-xs leading-relaxed">
               {{ role.description || 'No description provided.' }}
             </div>
             <div *ngIf="editingRoleId === (role._id || role.id)">
               <textarea
                 [(ngModel)]="editRoleDescription"
                 rows="2"
-                class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-700 text-xs text-white focus:outline-none focus:border-zinc-500"
+                class="w-full px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-500"
                 placeholder="Role description"
               ></textarea>
             </div>
@@ -784,12 +800,12 @@
             <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-1">Restricted Folders</span>
             <div *ngIf="editingRoleId !== (role._id || role.id)" class="flex flex-wrap gap-1">
               @for (folder of (role.allowedFolders || []); track folder) {
-                <span class="px-2 py-0.5 bg-zinc-900 text-zinc-300 rounded-md text-[10px] border border-zinc-800 font-mono">
+                <span class="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded-md text-[10px] border border-zinc-300 dark:border-zinc-800 font-mono">
                   📁 {{ folder }}
                 </span>
               }
               @if (!role.allowedFolders || !role.allowedFolders.length) {
-                <span class="text-zinc-600 text-[11px] font-mono">All Workspaces</span>
+                <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">All Workspaces</span>
               }
             </div>
             <div *ngIf="editingRoleId === (role._id || role.id)" class="space-y-1.5">
@@ -805,18 +821,18 @@
                 <button
                   type="button"
                   (click)="toggleDropdown('edit-role-folders-mobile-' + (role._id || role.id), $event)"
-                  class="px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-700 text-xs text-zinc-300 hover:text-white flex items-center gap-1 w-full justify-between min-h-[44px]"
+                  class="px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white flex items-center gap-1 w-full justify-between min-h-[44px]"
                 >
                   <span>{{ editRoleSelectedFolders.length ? editRoleSelectedFolders.length + ' folder(s) assigned' : '+ Assign Folders' }}</span>
                   <span class="text-[9px] text-zinc-500">▼</span>
                 </button>
                 <div
                   *ngIf="openDropdownId === 'edit-role-folders-mobile-' + (role._id || role.id)"
-                  class="absolute left-0 top-12 z-50 w-full sm:w-64 bg-[#18181b] border border-zinc-700 rounded-xl p-2 space-y-2 shadow-xl"
+                  class="absolute left-0 top-12 z-50 w-full sm:w-64 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-700 rounded-xl p-2 space-y-2 shadow-xl"
                 >
                   <div class="max-h-44 overflow-y-auto space-y-1">
                     @for (folder of availableFolders; track folder) {
-                      <label class="flex items-center gap-2 px-2.5 py-2 hover:bg-zinc-800 rounded-lg text-xs cursor-pointer text-zinc-300 min-h-[36px]">
+                      <label class="flex items-center gap-2 px-2.5 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg text-xs cursor-pointer text-zinc-700 dark:text-zinc-300 min-h-[36px]">
                         <input
                           type="checkbox"
                           [checked]="editRoleSelectedFolders.includes(folder)"
@@ -833,12 +849,12 @@
           </div>
 
           <!-- Actions -->
-          <div class="pt-3 border-t border-zinc-800 flex items-center gap-2">
+          <div class="pt-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center gap-2">
             <div *ngIf="editingRoleId !== (role._id || role.id)" class="flex items-center gap-2 w-full">
               <button
                 *ngIf="!role.isSystem"
                 (click)="startEditingRole(role)"
-                class="flex-1 min-h-[44px] px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white font-medium text-xs transition-colors border border-zinc-700 flex items-center justify-center gap-1.5"
+                class="flex-1 min-h-[44px] px-3 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 hover:text-black dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 dark:hover:text-white font-medium text-xs transition-colors border border-zinc-300 dark:border-zinc-700 flex items-center justify-center gap-1.5"
               >
                 <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -848,7 +864,7 @@
               <button
                 *ngIf="!role.isSystem"
                 (click)="deleteRole(role)"
-                class="min-w-[44px] min-h-[44px] px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 flex items-center justify-center transition-colors"
+                class="min-w-[44px] min-h-[44px] px-3 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-900 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-400 dark:hover:text-white border border-zinc-200 dark:border-zinc-800 flex items-center justify-center transition-colors"
                 title="Delete Custom Role"
               >
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -860,13 +876,13 @@
             <div *ngIf="editingRoleId === (role._id || role.id)" class="flex items-center gap-2 w-full">
               <button
                 (click)="saveRole(role)"
-                class="flex-1 min-h-[44px] px-3 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors flex items-center justify-center"
+                class="flex-1 min-h-[44px] px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-colors flex items-center justify-center shadow-sm"
               >
                 Save
               </button>
               <button
                 (click)="cancelEditingRole()"
-                class="min-h-[44px] px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 font-medium text-xs transition-colors border border-zinc-700 flex items-center justify-center"
+                class="min-h-[44px] px-4 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-400 font-medium text-xs transition-colors border border-zinc-300 dark:border-zinc-700 flex items-center justify-center"
               >
                 Cancel
               </button>
@@ -881,18 +897,20 @@
   <div *ngIf="activeTab === 'requests'" class="space-y-4">
     <!-- Sub-tab Bar -->
     <div class="flex items-center justify-between gap-4 flex-wrap">
-      <div class="flex items-center gap-2 p-1 bg-[#111114] border border-zinc-800 rounded-xl">
+      <div class="flex items-center gap-2 p-1 bg-zinc-100 dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-xl">
         <button
           type="button"
           (click)="requestsSubTab = 'pending'"
           class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2"
-          [ngClass]="requestsSubTab === 'pending' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'"
+          [ngClass]="requestsSubTab === 'pending' ? 'bg-white text-zinc-900 shadow-sm dark:bg-white dark:text-black' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'"
         >
           <span>Pending Approvals</span>
           <span
             *ngIf="pendingRequests.length > 0"
-            class="px-1.5 py-0.2 rounded-full text-[10px] font-mono"
-            [ngClass]="requestsSubTab === 'pending' ? 'bg-black text-white' : 'bg-zinc-800 text-zinc-300 border border-zinc-700'"
+            class="px-1.5 py-0.2 rounded-full text-[10px] font-mono border"
+            [ngClass]="requestsSubTab === 'pending'
+              ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-black dark:text-white dark:border-black'
+              : 'bg-zinc-200 text-zinc-800 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700'"
           >
             {{ pendingRequests.length }}
           </span>
@@ -901,10 +919,15 @@
           type="button"
           (click)="requestsSubTab = 'history'; loadHistory()"
           class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2"
-          [ngClass]="requestsSubTab === 'history' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'"
+          [ngClass]="requestsSubTab === 'history' ? 'bg-white text-zinc-900 shadow-sm dark:bg-white dark:text-black' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'"
         >
           <span>Audit & Resolution History</span>
-          <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono" [ngClass]="requestsSubTab === 'history' ? 'bg-black text-white' : 'bg-zinc-800 text-zinc-400'">
+          <span
+            class="px-1.5 py-0.2 rounded-full text-[10px] font-mono border"
+            [ngClass]="requestsSubTab === 'history'
+              ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-black dark:text-white dark:border-black'
+              : 'bg-zinc-200 text-zinc-800 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700'"
+          >
             {{ historyTotal }}
           </span>
         </button>
@@ -914,7 +937,7 @@
       <button
         type="button"
         (click)="loadRequests()"
-        class="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 text-xs font-medium transition-colors flex items-center gap-1.5"
+        class="px-3 py-1.5 rounded-xl bg-white hover:bg-zinc-50 text-zinc-700 hover:text-zinc-900 border border-zinc-200 hover:border-zinc-300 shadow-sm dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-300 dark:hover:text-white dark:border-zinc-800 text-xs font-medium transition-colors flex items-center gap-1.5"
       >
         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -926,11 +949,11 @@
     <!-- SUB-VIEW 1: PENDING REQUESTS TABLE -->
     <div *ngIf="requestsSubTab === 'pending'" class="space-y-4">
       <!-- Desktop Table (>= 768px) -->
-      <div class="hidden md:block bg-[#111114] rounded-2xl border border-zinc-800/80 overflow-hidden">
+      <div class="hidden md:block bg-white dark:bg-[#111114] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 overflow-hidden shadow-sm dark:shadow-none">
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs">
             <thead>
-              <tr class="bg-[#09090b] border-b border-zinc-800 text-zinc-400">
+              <tr class="bg-zinc-50 dark:bg-[#09090b] border-b border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
                 <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px]">Requester</th>
                 <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Requested Target</th>
                 <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Reason / Justification</th>
@@ -938,32 +961,32 @@
                 <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] text-right">Actions</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-zinc-800/60">
+            <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800/60">
               @for (req of pendingRequests; track req.id) {
-                <tr class="hover:bg-zinc-800/30 transition-colors">
+                <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
                   <td class="py-3.5 px-5">
-                    <div class="font-medium text-zinc-100">{{ req.userName || req.userEmail || req.userId }}</div>
+                    <div class="font-medium text-zinc-900 dark:text-zinc-100">{{ req.userName || req.userEmail || req.userId }}</div>
                     <div *ngIf="req.userEmail" class="text-[11px] text-zinc-500 font-mono">{{ req.userEmail }}</div>
                   </td>
-                  <td class="py-3.5 px-4 font-medium text-zinc-200">
-                    <span class="px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-300 font-mono text-[10px] mr-1.5 uppercase border border-zinc-700">
+                  <td class="py-3.5 px-4 font-medium text-zinc-800 dark:text-zinc-200">
+                    <span class="px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono text-[10px] mr-1.5 uppercase border border-zinc-200 dark:border-zinc-700 font-medium">
                       {{ req.resourceType }}
                     </span>
-                    <span class="font-mono text-xs text-zinc-200">{{ req.resourceName || req.folderPath || req.resourceId }}</span>
+                    <span class="font-mono text-xs text-zinc-800 dark:text-zinc-200">{{ req.resourceName || req.folderPath || req.resourceId }}</span>
                   </td>
-                  <td class="py-3.5 px-4 text-zinc-300 max-w-xs truncate">{{ req.reason || 'No justification provided' }}</td>
-                  <td class="py-3.5 px-4 text-zinc-400 font-mono text-[11px] whitespace-nowrap">{{ req.createdAt | date:'medium' }}</td>
+                  <td class="py-3.5 px-4 text-zinc-700 dark:text-zinc-300 max-w-xs truncate">{{ req.reason || 'No justification provided' }}</td>
+                  <td class="py-3.5 px-4 text-zinc-600 dark:text-zinc-400 font-mono text-[11px] whitespace-nowrap">{{ req.createdAt | date:'medium' }}</td>
                   <td class="py-3.5 px-5 text-right whitespace-nowrap">
                     <div class="flex items-center justify-end gap-1.5">
                       <button
                         (click)="approveRequest(req)"
-                        class="px-3 py-1.5 rounded-lg bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors"
+                        class="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-colors shadow-sm"
                       >
                         Approve
                       </button>
                       <button
                         (click)="rejectRequest(req)"
-                        class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white font-medium text-xs transition-colors border border-zinc-700"
+                        class="px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-400 dark:hover:text-white font-medium text-xs transition-colors border border-zinc-300 dark:border-zinc-700"
                       >
                         Reject
                       </button>
@@ -1015,7 +1038,7 @@
               <span class="text-zinc-400 font-mono text-[11px]">{{ req.createdAt | date:'medium' }}</span>
             </div>
 
-            <div class="pt-3 border-t border-zinc-800 flex items-center gap-2">
+            <div class="pt-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center gap-2">
               <button
                 (click)="approveRequest(req)"
                 class="flex-1 min-h-[44px] px-3 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors flex items-center justify-center gap-1"
@@ -1032,7 +1055,7 @@
           </div>
         }
         @if (pendingRequests.length === 0) {
-          <div class="p-8 bg-[#111114] border border-zinc-800 rounded-2xl text-center text-zinc-500 text-xs">
+          <div class="p-8 bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl text-center text-zinc-500 text-xs shadow-sm dark:shadow-none">
             <div class="flex flex-col items-center justify-center gap-1">
               <span class="font-medium text-zinc-300">All caught up</span>
               <span class="text-[11px] text-zinc-500">No pending access requests require your review.</span>
@@ -1045,16 +1068,16 @@
     <!-- SUB-VIEW 2: COMPLETE AUDIT & HISTORY LOG -->
     <div *ngIf="requestsSubTab === 'history'" class="space-y-4">
       <!-- Clean Executive Filter Controls -->
-      <div class="p-5 rounded-2xl bg-[#111114] border border-zinc-800 space-y-4">
+      <div class="p-5 rounded-2xl bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 space-y-4 shadow-sm dark:shadow-none">
         <!-- Top Row Filters -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
           <!-- Status Filter -->
           <div>
-            <label class="block text-[11px] font-medium text-zinc-400 mb-1.5">Status</label>
+            <label class="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">Status</label>
             <select
               [(ngModel)]="historyFilterStatus"
               (change)="applyHistoryFilters()"
-              class="w-full px-3 py-2 rounded-xl bg-[#18181b] border border-zinc-700/70 text-zinc-100 hover:border-zinc-500 focus:outline-none focus:border-white transition-colors"
+              class="w-full px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#18181b] border border-zinc-300 dark:border-zinc-700/70 text-zinc-900 dark:text-zinc-100 hover:border-zinc-400 dark:hover:border-zinc-500 focus:outline-none focus:border-zinc-900 dark:focus:border-white transition-colors"
             >
               <option value="">All Statuses (Pending, Approved, Rejected)</option>
               <option value="pending">Pending</option>
@@ -1065,11 +1088,11 @@
 
           <!-- Requester Filter -->
           <div>
-            <label class="block text-[11px] font-medium text-zinc-400 mb-1.5">Requester</label>
+            <label class="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">Requester</label>
             <select
               [(ngModel)]="historyFilterRequesterId"
               (change)="applyHistoryFilters()"
-              class="w-full px-3 py-2 rounded-xl bg-[#18181b] border border-zinc-700/70 text-zinc-100 hover:border-zinc-500 focus:outline-none focus:border-white transition-colors"
+              class="w-full px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#18181b] border border-zinc-300 dark:border-zinc-700/70 text-zinc-900 dark:text-zinc-100 hover:border-zinc-400 dark:hover:border-zinc-500 focus:outline-none focus:border-zinc-900 dark:focus:border-white transition-colors"
             >
               <option value="">All Requesters</option>
               @for (u of users; track u.id) {
@@ -1080,11 +1103,11 @@
 
           <!-- Resolving Admin Filter -->
           <div>
-            <label class="block text-[11px] font-medium text-zinc-400 mb-1.5">Resolving Administrator</label>
+            <label class="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">Resolving Administrator</label>
             <select
               [(ngModel)]="historyFilterResolvedBy"
               (change)="applyHistoryFilters()"
-              class="w-full px-3 py-2 rounded-xl bg-[#18181b] border border-zinc-700/70 text-zinc-100 hover:border-zinc-500 focus:outline-none focus:border-white transition-colors"
+              class="w-full px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#18181b] border border-zinc-300 dark:border-zinc-700/70 text-zinc-900 dark:text-zinc-100 hover:border-zinc-400 dark:hover:border-zinc-500 focus:outline-none focus:border-zinc-900 dark:focus:border-white transition-colors"
             >
               <option value="">All Administrators</option>
               @for (u of users; track u.id) {
@@ -1095,15 +1118,15 @@
         </div>
 
         <!-- Bottom Row: Date Range & Actions -->
-        <div class="flex flex-col lg:flex-row items-stretch lg:items-end justify-between gap-3 pt-3 border-t border-zinc-800/80">
+        <div class="flex flex-col lg:flex-row items-stretch lg:items-end justify-between gap-3 pt-3 border-t border-zinc-200 dark:border-zinc-800/80">
           <div class="flex flex-wrap items-end gap-2.5 flex-1">
             <!-- Date Mode -->
             <div class="w-44">
-              <label class="block text-[11px] font-medium text-zinc-400 mb-1.5">Date Field</label>
+              <label class="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">Date Field</label>
               <select
                 [(ngModel)]="historyFilterDateField"
                 (change)="applyHistoryFilters()"
-                class="w-full px-3 py-2 rounded-xl bg-[#18181b] border border-zinc-700/70 text-zinc-200 text-xs focus:outline-none focus:border-white transition-colors"
+                class="w-full px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#18181b] border border-zinc-300 dark:border-zinc-700/70 text-zinc-900 dark:text-zinc-200 text-xs focus:outline-none focus:border-zinc-900 dark:focus:border-white transition-colors"
               >
                 <option value="requestedAt">Request Date</option>
                 <option value="resolvedAt">Resolution Date</option>
@@ -1112,23 +1135,23 @@
 
             <!-- From Date -->
             <div class="flex-1 min-w-[130px]">
-              <label class="block text-[11px] font-medium text-zinc-400 mb-1.5">From</label>
+              <label class="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">From</label>
               <input
                 type="date"
                 [(ngModel)]="historyFilterFrom"
                 (change)="applyHistoryFilters()"
-                class="w-full px-3 py-1.5 rounded-xl bg-[#18181b] border border-zinc-700/70 text-white text-xs focus:outline-none focus:border-white transition-colors"
+                class="w-full px-3 py-1.5 rounded-xl bg-[#f8f9fa] dark:bg-[#18181b] border border-zinc-300 dark:border-zinc-700/70 text-zinc-900 dark:text-white text-xs focus:outline-none focus:border-zinc-900 dark:focus:border-white transition-colors"
               />
             </div>
 
             <!-- To Date -->
             <div class="flex-1 min-w-[130px]">
-              <label class="block text-[11px] font-medium text-zinc-400 mb-1.5">To</label>
+              <label class="block text-[11px] font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">To</label>
               <input
                 type="date"
                 [(ngModel)]="historyFilterTo"
                 (change)="applyHistoryFilters()"
-                class="w-full px-3 py-1.5 rounded-xl bg-[#18181b] border border-zinc-700/70 text-white text-xs focus:outline-none focus:border-white transition-colors"
+                class="w-full px-3 py-1.5 rounded-xl bg-[#f8f9fa] dark:bg-[#18181b] border border-zinc-300 dark:border-zinc-700/70 text-zinc-900 dark:text-white text-xs focus:outline-none focus:border-zinc-900 dark:focus:border-white transition-colors"
               />
             </div>
           </div>
@@ -1141,14 +1164,14 @@
             <button
               type="button"
               (click)="clearHistoryFilters()"
-              class="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 text-xs font-medium transition-colors"
+              class="px-3.5 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white border border-zinc-200 dark:border-zinc-800 text-xs font-medium transition-colors"
             >
               Reset
             </button>
             <button
               type="button"
               (click)="applyHistoryFilters()"
-              class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors"
+              class="px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-colors shadow-sm"
             >
               Apply Filters
             </button>
@@ -1157,36 +1180,36 @@
       </div>
 
       <!-- History Table (Desktop View >= 768px) -->
-      <div class="hidden md:block bg-[#111114] rounded-2xl border border-zinc-800/80 overflow-hidden">
+      <div class="hidden md:block bg-white dark:bg-[#111114] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 overflow-hidden shadow-sm dark:shadow-none">
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs">
             <thead>
-              <tr class="bg-[#09090b] border-b border-zinc-800 text-zinc-400">
+              <tr class="bg-zinc-50 dark:bg-[#09090b] border-b border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
                 <th class="py-3 px-4 font-semibold uppercase tracking-wider text-[11px] min-w-[140px]">Requester</th>
                 <th class="py-3 px-3 font-semibold uppercase tracking-wider text-[11px] min-w-[150px]">Requested Target</th>
                 <th class="py-3 px-3 font-semibold uppercase tracking-wider text-[11px] min-w-[110px]">Requested Date</th>
                 <th class="py-3 px-3 font-semibold uppercase tracking-wider text-[11px] min-w-[85px]">Status</th>
                 <th class="py-3 px-3 font-semibold uppercase tracking-wider text-[11px] min-w-[120px]">Resolving Admin</th>
                 <th class="py-3 px-3 font-semibold uppercase tracking-wider text-[11px] min-w-[110px]">Resolved Date</th>
-                <th class="py-3 px-3 font-semibold uppercase tracking-wider text-[11px] text-center w-12 min-w-[48px] sticky right-0 bg-[#09090b] z-10">Note</th>
+                <th class="py-3 px-3 font-semibold uppercase tracking-wider text-[11px] text-center w-12 min-w-[48px] sticky right-0 bg-zinc-50 dark:bg-[#09090b] z-10">Note</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-zinc-800/60">
+            <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800/60">
               @for (req of historyRequests; track req.id) {
-                <tr class="group hover:bg-zinc-800/30 transition-colors">
+                <tr class="group hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
                   <!-- Requester -->
                   <td class="py-2.5 px-4">
-                    <div class="font-medium text-zinc-100 truncate max-w-[160px]">{{ req.userName || req.userEmail || (req.userId ? 'User (' + req.userId.slice(-4) + ')' : 'Former User') }}</div>
+                    <div class="font-medium text-zinc-900 dark:text-zinc-100 truncate max-w-[160px]">{{ req.userName || req.userEmail || (req.userId ? 'User (' + req.userId.slice(-4) + ')' : 'Former User') }}</div>
                     <div *ngIf="req.userEmail" class="text-[11px] text-zinc-500 font-mono truncate max-w-[160px]">{{ req.userEmail }}</div>
                   </td>
 
                   <!-- Target Resource -->
                   <td class="py-2.5 px-3">
                     <div class="flex items-center gap-1.5">
-                      <span class="px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-300 font-mono text-[10px] uppercase border border-zinc-700 font-medium flex-shrink-0">
+                      <span class="px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono text-[10px] uppercase border border-zinc-200 dark:border-zinc-700 font-medium flex-shrink-0">
                         {{ req.resourceType }}
                       </span>
-                      <span class="font-medium text-xs text-zinc-200 truncate max-w-[180px]" [title]="req.resourceName || req.folderPath || req.resourceId">
+                      <span class="font-medium text-xs text-zinc-900 dark:text-zinc-200 truncate max-w-[180px]" [title]="req.resourceName || req.folderPath || req.resourceId">
                         {{ req.resourceName || req.folderPath || req.resourceId }}
                       </span>
                     </div>
@@ -1196,26 +1219,24 @@
                   </td>
 
                   <!-- Requested At -->
-                  <td class="py-2.5 px-3 text-zinc-400 font-mono text-[11px] whitespace-nowrap">
+                  <td class="py-2.5 px-3 text-zinc-500 dark:text-zinc-400 font-mono text-[11px] whitespace-nowrap">
                     {{ req.createdAt | date:'medium' }}
                   </td>
 
                   <!-- Status Badge -->
                   <td class="py-2.5 px-3">
                     @if (req.status === 'approved') {
-                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono bg-zinc-900 text-zinc-200 border border-zinc-800 font-semibold">
-                        <svg class="w-3 h-3 text-zinc-300" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                        </svg>
+                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-800 font-semibold">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]"></span>
                         Approved
                       </span>
                     } @else if (req.status === 'rejected') {
-                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono bg-zinc-900 text-zinc-400 border border-zinc-800 font-semibold">
-                        <span class="w-1.5 h-1.5 rounded-full border border-zinc-500"></span> Rejected
+                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800 font-semibold">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_5px_rgba(244,63,94,0.7)]"></span> Rejected
                       </span>
                     } @else {
-                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono bg-zinc-900 text-zinc-300 border border-zinc-800 font-semibold">
-                        <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span> Pending
+                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 font-semibold">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Pending
                       </span>
                     }
                   </td>
@@ -1223,9 +1244,9 @@
                   <!-- Resolving Admin -->
                   <td class="py-2.5 px-3">
                     @if (req.status === 'pending') {
-                      <span class="text-zinc-600 font-mono">—</span>
+                      <span class="text-zinc-400 dark:text-zinc-600 font-mono">—</span>
                     } @else {
-                      <div class="font-medium text-zinc-200 truncate max-w-[140px]">
+                      <div class="font-medium text-zinc-900 dark:text-zinc-200 truncate max-w-[140px]">
                         {{ req.resolvedByName || req.resolvedByEmail || 'Administrator' }}
                       </div>
                       <div *ngIf="req.resolvedByEmail && req.resolvedByName !== req.resolvedByEmail" class="text-[10px] text-zinc-500 font-mono truncate max-w-[140px]">
@@ -1240,14 +1261,14 @@
                   </td>
 
                   <!-- Message Icon Button Column -->
-                  <td class="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-[#111114] group-hover:bg-[#18181b] z-10 transition-colors" (click)="$event.stopPropagation()">
+                  <td class="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-zinc-50 dark:bg-[#111114] dark:group-hover:bg-[#18181b] z-10 transition-colors" (click)="$event.stopPropagation()">
                     @if (req.reason) {
                       <button
                         type="button"
                         (click)="openRequestMessage(req, $event)"
-                        class="w-8 h-8 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-600 focus:bg-zinc-800 mx-auto"
-                        [class.bg-zinc-800]="activeMessageRequest?.id === req.id"
-                        [class.text-white]="activeMessageRequest?.id === req.id"
+                        class="w-8 h-8 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600 focus:bg-zinc-100 dark:focus:bg-zinc-800 mx-auto"
+                        [class.bg-zinc-200]="activeMessageRequest?.id === req.id" [class.dark:bg-zinc-800]="activeMessageRequest?.id === req.id"
+                        [class.text-zinc-900]="activeMessageRequest?.id === req.id" [class.dark:text-white]="activeMessageRequest?.id === req.id"
                         title="View requester note"
                         aria-label="View requester note"
                       >
@@ -1284,7 +1305,7 @@
         </div>
 
         <!-- Desktop Pagination Controls -->
-        <div *ngIf="historyTotalPages > 1" class="p-4 bg-[#09090b] border-t border-zinc-800 flex items-center justify-between text-xs">
+        <div *ngIf="historyTotalPages > 1" class="p-4 bg-zinc-50 dark:bg-[#09090b] border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs">
           <span class="text-zinc-500">
             Page {{ historyPage }} of {{ historyTotalPages }} ({{ historyTotal }} records)
           </span>
@@ -1293,7 +1314,7 @@
               type="button"
               (click)="goToHistoryPage(historyPage - 1)"
               [disabled]="historyPage === 1"
-              class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              class="px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-zinc-200 dark:border-transparent"
             >
               Previous
             </button>
@@ -1301,7 +1322,7 @@
               <button
                 type="button"
                 (click)="goToHistoryPage($index + 1)"
-                [ngClass]="historyPage === ($index + 1) ? 'bg-white text-black font-bold' : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'"
+                [ngClass]="historyPage === ($index + 1) ? 'bg-zinc-900 text-white font-bold dark:bg-white dark:text-black shadow-sm' : 'bg-white text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 border border-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:text-white dark:border-zinc-800'"
                 class="w-7 h-7 rounded-lg text-xs transition-colors"
               >
                 {{ $index + 1 }}
@@ -1311,7 +1332,7 @@
               type="button"
               (click)="goToHistoryPage(historyPage + 1)"
               [disabled]="historyPage === historyTotalPages"
-              class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              class="px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-zinc-200 dark:border-transparent"
             >
               Next
             </button>
@@ -1377,7 +1398,7 @@
           </div>
         }
         @if (historyRequests.length === 0 && !historyLoading) {
-          <div class="p-8 bg-[#111114] border border-zinc-800 rounded-2xl text-center text-zinc-500 text-xs">
+          <div class="p-8 bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl text-center text-zinc-500 text-xs shadow-sm dark:shadow-none">
             No history records match the selected filters.
           </div>
         }
@@ -1414,7 +1435,7 @@
   <!-- Requester Note Popover (Fixed Viewport-Aware) -->
   @if (activeMessageRequest) {
     <div
-      class="request-message-popover fixed z-50 w-80 bg-[#18181b] border border-zinc-700/80 rounded-2xl p-4 shadow-2xl shadow-black/80 animate-fade-in text-xs select-none"
+      class="request-message-popover fixed z-50 w-80 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-700/80 rounded-2xl p-4 shadow-xl dark:shadow-2xl dark:shadow-black/80 animate-fade-in text-xs select-none"
       [style.top.px]="messagePopoverPosition.top"
       [style.left.px]="messagePopoverPosition.left"
       [style.right.px]="messagePopoverPosition.right"
@@ -1430,7 +1451,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
             </svg>
           </div>
-          <span class="font-semibold text-white text-xs">Requester Note</span>
+          <span class="font-semibold text-zinc-900 dark:text-white text-xs">Requester Note</span>
         </div>
         <button
           type="button"
@@ -1467,17 +1488,17 @@
       </div>
 
       <!-- Message Body Box -->
-      <div class="p-3 rounded-xl bg-[#09090b] border border-zinc-800/80 text-zinc-200 text-xs leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto select-text font-normal">
+      <div class="p-3 rounded-xl bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800/80 text-zinc-800 dark:text-zinc-200 text-xs leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto select-text font-normal">
         {{ activeMessageRequest.reason }}
       </div>
     </div>
   }
 
   <!-- Create User Modal -->
-  <div *ngIf="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-    <div class="w-full max-w-lg bg-[#111114] border border-zinc-800 rounded-2xl p-6 space-y-5 text-zinc-200">
+  <div *ngIf="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-black/50 dark:bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
+    <div class="w-full max-w-lg max-h-[82vh] overflow-y-auto bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 space-y-5 text-zinc-900 dark:text-zinc-200 shadow-2xl my-auto">
       <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
-        <h3 class="text-base font-bold text-white tracking-tight">Add New Enterprise User</h3>
+        <h3 class="text-base font-bold text-zinc-900 dark:text-white tracking-tight">Add New Enterprise User</h3>
         <button (click)="showCreateModal = false" class="text-zinc-500 hover:text-white text-xl leading-none">&times;</button>
       </div>
 
@@ -1488,47 +1509,47 @@
       <form (ngSubmit)="submitCreateUser()" class="space-y-4 text-xs">
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-zinc-400 font-medium mb-1">First Name</label>
+            <label class="block text-zinc-700 dark:text-zinc-400 font-medium mb-1">First Name</label>
             <input
               type="text"
               [(ngModel)]="newUser.firstName"
               name="firstName"
               required
-              class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-800 text-white focus:outline-none focus:border-white"
+              class="w-full px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white"
               placeholder="Rayyan"
             />
           </div>
           <div>
-            <label class="block text-zinc-400 font-medium mb-1">Last Name</label>
+            <label class="block text-zinc-700 dark:text-zinc-400 font-medium mb-1">Last Name</label>
             <input
               type="text"
               [(ngModel)]="newUser.lastName"
               name="lastName"
               required
-              class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-800 text-white focus:outline-none focus:border-white"
+              class="w-full px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white"
               placeholder="Al-Sayed"
             />
           </div>
         </div>
 
         <div>
-          <label class="block text-zinc-400 font-medium mb-1">Email Address</label>
+          <label class="block text-zinc-700 dark:text-zinc-400 font-medium mb-1">Email Address</label>
           <input
             type="email"
             [(ngModel)]="newUser.email"
             name="email"
             required
-            class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-800 text-white focus:outline-none focus:border-white"
+            class="w-full px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white"
             placeholder="rayyan@company.com"
           />
         </div>
 
         <div>
-          <label class="block text-zinc-400 font-medium mb-1">Security Role</label>
+          <label class="block text-zinc-700 dark:text-zinc-400 font-medium mb-1">Security Role</label>
           <select
             [(ngModel)]="newUser.role"
             name="role"
-            class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-800 text-white focus:outline-none focus:border-white"
+            class="w-full px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white"
           >
             <option value="admin">Administrator (Full Access)</option>
             <option value="manager">Manager (Department Access)</option>
@@ -1555,7 +1576,7 @@
               placeholder="••••••••••••"
               autocomplete="new-password"
               required
-              class="w-full pl-3 pr-10 py-2 rounded-xl bg-[#09090b] border border-zinc-700 text-white focus:outline-none focus:border-white font-mono"
+              class="w-full pl-3 pr-10 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white font-mono"
             />
             <button
               type="button"
@@ -1577,7 +1598,7 @@
 
         <!-- Departments -->
         <div>
-          <label class="block text-zinc-400 font-medium mb-1">Departments</label>
+          <label class="block text-zinc-700 dark:text-zinc-400 font-medium mb-1">Departments</label>
           <div class="flex flex-wrap gap-1 mb-2">
             @for (d of newUserSelectedDepartments; track d) {
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200 text-[10px] border border-zinc-700 font-mono">
@@ -1590,17 +1611,17 @@
             <button
               type="button"
               (click)="toggleDropdown('new-user-deps', $event)"
-              class="px-2.5 py-1 rounded-lg bg-[#09090b] border border-zinc-700 text-[11px] text-zinc-300 hover:text-white flex items-center gap-1"
+              class="px-2.5 py-1 rounded-lg bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-[11px] text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white flex items-center gap-1"
             >
-              <span>+ Select Departments</span>
+              <span>Select Departments</span>
             </button>
             <div
               *ngIf="openDropdownId === 'new-user-deps'"
-              class="absolute left-0 top-8 z-50 w-56 bg-[#18181b] border border-zinc-700 rounded-xl p-2 space-y-2"
+              class="absolute left-0 top-8 z-50 w-56 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-700 rounded-xl p-2 space-y-2 shadow-xl"
             >
               <div class="max-h-36 overflow-y-auto space-y-1">
                 @for (dept of availableDepartments; track dept) {
-                  <label class="flex items-center gap-2 px-2 py-1 hover:bg-zinc-800 rounded text-[11px] cursor-pointer text-zinc-300">
+                  <label class="flex items-center gap-2 px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-[11px] cursor-pointer text-zinc-700 dark:text-zinc-300">
                     <input
                       type="checkbox"
                       [checked]="newUserSelectedDepartments.includes(dept)"
@@ -1617,7 +1638,7 @@
 
         <!-- Allowed Folders -->
         <div>
-          <label class="block text-zinc-400 font-medium mb-1">Allowed Folders (Optional Restricted Access)</label>
+          <label class="block text-zinc-700 dark:text-zinc-400 font-medium mb-1">Allowed Folders (Optional Restricted Access)</label>
           <div class="flex flex-wrap gap-1 mb-2">
             @for (f of newUserSelectedFolders; track f) {
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200 text-[10px] border border-zinc-700 font-mono">
@@ -1630,17 +1651,17 @@
             <button
               type="button"
               (click)="toggleDropdown('new-user-folders', $event)"
-              class="px-2.5 py-1 rounded-lg bg-[#09090b] border border-zinc-700 text-[11px] text-zinc-300 hover:text-white flex items-center gap-1"
+              class="px-2.5 py-1 rounded-lg bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-[11px] text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white flex items-center gap-1"
             >
-              <span>+ Select Workspace Folders</span>
+              <span>Select Workspace Folders</span>
             </button>
             <div
               *ngIf="openDropdownId === 'new-user-folders'"
-              class="absolute left-0 top-8 z-50 w-56 bg-[#18181b] border border-zinc-700 rounded-xl p-2 space-y-2"
+              class="absolute left-0 top-8 z-50 w-56 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-700 rounded-xl p-2 space-y-2 shadow-xl"
             >
               <div class="max-h-36 overflow-y-auto space-y-1">
                 @for (folder of availableFolders; track folder) {
-                  <label class="flex items-center gap-2 px-2 py-1 hover:bg-zinc-800 rounded text-[11px] cursor-pointer text-zinc-300">
+                  <label class="flex items-center gap-2 px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-[11px] cursor-pointer text-zinc-700 dark:text-zinc-300">
                     <input
                       type="checkbox"
                       [checked]="newUserSelectedFolders.includes(folder)"
@@ -1662,14 +1683,14 @@
           <button
             type="button"
             (click)="showCreateModal = false"
-            class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold"
+            class="px-4 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 font-semibold border border-zinc-300 dark:border-transparent"
           >
             Cancel
           </button>
           <button
             type="submit"
             [disabled]="creatingUser || (newUser.role === 'admin' && !newUserMasterAdminPassword.trim())"
-            class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold disabled:opacity-50"
+            class="px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold disabled:opacity-50 shadow-sm"
           >
             {{ creatingUser ? 'Provisioning...' : 'Provision User' }}
           </button>
@@ -1679,12 +1700,12 @@
   </div>
 
   <!-- User Provisioned Credentials Modal -->
-  <div *ngIf="showCreatedUserModal && createdUserResult" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-    <div class="w-full max-w-md bg-[#111114] border border-zinc-800 rounded-2xl p-6 space-y-4 text-zinc-200">
+  <div *ngIf="showCreatedUserModal && createdUserResult" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-black/50 dark:bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
+    <div class="w-full max-w-md max-h-[82vh] overflow-y-auto bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 space-y-4 text-zinc-900 dark:text-zinc-200 shadow-2xl my-auto">
       <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 rounded-full bg-white"></span>
-          <h3 class="text-base font-bold text-white tracking-tight">User Account Provisioned</h3>
+          <h3 class="text-base font-bold text-zinc-900 dark:text-white tracking-tight">User Account Provisioned</h3>
         </div>
         <button (click)="closeCreatedUserModal()" class="text-zinc-500 hover:text-white text-xl leading-none">&times;</button>
       </div>
@@ -1708,10 +1729,10 @@
       </div>
 
       <!-- User Credentials Box -->
-      <div class="p-4 bg-[#09090b] border border-zinc-800 rounded-xl space-y-3 font-mono text-xs">
+      <div class="p-4 bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-xl space-y-3 font-mono text-xs">
         <div>
           <span class="text-[10px] text-zinc-500 block uppercase tracking-wider">User Account</span>
-          <span class="text-white font-semibold">{{ createdUserResult.user?.firstName }} {{ createdUserResult.user?.lastName }}</span>
+          <span class="text-zinc-900 dark:text-white font-semibold">{{ createdUserResult.user?.firstName }} {{ createdUserResult.user?.lastName }}</span>
           <span class="text-zinc-400 block text-[11px]">{{ createdUserResult.user?.email }}</span>
         </div>
 
@@ -1722,7 +1743,7 @@
               type="text"
               readonly
               [value]="createdUserResult.temporaryPassword"
-              class="flex-1 px-3 py-2 rounded-lg bg-[#18181b] border border-zinc-700 text-white font-mono font-bold text-xs select-all focus:outline-none"
+              class="flex-1 px-3 py-2 rounded-lg bg-white dark:bg-[#18181b] border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white font-mono font-bold text-xs select-all focus:outline-none"
             />
             <button
               type="button"
@@ -1739,7 +1760,7 @@
         <button
           type="button"
           (click)="closeCreatedUserModal()"
-          class="px-4 py-2 bg-white hover:bg-zinc-200 text-black text-xs font-semibold rounded-xl transition-colors"
+          class="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black text-xs font-semibold rounded-xl transition-colors shadow-sm"
         >
           Done
         </button>
@@ -1748,10 +1769,10 @@
   </div>
 
   <!-- Create Role Modal -->
-  <div *ngIf="showCreateRoleModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-    <div class="w-full max-w-md bg-[#111114] border border-zinc-800 rounded-2xl p-6 space-y-5 text-zinc-200">
+  <div *ngIf="showCreateRoleModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-black/50 dark:bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
+    <div class="w-full max-w-md max-h-[82vh] overflow-y-auto bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 space-y-5 text-zinc-900 dark:text-zinc-200 shadow-2xl my-auto">
       <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
-        <h3 class="text-base font-bold text-white tracking-tight">Create Custom Security Role</h3>
+        <h3 class="text-base font-bold text-zinc-900 dark:text-white tracking-tight">Create Custom Security Role</h3>
         <button (click)="showCreateRoleModal = false" class="text-zinc-500 hover:text-white text-xl leading-none">&times;</button>
       </div>
 
@@ -1761,43 +1782,43 @@
 
       <form (ngSubmit)="submitCreateRole()" class="space-y-4 text-xs">
         <div>
-          <label class="block text-zinc-400 font-medium mb-1">Role Name</label>
+          <label class="block text-zinc-700 dark:text-zinc-400 font-medium mb-1">Role Name</label>
           <input
             type="text"
             [(ngModel)]="newRole.name"
             name="roleName"
             required
-            class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-800 text-white focus:outline-none focus:border-white"
+            class="w-full px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white"
             placeholder="e.g. Finance Analyst"
           />
         </div>
 
         <div>
-          <label class="block text-zinc-400 font-medium mb-1">Role Key (Identifier)</label>
+          <label class="block text-zinc-700 dark:text-zinc-400 font-medium mb-1">Role Key (Identifier)</label>
           <input
             type="text"
             [(ngModel)]="newRole.key"
             name="roleKey"
-            class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-800 text-white focus:outline-none focus:border-white font-mono text-xs"
+            class="w-full px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white font-mono text-xs"
             placeholder="finance_analyst"
           />
           <p class="text-[10px] text-zinc-500 mt-1">Unique machine key. Will be auto-generated from name if left empty.</p>
         </div>
 
         <div>
-          <label class="block text-zinc-400 font-medium mb-1">Description</label>
+          <label class="block text-zinc-700 dark:text-zinc-400 font-medium mb-1">Description</label>
           <textarea
             [(ngModel)]="newRole.description"
             name="roleDescription"
             rows="2"
-            class="w-full px-3 py-2 rounded-xl bg-[#09090b] border border-zinc-800 text-white focus:outline-none focus:border-white"
+            class="w-full px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white"
             placeholder="Role purpose and access limits"
           ></textarea>
         </div>
 
         <!-- Allowed Folders Selector -->
         <div>
-          <label class="block text-zinc-400 font-medium mb-1">Restricted Folders (Optional)</label>
+          <label class="block text-zinc-700 dark:text-zinc-400 font-medium mb-1">Restricted Folders (Optional)</label>
           <div class="flex flex-wrap gap-1 mb-2">
             @for (f of newRoleSelectedFolders; track f) {
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200 text-[10px] border border-zinc-700 font-mono">
@@ -1810,17 +1831,17 @@
             <button
               type="button"
               (click)="toggleDropdown('new-role-folders', $event)"
-              class="px-2.5 py-1 rounded-lg bg-[#09090b] border border-zinc-700 text-[11px] text-zinc-300 hover:text-white flex items-center gap-1"
+              class="px-2.5 py-1 rounded-lg bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-[11px] text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white flex items-center gap-1"
             >
-              <span>+ Select Workspace Folders</span>
+              <span>Select Workspace Folders</span>
             </button>
             <div
               *ngIf="openDropdownId === 'new-role-folders'"
-              class="absolute left-0 top-8 z-50 w-56 bg-[#18181b] border border-zinc-700 rounded-xl p-2 space-y-2"
+              class="absolute left-0 top-8 z-50 w-56 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-700 rounded-xl p-2 space-y-2 shadow-xl"
             >
               <div class="max-h-36 overflow-y-auto space-y-1">
                 @for (folder of availableFolders; track folder) {
-                  <label class="flex items-center gap-2 px-2 py-1 hover:bg-zinc-800 rounded text-[11px] cursor-pointer text-zinc-300">
+                  <label class="flex items-center gap-2 px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-[11px] cursor-pointer text-zinc-700 dark:text-zinc-300">
                     <input
                       type="checkbox"
                       [checked]="newRoleSelectedFolders.includes(folder)"
@@ -1839,14 +1860,14 @@
           <button
             type="button"
             (click)="showCreateRoleModal = false"
-            class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold"
+            class="px-4 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 font-semibold border border-zinc-300 dark:border-transparent"
           >
             Cancel
           </button>
           <button
             type="submit"
             [disabled]="creatingRole"
-            class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold disabled:opacity-50"
+            class="px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold disabled:opacity-50 shadow-sm"
           >
             {{ creatingRole ? 'Creating...' : 'Create Role' }}
           </button>

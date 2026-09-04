@@ -44,7 +44,11 @@ Communication Rules:
 10. File Downloads & Documents:
    - This chat UI natively renders inline downloadable file cards directly below your message when a user requests a file.
    - NEVER tell the user to "download it from the file viewer panel", "click the download icon in the file viewer", or look for an external download button.
-   - When asked for a file or PDF, acknowledge the file naturally ("Here is the file.", "Sure, here is the file."). The system automatically attaches the inline download card."""
+   - When asked for a file or PDF, acknowledge the file naturally ("Here is the file.", "Sure, here is the file."). The system automatically attaches the inline download card.
+11. Strict Grounding & Anti-Hallucination:
+   - NEVER invent, assume, or fabricate a file reference or dataset reference.
+   - If the user asks to compare, analyze, or summarize without providing or selecting specific files, always ask for clarification ("Which files would you like me to compare?").
+   - NEVER silently select arbitrary files from the workspace and pretend the user requested them."""
 
 
 # -------------------------------------------------------------
@@ -199,23 +203,39 @@ async def resolve_context_node(state: AgentState) -> Dict[str, Any]:
             except Exception as e:
                 logger.warning(f"Error resolving explicit resource {r_id}: {e}")
     else:
+        # Check if the user message explicitly mentions any filenames or document titles
+        raw_msg = state.get("message", "")
+        raw_msg_lower = raw_msg.lower()
         try:
-            user_docs = list(docs_col.find(rbac_filter))
-            for d in user_docs:
+            all_accessible_docs = list(docs_col.find(rbac_filter))
+            all_accessible_datasets = list(datasets_col.find(rbac_filter))
+
+            for d in all_accessible_docs:
                 d["id"] = str(d["_id"])
-                if not any(rd["id"] == d["id"] for rd in resolved_docs):
-                    resolved_docs.append(d)
+                orig = str(d.get("originalName", "")).lower()
+                name_no_ext = re.sub(r"\.[a-zA-Z0-9]+$", "", orig)
+                if orig and (orig in raw_msg_lower or (len(name_no_ext) >= 4 and name_no_ext in raw_msg_lower)):
+                    if not any(rd["id"] == d["id"] for rd in resolved_docs):
+                        resolved_docs.append(d)
 
-            user_datasets = list(datasets_col.find(rbac_filter))
-            for ds in user_datasets:
+            for ds in all_accessible_datasets:
                 ds["id"] = str(ds["_id"])
-                if not any(rds["id"] == ds["id"] for rds in resolved_datasets):
-                    resolved_datasets.append(ds)
+                orig = str(ds.get("originalName", "")).lower()
+                name_no_ext = re.sub(r"\.[a-zA-Z0-9]+$", "", orig)
+                if orig and (orig in raw_msg_lower or (len(name_no_ext) >= 4 and name_no_ext in raw_msg_lower)):
+                    if not any(rds["id"] == ds["id"] for rds in resolved_datasets):
+                        resolved_datasets.append(ds)
 
-            # Unified files: add tabular documents to resolved_datasets
+            # Unified files: add tabular documents to resolved_datasets if explicitly mentioned
             for d in resolved_docs:
                 if (d.get("sourceType") == "tabular" or d.get("fileType") in ["csv", "xlsx", "xls"]) and not any(rds["id"] == d["id"] for rds in resolved_datasets):
                     resolved_datasets.append(d)
+
+            # If no explicit filenames mentioned, provide general document awareness for discovery / inventory overview
+            if not resolved_docs and not resolved_datasets:
+                for d in all_accessible_docs:
+                    if not any(rd["id"] == d["id"] for rd in resolved_docs):
+                        resolved_docs.append(d)
         except Exception as e:
             logger.warning(f"Error loading user resources: {e}")
 
@@ -235,6 +255,81 @@ async def resolve_context_node(state: AgentState) -> Dict[str, Any]:
         "resolved_datasets": resolved_datasets,
         "is_admin": is_admin,
     }
+
+
+def detect_ungrounded_operation(
+    message: str,
+    resolved_docs: List[Dict[str, Any]],
+    resolved_datasets: List[Dict[str, Any]],
+    active_scope: Optional[Dict[str, Any]],
+    resource_ids: List[str],
+) -> Optional[Dict[str, Any]]:
+    clean_msg = message.lower().strip()
+
+    # Calculate count of explicit user-provided / resolvable target files
+    target_ids = set(resource_ids or [])
+    if active_scope and active_scope.get("id"):
+        target_ids.add(str(active_scope.get("id")))
+
+    # Check for filenames extracted in message
+    for d in resolved_docs:
+        orig = str(d.get("originalName", "")).lower()
+        name_no_ext = re.sub(r"\.[a-zA-Z0-9]+$", "", orig)
+        if orig and (orig in clean_msg or (len(name_no_ext) >= 4 and name_no_ext in clean_msg)):
+            target_ids.add(str(d.get("id") or d.get("_id")))
+
+    for ds in resolved_datasets:
+        orig = str(ds.get("originalName", "")).lower()
+        name_no_ext = re.sub(r"\.[a-zA-Z0-9]+$", "", orig)
+        if orig and (orig in clean_msg or (len(name_no_ext) >= 4 and name_no_ext in clean_msg)):
+            target_ids.add(str(ds.get("id") or ds.get("_id")))
+
+    target_count = len(target_ids)
+
+    # 1. Comparison Intent Detection
+    comp_patterns = [
+        r"\bcompare\b",
+        r"\bcomparing\b",
+        r"\bcomparison\b",
+        r"\bdiffer(?:ence|ences)?\s+between\b",
+        r"\bcontrast\s+between\b",
+        r"\bhow\s+do\s+(?:these|the\s+following|the\s+two)\s+(?:files|documents|datasets|spreadsheets)?\s*differ\b",
+        r"\bwhat\s+(?:is|are)\s+the\s+differences?\s+between\s+(?:these|the\s+following|the\s+two)\b",
+    ]
+    is_comparison = any(re.search(p, clean_msg) for p in comp_patterns)
+
+    if is_comparison:
+        if target_count < 2:
+            if target_count == 1:
+                single_name = (
+                    (active_scope.get("name") if active_scope else None)
+                    or (resolved_docs[0].get("originalName") if resolved_docs else None)
+                    or (resolved_datasets[0].get("originalName") if resolved_datasets else None)
+                )
+                if single_name:
+                    return {
+                        "intent": AgentIntent.CLARIFICATION,
+                        "final_answer": f"Which file would you like to compare with '{single_name}'?",
+                    }
+            return {
+                "intent": AgentIntent.CLARIFICATION,
+                "final_answer": "Which files would you like me to compare?",
+            }
+
+    # 2. Non-specific plural operation check (summarize / analyze / extract without targets)
+    plural_ops = [
+        (r"\b(?:summarize|summarise)\s+(?:the\s+following|these|the)\s+(?:files|documents|spreadsheets|datasets)\b", "Which files would you like me to summarize?"),
+        (r"\b(?:analyze|analyse)\s+(?:the\s+following|these|the)\s+(?:files|documents|spreadsheets|datasets)\b", "Which files would you like me to analyze?"),
+        (r"\bextract\s+(?:data|information)\s+from\s+(?:the\s+following|these|the)\s+(?:files|documents|spreadsheets|datasets)\b", "Which files would you like me to extract data from?"),
+    ]
+    for pattern, clarification_prompt in plural_ops:
+        if re.search(pattern, clean_msg) and target_count == 0:
+            return {
+                "intent": AgentIntent.CLARIFICATION,
+                "final_answer": clarification_prompt,
+            }
+
+    return None
 
 
 def format_workspace_manifest(docs: List[Dict[str, Any]], datasets: List[Dict[str, Any]], active_scope: Optional[Dict[str, Any]] = None) -> str:
@@ -268,6 +363,8 @@ async def route_intent_node(state: AgentState) -> Dict[str, Any]:
     history = state.get("history", [])
     resolved_docs = state.get("resolved_documents", [])
     resolved_datasets = state.get("resolved_datasets", [])
+    active_scope = state.get("active_scope")
+    resource_ids = state.get("resource_ids", [])
     shared_memory = state.get("shared_memory")
 
     # 0. File / PDF Discovery and Download Requests -> Priority 0
@@ -282,7 +379,20 @@ async def route_intent_node(state: AgentState) -> Dict[str, Any]:
     if is_file_request:
         return {"intent": AgentIntent.FILE_REQUEST}
 
-    # 1. Chart / Graph / Visualization Requests -> Priority 1 (Action-oriented, never refuse)
+    # 1. Deterministic Grounding & Target Clarification Check -> Priority 1
+    ungrounded_check = detect_ungrounded_operation(
+        message=state.get("message", ""),
+        resolved_docs=resolved_docs,
+        resolved_datasets=resolved_datasets,
+        active_scope=active_scope,
+        resource_ids=resource_ids,
+    )
+    if ungrounded_check:
+        return ungrounded_check
+
+    # 2. Chart / Graph / Visualization Requests -> Priority 2 (Action-oriented, never refuse)
+    # Strip filenames and @mentions when checking chart keywords so that e.g. "org_chart.xlsx" doesn't trigger CHART_REQUEST
+    message_without_filenames = re.sub(r'@[a-zA-Z0-9_\-\./]+|\b[a-zA-Z0-9_\-]+\.(?:xlsx|xls|csv|pdf|docx|txt|json)\b', '', message)
     chart_explicit_keywords = [
         "plot", "chart", "charts", "graph", "graphs", "visualize", "visualization", "visualizations",
         "histogram", "bar chart", "line chart", "pie chart", "scatter plot", "doughnut chart", "donut",
@@ -290,10 +400,10 @@ async def route_intent_node(state: AgentState) -> Dict[str, Any]:
         "render graph", "can't create graph", "cannot create graph", "no graph", "show graph", "make graph",
         "display graph", "create a chart", "make a chart", "render it"
     ]
-    if any(k in message for k in chart_explicit_keywords):
+    if any(re.search(r'\b' + re.escape(k) + r'\b', message_without_filenames) for k in chart_explicit_keywords):
         return {"intent": AgentIntent.CHART_REQUEST}
 
-    # 2. Meta / Overview / Greetings / Capabilities / Collection Queries -> GENERAL_CHAT
+    # 3. Meta / Overview / Greetings / Capabilities / Collection Queries -> GENERAL_CHAT
     meta_queries = [
         "what are the information", "what information do you have", "what info do you have",
         "what do you have for now", "what is in my files", "what files do you have",
@@ -835,13 +945,28 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
     }
 
 
+async def clarification_node(state: AgentState) -> Dict[str, Any]:
+    final_answer = state.get("final_answer") or "Which files would you like me to compare?"
+    return {
+        "final_answer": final_answer,
+        "intent": AgentIntent.CLARIFICATION,
+        "citations": [],
+        "downloadable_file": None,
+        "analysis_table": None,
+        "chart_spec": None,
+        "chart_specs": [],
+    }
+
+
 # -------------------------------------------------------------
 # Router Condition
 # -------------------------------------------------------------
-def route_next_step(state: AgentState) -> Literal["file_request", "document_rag", "data_analysis", "chart_request", "calculator", "general_chat"]:
+def route_next_step(state: AgentState) -> Literal["file_request", "clarification", "document_rag", "data_analysis", "chart_request", "calculator", "general_chat"]:
     intent = state.get("intent", AgentIntent.GENERAL_CHAT)
     if intent == AgentIntent.FILE_REQUEST:
         return "file_request"
+    elif intent == AgentIntent.CLARIFICATION:
+        return "clarification"
     elif intent == AgentIntent.DOCUMENT_RAG:
         return "document_rag"
     elif intent in [AgentIntent.DATA_ANALYSIS, AgentIntent.COMBINED]:
@@ -863,6 +988,7 @@ def build_agent_graph():
     workflow.add_node("resolve_context", resolve_context_node)
     workflow.add_node("route_intent", route_intent_node)
     workflow.add_node("file_request", file_request_node)
+    workflow.add_node("clarification", clarification_node)
     workflow.add_node("document_rag", document_rag_node)
     workflow.add_node("data_analysis", data_analysis_node)
     workflow.add_node("chart_builder", chart_builder_node)
@@ -877,6 +1003,7 @@ def build_agent_graph():
         route_next_step,
         {
             "file_request": "file_request",
+            "clarification": "clarification",
             "document_rag": "document_rag",
             "data_analysis": "data_analysis",
             "chart_request": "data_analysis",
@@ -886,6 +1013,7 @@ def build_agent_graph():
     )
 
     workflow.add_edge("file_request", END)
+    workflow.add_edge("clarification", END)
 
     # Build charts if intent is CHART_REQUEST or user message requests visualization
     def should_build_chart_from_analysis(state: AgentState) -> Literal["chart_builder", "__end__"]:
@@ -941,6 +1069,57 @@ def build_agent_graph():
     workflow.add_edge("general_chat", END)
 
     return workflow.compile()
+
+
+def guard_output_grounding(answer: str, state: Dict[str, Any]) -> str:
+    """
+    Output Generation Guard:
+    Validates that if the user's query was an ungrounded comparison or non-specific request without targets,
+    the model has not hallucinated arbitrary file names into the final answer.
+    """
+    if not answer:
+        return answer
+
+    intent = state.get("intent")
+    if intent == AgentIntent.CLARIFICATION:
+        return answer
+
+    message = str(state.get("message", "")).lower()
+    is_comp = bool(re.search(r"\b(compare|comparison|differ between|differences between)\b", message))
+    is_plural_sum = bool(re.search(r"\b(summarize|analyze)\s+(?:the\s+following|these|the)\s+(?:files|documents|datasets)\b", message))
+
+    resource_ids = state.get("resource_ids", [])
+    active_scope = state.get("active_scope")
+    resolved_docs = state.get("resolved_documents", [])
+    resolved_datasets = state.get("resolved_datasets", [])
+
+    target_count = len(resource_ids)
+    if active_scope and active_scope.get("id"):
+        target_count += 1
+
+    # Check for extracted filenames in message
+    for d in resolved_docs:
+        orig = str(d.get("originalName", "")).lower()
+        name_no_ext = re.sub(r"\.[a-zA-Z0-9]+$", "", orig)
+        if orig and (orig in message or (len(name_no_ext) >= 4 and name_no_ext in message)):
+            target_count += 1
+
+    for ds in resolved_datasets:
+        orig = str(ds.get("originalName", "")).lower()
+        name_no_ext = re.sub(r"\.[a-zA-Z0-9]+$", "", orig)
+        if orig and (orig in message or (len(name_no_ext) >= 4 and name_no_ext in message)):
+            target_count += 1
+
+    if is_comp and target_count < 2:
+        if target_count == 1:
+            single_name = (active_scope.get("name") if active_scope else None) or (resolved_docs[0].get("originalName") if resolved_docs else None)
+            return f"Which file would you like to compare with '{single_name}'?" if single_name else "Which files would you like me to compare?"
+        return "Which files would you like me to compare?"
+
+    if is_plural_sum and target_count == 0:
+        return "Which files would you like me to summarize?" if "summarize" in message else "Which files would you like me to analyze?"
+
+    return answer
 
 
 agent_graph = build_agent_graph()

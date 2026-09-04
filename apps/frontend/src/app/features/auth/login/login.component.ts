@@ -10,50 +10,50 @@ import { WalkthroughService } from '../../../core/services/walkthrough.service';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   template: `
-    <div class="min-h-screen bg-[#09090b] flex items-center justify-center p-4">
-      <div class="w-full max-w-md bg-[#111114] border border-[#27272a] rounded-2xl p-8">
+    <div class="min-h-screen bg-[#f7f8fa] dark:bg-[#09090b] flex items-center justify-center p-4">
+      <div class="w-full max-w-md bg-white dark:bg-[#111114] border border-[#dcdde1] dark:border-[#27272a] rounded-2xl p-8 shadow-sm dark:shadow-none">
         <div class="text-center mb-8">
-          <div class="inline-flex w-14 h-14 rounded-2xl bg-[#18181b] border border-[#27272a] p-2.5 items-center justify-center mb-4 shadow-lg shadow-rose-950/20">
+          <div class="inline-flex w-14 h-14 rounded-2xl bg-[#f0f1f3] dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] p-2.5 items-center justify-center mb-4 shadow-lg shadow-rose-950/10 dark:shadow-rose-950/20">
             <img src="/logo-icon.svg" alt="Syntra Chat Logo" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
           </div>
-          <h1 class="text-2xl font-bold text-white tracking-tight">Welcome to Syntra Chat</h1>
-          <p class="text-sm text-[#a1a1aa] mt-1">Sign in to your private knowledge workspace</p>
+          <h1 class="text-2xl font-bold text-zinc-900 dark:text-white tracking-tight">Welcome to Syntra Chat</h1>
+          <p class="text-sm text-zinc-500 dark:text-[#a1a1aa] mt-1">Sign in to your private knowledge workspace</p>
         </div>
 
         @if (errorMessage) {
-          <div class="mb-4 p-3 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs">
+          <div class="mb-4 p-3 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs">
             {{ errorMessage }}
           </div>
         }
 
         <form (ngSubmit)="onSubmit()" class="space-y-4">
           <div>
-            <label class="block text-xs font-medium text-[#a1a1aa] mb-1.5">Email Address</label>
+            <label class="block text-xs font-medium text-zinc-700 dark:text-[#a1a1aa] mb-1.5">Email Address</label>
             <input
               type="email"
               [(ngModel)]="email"
               name="email"
               required
-              class="w-full px-3.5 py-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-white text-sm focus:outline-none focus:border-white transition-colors"
-              placeholder="sarah@company.com"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-[#f8f9fa] dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] text-zinc-900 dark:text-white text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-white transition-colors"
+              placeholder="aadil@company.com"
             />
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-[#a1a1aa] mb-1.5">Password</label>
+            <label class="block text-xs font-medium text-zinc-700 dark:text-[#a1a1aa] mb-1.5">Password</label>
             <div class="relative">
               <input
                 [type]="showPassword ? 'text' : 'password'"
                 [(ngModel)]="password"
                 name="password"
                 required
-                class="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-white text-sm focus:outline-none focus:border-white transition-colors"
+                class="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-[#f8f9fa] dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] text-zinc-900 dark:text-white text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-white transition-colors"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 (click)="showPassword = !showPassword"
-                class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors focus:outline-none p-1"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors focus:outline-none p-1"
                 [title]="showPassword ? 'Hide password' : 'Show password'"
                 aria-label="Toggle password visibility"
               >
@@ -74,7 +74,7 @@ import { WalkthroughService } from '../../../core/services/walkthrough.service';
           <button
             type="submit"
             [disabled]="isLoading"
-            class="w-full py-2.5 rounded-xl bg-white text-black font-semibold text-sm hover:bg-[#e4e4e7] transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+            class="w-full py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-[#e4e4e7] dark:text-black font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2 shadow-sm"
           >
             {{ isLoading ? 'Signing In...' : 'Sign In' }}
           </button>

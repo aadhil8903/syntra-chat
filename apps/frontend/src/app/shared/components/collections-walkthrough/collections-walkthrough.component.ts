@@ -155,7 +155,7 @@ interface ICardPosition {
             <button
               type="button"
               (click)="skip()"
-              class="text-xs text-[#a1a1aa] hover:text-white font-medium transition-colors px-1.5 py-1 rounded-lg hover:bg-zinc-900"
+              class="text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white font-medium transition-colors px-2.5 py-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
               aria-label="Skip walkthrough tour"
             >
               Skip

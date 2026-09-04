@@ -16,43 +16,43 @@ import { ModalDialogService } from '../../../core/services/modal-dialog.service'
         (click)="modal.closeWithCancel()"
       >
         <div
-          class="w-full max-w-md bg-[#111114] border border-[#27272a] rounded-2xl overflow-hidden p-6 space-y-4 text-zinc-200 animate-scale-up"
+          class="w-full max-w-md bg-white dark:bg-[#111114] border border-[#dcdde1] dark:border-[#27272a] rounded-2xl overflow-hidden p-6 space-y-4 text-zinc-800 dark:text-zinc-200 animate-scale-up shadow-2xl"
           (click)="$event.stopPropagation()"
         >
           <!-- Header -->
           <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-zinc-900 border border-zinc-800 text-zinc-200">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#f8f9fa] dark:bg-zinc-900 border border-[#dcdde1] dark:border-zinc-800 text-zinc-700 dark:text-zinc-200">
               @if (modal.activeModal()?.type === 'danger') {
-                <svg class="w-5 h-5 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="w-5 h-5 text-rose-500 dark:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               } @else if (modal.activeModal()?.type === 'prompt') {
-                <svg class="w-5 h-5 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="w-5 h-5 text-zinc-600 dark:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               } @else {
-                <svg class="w-5 h-5 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="w-5 h-5 text-zinc-600 dark:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               }
             </div>
 
             <div class="flex-1 truncate">
-              <h3 class="text-sm font-semibold text-white truncate">
+              <h3 class="text-sm font-semibold text-zinc-900 dark:text-white truncate">
                 {{ modal.activeModal()?.title || 'Notice' }}
               </h3>
             </div>
 
             <button
               (click)="modal.closeWithCancel()"
-              class="p-1 rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors"
+              class="p-1 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors"
             >
               &times;
             </button>
           </div>
 
           <!-- Body Message -->
-          <div class="text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap">
+          <div class="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">
             {{ modal.activeModal()?.message }}
           </div>
 
@@ -65,18 +65,18 @@ import { ModalDialogService } from '../../../core/services/modal-dialog.service'
                 (keydown.enter)="submitPrompt()"
                 [placeholder]="modal.activeModal()?.placeholder || 'Enter value...'"
                 autofocus
-                class="w-full px-3 py-2 bg-[#18181b] border border-[#27272a] focus:border-white focus:outline-none rounded-xl text-xs text-white placeholder:text-zinc-600 font-mono transition-colors"
+                class="w-full px-3 py-2 bg-[#f8f9fa] dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] focus:border-zinc-900 dark:focus:border-white focus:outline-none rounded-xl text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-mono transition-colors"
               />
             </div>
           }
 
           <!-- Footer Actions -->
-          <div class="flex items-center justify-end gap-2 pt-2 border-t border-[#27272a]">
+          <div class="flex items-center justify-end gap-2 pt-2 border-t border-[#e7e9ed] dark:border-[#27272a]">
             @if (modal.activeModal()?.type !== 'alert') {
               <button
                 type="button"
                 (click)="modal.closeWithCancel()"
-                class="px-3.5 py-1.5 rounded-xl bg-[#18181b] hover:bg-[#27272a] text-xs font-medium text-zinc-300 hover:text-white transition-colors border border-[#27272a]"
+                class="px-3.5 py-1.5 rounded-xl bg-white hover:bg-zinc-100 text-zinc-700 hover:text-zinc-900 dark:bg-[#18181b] dark:hover:bg-[#27272a] text-xs font-medium dark:text-zinc-300 dark:hover:text-white transition-colors border border-[#dcdde1] dark:border-[#27272a]"
               >
                 {{ modal.activeModal()?.cancelText || 'Cancel' }}
               </button>
@@ -85,7 +85,7 @@ import { ModalDialogService } from '../../../core/services/modal-dialog.service'
             <button
               type="button"
               (click)="submitConfirm()"
-              class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-zinc-200 text-black transition-colors"
+              class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black transition-colors"
             >
               {{ modal.activeModal()?.confirmText || 'OK' }}
             </button>

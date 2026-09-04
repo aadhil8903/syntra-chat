@@ -8,6 +8,7 @@ import { CollectionsWalkthroughComponent } from './shared/components/collections
 import { ModalDialogComponent } from './shared/components/modal-dialog/modal-dialog.component';
 import { AuthService } from './core/services/auth.service';
 import { WalkthroughService } from './core/services/walkthrough.service';
+import { ThemeService } from './core/services/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -23,11 +24,11 @@ import { WalkthroughService } from './core/services/walkthrough.service';
   ],
   template: `
     @if (isAuthenticated()) {
-      <div class="h-screen overflow-hidden flex flex-col bg-[#09090b] text-[#fafafa] relative">
+      <div class="h-screen overflow-hidden flex flex-col bg-[#f7f8fa] dark:bg-[#09090b] text-[#15171a] dark:text-[#fafafa] relative">
         <app-navbar></app-navbar>
         <div class="flex-1 flex overflow-hidden">
           <app-sidebar></app-sidebar>
-          <main class="flex-1 overflow-y-auto bg-[#09090b]">
+          <main class="flex-1 overflow-y-auto bg-[#f7f8fa] dark:bg-[#09090b]">
             <router-outlet></router-outlet>
           </main>
         </div>
@@ -39,7 +40,7 @@ import { WalkthroughService } from './core/services/walkthrough.service';
         <app-modal-dialog></app-modal-dialog>
       </div>
     } @else {
-      <main class="min-h-screen bg-[#09090b] text-[#fafafa] overflow-y-auto">
+      <main class="min-h-screen bg-[#f7f8fa] dark:bg-[#09090b] text-[#15171a] dark:text-[#fafafa] overflow-y-auto">
         <router-outlet></router-outlet>
         <!-- In-App Custom Modal Dialogs -->
         <app-modal-dialog></app-modal-dialog>
@@ -50,6 +51,7 @@ import { WalkthroughService } from './core/services/walkthrough.service';
 export class AppComponent implements OnInit {
   private authService = inject(AuthService);
   private walkthroughService = inject(WalkthroughService);
+  private themeService = inject(ThemeService);
 
   isAuthenticated = this.authService.isAuthenticated;
 

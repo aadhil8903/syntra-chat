@@ -25,23 +25,23 @@ Chart.register(...registerables);
   imports: [CommonModule],
   template: `
     @if (chartSpec) {
-      <div class="my-4 p-5 rounded-2xl border border-[#27272a] bg-[#111114] space-y-3">
+      <div class="my-4 p-5 rounded-2xl border border-[#dcdde1] dark:border-[#27272a] bg-white dark:bg-[#111114] space-y-3 shadow-xs dark:shadow-md">
         <!-- Header & Controls -->
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[#27272a] pb-3">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[#dcdde1] dark:border-[#27272a] pb-3">
           <div>
-            <h4 class="text-sm font-semibold text-white tracking-tight">{{ chartSpec.title }}</h4>
+            <h4 class="text-sm font-semibold text-zinc-900 dark:text-white tracking-tight">{{ chartSpec.title }}</h4>
             @if (chartSpec.description) {
-              <p class="text-xs text-[#a1a1aa] mt-0.5">{{ chartSpec.description }}</p>
+              <p class="text-xs text-zinc-500 dark:text-[#a1a1aa] mt-0.5">{{ chartSpec.description }}</p>
             }
           </div>
 
           <!-- Dynamic Controls: Switch Chart Type & Export -->
           <div class="flex flex-wrap items-center gap-2">
             <!-- Chart Type Selector Pills -->
-            <div class="flex bg-[#0c0c0e] p-1 rounded-xl border border-[#27272a] text-[11px] font-mono">
+            <div class="flex bg-[#f0f1f3] dark:bg-[#0c0c0e] p-1 rounded-xl border border-[#dcdde1] dark:border-[#27272a] text-[11px] font-mono">
               <button
                 (click)="switchChartType(ChartType.BAR)"
-                [ngClass]="activeType === ChartType.BAR ? 'bg-white text-black font-bold' : 'text-[#a1a1aa] hover:text-white'"
+                [ngClass]="activeType === ChartType.BAR ? 'bg-zinc-900 text-white dark:bg-white dark:text-black font-bold' : 'text-zinc-600 hover:text-zinc-900 dark:text-[#a1a1aa] dark:hover:text-white'"
                 class="px-2 py-1 rounded-lg transition-colors"
                 title="Bar Chart"
               >
@@ -49,7 +49,7 @@ Chart.register(...registerables);
               </button>
               <button
                 (click)="switchChartType(ChartType.LINE)"
-                [ngClass]="activeType === ChartType.LINE ? 'bg-white text-black font-bold' : 'text-[#a1a1aa] hover:text-white'"
+                [ngClass]="activeType === ChartType.LINE ? 'bg-zinc-900 text-white dark:bg-white dark:text-black font-bold' : 'text-zinc-600 hover:text-zinc-900 dark:text-[#a1a1aa] dark:hover:text-white'"
                 class="px-2 py-1 rounded-lg transition-colors"
                 title="Line Chart"
               >
@@ -57,7 +57,7 @@ Chart.register(...registerables);
               </button>
               <button
                 (click)="switchChartType(ChartType.AREA)"
-                [ngClass]="activeType === ChartType.AREA ? 'bg-white text-black font-bold' : 'text-[#a1a1aa] hover:text-white'"
+                [ngClass]="activeType === ChartType.AREA ? 'bg-zinc-900 text-white dark:bg-white dark:text-black font-bold' : 'text-zinc-600 hover:text-zinc-900 dark:text-[#a1a1aa] dark:hover:text-white'"
                 class="px-2 py-1 rounded-lg transition-colors"
                 title="Area Chart"
               >
@@ -65,7 +65,7 @@ Chart.register(...registerables);
               </button>
               <button
                 (click)="switchChartType(ChartType.PIE)"
-                [ngClass]="activeType === ChartType.PIE ? 'bg-white text-black font-bold' : 'text-[#a1a1aa] hover:text-white'"
+                [ngClass]="activeType === ChartType.PIE ? 'bg-zinc-900 text-white dark:bg-white dark:text-black font-bold' : 'text-zinc-600 hover:text-zinc-900 dark:text-[#a1a1aa] dark:hover:text-white'"
                 class="px-2 py-1 rounded-lg transition-colors"
                 title="Pie Chart"
               >
@@ -73,7 +73,7 @@ Chart.register(...registerables);
               </button>
               <button
                 (click)="switchChartType(ChartType.DOUGHNUT)"
-                [ngClass]="activeType === ChartType.DOUGHNUT ? 'bg-white text-black font-bold' : 'text-[#a1a1aa] hover:text-white'"
+                [ngClass]="activeType === ChartType.DOUGHNUT ? 'bg-zinc-900 text-white dark:bg-white dark:text-black font-bold' : 'text-zinc-600 hover:text-zinc-900 dark:text-[#a1a1aa] dark:hover:text-white'"
                 class="px-2 py-1 rounded-lg transition-colors"
                 title="Doughnut Chart"
               >
@@ -84,10 +84,10 @@ Chart.register(...registerables);
             <!-- Export Actions -->
             <button
               (click)="downloadChartAsPdf()"
-              class="px-2.5 py-1.5 rounded-xl bg-[#18181b] hover:bg-[#27272a] text-white text-xs font-medium border border-[#3f3f46] flex items-center gap-1.5 transition-all"
+              class="px-2.5 py-1.5 rounded-xl bg-white hover:bg-zinc-100 text-zinc-700 hover:text-zinc-900 dark:bg-[#18181b] dark:hover:bg-[#27272a] dark:text-white text-xs font-medium border border-[#dcdde1] dark:border-[#3f3f46] flex items-center gap-1.5 transition-all"
               title="Download as PDF"
             >
-              <svg class="w-3.5 h-3.5 text-zinc-400" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <span>PDF</span>

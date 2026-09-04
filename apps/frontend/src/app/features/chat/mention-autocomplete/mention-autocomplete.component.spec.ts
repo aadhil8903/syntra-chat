@@ -1,12 +1,14 @@
 import { MentionAutocompleteComponent } from './mention-autocomplete.component';
 import { IMentionOption, MentionResourceType } from '@enter-chat/shared-types';
-import { SimpleChange } from '@angular/core';
+import { SimpleChange, ElementRef } from '@angular/core';
 
 describe('MentionAutocompleteComponent', () => {
   let component: MentionAutocompleteComponent;
+  let mockElementRef: ElementRef;
 
   beforeEach(() => {
-    component = new MentionAutocompleteComponent();
+    mockElementRef = { nativeElement: document.createElement('div') } as ElementRef;
+    component = new MentionAutocompleteComponent(mockElementRef);
   });
 
   it('should initialize with closed state and empty options', () => {

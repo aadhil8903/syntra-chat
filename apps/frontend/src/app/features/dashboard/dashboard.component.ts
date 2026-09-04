@@ -21,24 +21,24 @@ export interface IQuickAction {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, MentionAutocompleteComponent],
   template: `
-    <div class="p-4 sm:p-6 lg:p-10 max-w-5xl mx-auto space-y-6 sm:space-y-10 animate-fade-in text-[#fafafa]">
+    <div class="p-4 sm:p-6 lg:p-10 max-w-5xl mx-auto space-y-6 sm:space-y-10 animate-fade-in text-zinc-900 dark:text-[#fafafa]">
       <!-- 1. Hero Greeting Section -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
         <div class="space-y-1">
-          <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+          <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
             {{ greeting() }}, {{ user()?.firstName || 'there' }}.
           </h1>
-          <p class="text-sm text-[#a1a1aa] font-medium">
+          <p class="text-sm text-zinc-500 dark:text-[#a1a1aa] font-medium">
             What are you working on?
           </p>
         </div>
         <button
           type="button"
           (click)="createNewChat()"
-          class="px-4 py-2 rounded-xl bg-[#18181b] hover:bg-[#27272a] text-white border border-[#27272a] hover:border-zinc-700 text-xs font-semibold flex items-center gap-2 transition-colors flex-shrink-0 shadow-sm self-start sm:self-auto"
+          class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-100 text-zinc-900 dark:bg-[#18181b] dark:hover:bg-[#27272a] dark:text-white border border-zinc-200 dark:border-[#27272a] hover:border-zinc-300 dark:hover:border-zinc-700 text-xs font-semibold flex items-center gap-2 transition-colors flex-shrink-0 shadow-sm self-start sm:self-auto"
           title="Start fresh new chat"
         >
-          <svg class="w-4 h-4 text-white" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="w-4 h-4 text-zinc-900 dark:text-white" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
           <span>New Chat</span>
@@ -47,7 +47,7 @@ export interface IQuickAction {
 
       <!-- 2. Primary Action: AI Composer Box -->
       <div class="space-y-3">
-        <div class="relative bg-[#111114] border border-[#27272a] focus-within:border-white rounded-2xl p-3 sm:p-4 transition-all">
+        <div class="relative bg-white dark:bg-[#111114] border border-zinc-200 dark:border-[#27272a] focus-within:border-zinc-400 dark:focus-within:border-white rounded-2xl p-3 sm:p-4 transition-all shadow-sm dark:shadow-none">
           <!-- Autocomplete Dropdown Component -->
           <app-mention-autocomplete
             [isOpen]="isMentionOpen"
@@ -60,7 +60,7 @@ export interface IQuickAction {
           @if (attachedResources.length > 0) {
             <div class="flex flex-wrap gap-2 mb-2.5">
               @for (res of attachedResources; track res.id) {
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#18181b] border border-[#3f3f46] text-white text-xs font-mono">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-[#18181b] border border-zinc-300 dark:border-[#3f3f46] text-zinc-900 dark:text-white text-xs font-mono">
                   <span>&#64;{{ res.name }}</span>
                   <button (click)="removeAttachedResource(res.id)" class="hover:text-white font-bold ml-1" title="Remove attachment">×</button>
                 </span>
@@ -77,7 +77,7 @@ export interface IQuickAction {
               (keydown)="onKeyDown($event)"
               placeholder="Ask Syntra about your documents, data, or anything..."
               rows="2"
-              class="w-full bg-transparent border-0 text-white text-sm sm:text-base px-2 py-1 focus:outline-none resize-none min-h-[56px] max-h-48 leading-relaxed placeholder:text-zinc-400 placeholder:text-[#a1a1aa]"
+              class="w-full bg-transparent border-0 text-zinc-900 dark:text-white text-sm sm:text-base px-2 py-1 focus:outline-none resize-none min-h-[56px] max-h-48 leading-relaxed placeholder:text-zinc-400 dark:placeholder:text-[#a1a1aa]"
               aria-label="Ask Syntra AI"
             ></textarea>
 
@@ -85,36 +85,36 @@ export interface IQuickAction {
             <button
               type="button"
               (click)="toggleVoiceInput()"
-              [ngClass]="voiceService.isListening ? 'bg-white text-black font-semibold border border-white' : 'text-zinc-400 hover:text-white hover:bg-[#18181b] border border-transparent hover:border-[#27272a]'"
+              [ngClass]="voiceService.isListening ? 'bg-zinc-900 text-white dark:bg-white dark:text-black font-semibold border border-zinc-900 dark:border-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#18181b] border border-transparent hover:border-zinc-200 dark:hover:border-[#27272a]'"
               class="p-2 rounded-xl text-xs flex items-center justify-center transition-all flex-shrink-0 mt-0.5"
               [title]="voiceService.isListening ? 'Listening... Click to stop recording' : 'Voice input (Click to speak)'"
             >
-              <svg class="w-4 h-4" [ngClass]="voiceService.isListening ? 'text-black' : 'text-zinc-400 hover:text-white'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg class="w-4 h-4" [ngClass]="voiceService.isListening ? 'text-white dark:text-black' : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
               </svg>
             </button>
           </div>
 
-          <div class="flex items-center justify-between pt-2 border-t border-[#27272a]/80 mt-1">
+          <div class="flex items-center justify-between pt-2 border-t border-zinc-200 dark:border-[#27272a]/80 mt-1">
             <div class="flex items-center gap-2">
               <button
                 type="button"
-                (click)="triggerMentionMenu()"
-                class="px-2.5 py-1.5 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-[#18181b] border border-[#27272a] text-xs flex items-center gap-1.5 transition-colors"
+                (click)="triggerMentionMenu($event)"
+                class="px-2.5 py-1.5 rounded-xl text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] text-xs flex items-center gap-1.5 transition-colors"
                 title="Attach & mention document or dataset"
               >
-                <span class="text-white font-bold">&#64;</span>
+                <span class="text-zinc-900 dark:text-white font-bold">&#64;</span>
                 <span class="font-medium">Mention</span>
               </button>
 
-              <span class="text-[11px] text-[#71717a] hidden sm:inline font-mono">Folder & File Scoped AI</span>
+              <span class="text-[11px] text-zinc-400 dark:text-[#71717a] hidden sm:inline font-mono">Folder & File Scoped AI</span>
             </div>
 
             <button
               type="button"
               (click)="submitComposer()"
               [disabled]="isSubmitting || (!inputText.trim() && attachedResources.length === 0)"
-              class="px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0"
+              class="px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0 shadow-sm"
               title="Submit prompt (Enter)"
             >
               <span>{{ isSubmitting ? 'Starting...' : 'Ask Syntra' }}</span>
@@ -127,12 +127,12 @@ export interface IQuickAction {
 
         <!-- 3. Quick Action Chips -->
         <div class="flex items-center gap-2 flex-wrap pt-1">
-          <span class="text-xs text-[#71717a] font-medium mr-1">Quick actions:</span>
+          <span class="text-xs text-zinc-500 dark:text-[#71717a] font-medium mr-1">Quick actions:</span>
           @for (action of quickActions; track action.label) {
             <button
               type="button"
               (click)="applyQuickAction(action)"
-              class="px-3 py-1.5 rounded-xl bg-[#111114] hover:bg-[#18181b] border border-[#27272a] hover:border-zinc-600 text-xs text-[#a1a1aa] hover:text-white transition-all flex items-center gap-1.5"
+              class="px-3 py-1.5 rounded-xl bg-white hover:bg-zinc-50 dark:bg-[#111114] dark:hover:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] hover:border-zinc-300 dark:hover:border-zinc-600 text-xs text-zinc-600 hover:text-zinc-900 dark:text-[#a1a1aa] dark:hover:text-white transition-all flex items-center gap-1.5 shadow-sm dark:shadow-none"
             >
               <span>{{ action.label }}</span>
             </button>
@@ -141,38 +141,38 @@ export interface IQuickAction {
       </div>
 
       <!-- 4. Main Secondary Section: Recent Chats -->
-      <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4">
+      <div class="bg-white dark:bg-[#111114] border border-zinc-200 dark:border-[#27272a] rounded-2xl p-6 space-y-4 shadow-sm dark:shadow-none">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <h2 class="text-base font-semibold text-white tracking-tight">Recent Chats</h2>
-            <span class="text-xs text-[#71717a] font-mono">({{ conversations.length }})</span>
+            <h2 class="text-base font-semibold text-zinc-900 dark:text-white tracking-tight">Recent Chats</h2>
+            <span class="text-xs text-zinc-400 dark:text-[#71717a] font-mono">({{ conversations.length }})</span>
           </div>
-          <a routerLink="/chat" class="text-xs text-white hover:underline font-medium">View all</a>
+          <a routerLink="/chat" class="text-xs text-zinc-900 dark:text-white hover:underline font-medium">View all</a>
         </div>
 
         @if (conversations.length === 0) {
           <div class="text-center py-8 space-y-2">
-            <p class="text-sm text-zinc-300 font-medium">No conversations yet.</p>
-            <p class="text-xs text-[#71717a]">Start a conversation with Syntra above to get started.</p>
+            <p class="text-sm text-zinc-600 dark:text-zinc-300 font-medium">No conversations yet.</p>
+            <p class="text-xs text-zinc-400 dark:text-[#71717a]">Start a conversation with Syntra above to get started.</p>
           </div>
         } @else {
-          <div class="divide-y divide-[#27272a]/60">
+          <div class="divide-y divide-zinc-200 dark:divide-[#27272a]/60">
             @for (c of conversations.slice(0, 5); track c.id) {
               <a
                 [routerLink]="['/chat', c.id]"
-                class="flex items-center justify-between py-3 px-2 -mx-2 rounded-xl hover:bg-[#18181b] transition-colors group cursor-pointer"
+                class="flex items-center justify-between py-3 px-2 -mx-2 rounded-xl hover:bg-zinc-50 dark:hover:bg-[#18181b] transition-colors group cursor-pointer"
               >
                 <div class="flex items-center gap-3 truncate min-w-0 pr-4">
-                  <div class="w-7 h-7 rounded-lg bg-[#18181b] border border-[#3f3f46] text-white flex items-center justify-center flex-shrink-0 group-hover:border-zinc-400 transition-colors">
+                  <div class="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-[#18181b] border border-zinc-200 dark:border-[#3f3f46] text-zinc-700 dark:text-white flex items-center justify-center flex-shrink-0 group-hover:border-zinc-400 transition-colors">
                     <svg class="w-3.5 h-3.5" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
                   </div>
-                  <span class="text-sm text-[#e4e4e7] group-hover:text-white truncate font-medium">
+                  <span class="text-sm text-zinc-800 dark:text-[#e4e4e7] group-hover:text-zinc-900 dark:group-hover:text-white truncate font-medium">
                     {{ c.title }}
                   </span>
                 </div>
-                <span class="text-xs text-[#71717a] font-mono flex-shrink-0">
+                <span class="text-xs text-zinc-400 dark:text-[#71717a] font-mono flex-shrink-0">
                   {{ formatChatDate(c.updatedAt) }}
                 </span>
               </a>
@@ -184,14 +184,14 @@ export interface IQuickAction {
       <!-- 5. Bottom Two-Column Grid: Collections Preview & Knowledge Preview -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Compact Collections Preview -->
-        <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4 flex flex-col justify-between">
+        <div class="bg-white dark:bg-[#111114] border border-zinc-200 dark:border-[#27272a] rounded-2xl p-6 space-y-4 flex flex-col justify-between shadow-sm dark:shadow-none">
           <div class="space-y-3">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <h3 class="text-sm font-semibold text-white tracking-tight">Collections</h3>
+                <h3 class="text-sm font-semibold text-zinc-900 dark:text-white tracking-tight">Collections</h3>
                 <span class="text-xs text-[#71717a] font-mono">({{ collections.length }})</span>
               </div>
-              <a routerLink="/chat" class="text-xs text-white hover:underline font-medium">View all</a>
+              <a routerLink="/chat" class="text-xs text-zinc-900 dark:text-white hover:underline font-medium">View all</a>
             </div>
 
             @if (collections.length === 0) {
@@ -201,7 +201,7 @@ export interface IQuickAction {
             } @else {
               <div class="space-y-1.5 pt-1">
                 @for (col of collections.slice(0, 4); track col.id) {
-                  <div class="rounded-xl bg-[#0c0c0e] border border-[#27272a] p-2.5 space-y-1">
+                  <div class="rounded-xl bg-zinc-50 dark:bg-[#0c0c0e] border border-zinc-200 dark:border-[#27272a] p-2.5 space-y-1">
                     <div
                       (click)="toggleCollection(col.id)"
                       class="flex items-center justify-between cursor-pointer text-xs group"
@@ -215,7 +215,7 @@ export interface IQuickAction {
                         >
                           <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                         </svg>
-                        <span class="font-medium text-zinc-200 group-hover:text-white truncate">📁 {{ col.name }}</span>
+                        <span class="font-medium text-zinc-800 dark:text-zinc-200 group-hover:text-zinc-900 dark:group-hover:text-white truncate">📁 {{ col.name }}</span>
                       </div>
                       <span class="text-[10px] text-zinc-500 font-mono">
                         {{ getChatsForCollection(col.id).length }} chats
@@ -223,11 +223,11 @@ export interface IQuickAction {
                     </div>
 
                     @if (expandedColIds.has(col.id)) {
-                      <div class="pl-5 pt-1 space-y-1 border-t border-[#27272a]/40 mt-1">
+                      <div class="pl-5 pt-1 space-y-1 border-t border-zinc-200 dark:border-[#27272a]/40 mt-1">
                         @for (chat of getChatsForCollection(col.id).slice(0, 3); track chat.id) {
                           <a
                             [routerLink]="['/chat', chat.id]"
-                            class="block text-[11px] text-zinc-400 hover:text-white truncate py-0.5"
+                            class="block text-[11px] text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white truncate py-0.5"
                           >
                             {{ chat.title }}
                           </a>
@@ -242,7 +242,7 @@ export interface IQuickAction {
               </div>
             }
           </div>
-          <p class="text-[11px] text-[#71717a] pt-2">Chats inside a collection share contextual memory.</p>
+          <p class="text-[11px] text-zinc-500 dark:text-[#71717a] pt-2">Chats inside a collection share contextual memory.</p>
         </div>
 
         <!-- Compact Knowledge Preview -->
@@ -250,13 +250,13 @@ export interface IQuickAction {
           <div class="space-y-3">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <h3 class="text-sm font-semibold text-white tracking-tight">Knowledge</h3>
+                <h3 class="text-sm font-semibold text-zinc-900 dark:text-white tracking-tight">Knowledge</h3>
               </div>
-              <a routerLink="/documents" class="text-xs text-white hover:underline font-medium">View all</a>
+              <a routerLink="/documents" class="text-xs text-zinc-900 dark:text-white hover:underline font-medium">View all</a>
             </div>
 
             <!-- Subtle Count Summary Pill -->
-            <div class="text-xs text-zinc-400 font-mono">
+            <div class="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
               <span>{{ documents.length }} documents</span>
               <span class="text-zinc-600 mx-1.5">·</span>
               <span>{{ datasets.length }} datasets</span>
@@ -265,12 +265,12 @@ export interface IQuickAction {
             <!-- Recently Added Knowledge Items -->
             <div class="space-y-1.5 pt-1">
               @for (item of recentKnowledgeItems.slice(0, 3); track item.id) {
-                <div class="flex items-center justify-between p-2.5 rounded-xl bg-[#0c0c0e] border border-[#27272a]">
+                <div class="flex items-center justify-between p-2.5 rounded-xl bg-zinc-50 dark:bg-[#0c0c0e] border border-zinc-200 dark:border-[#27272a]">
                   <div class="flex items-center gap-2.5 truncate">
-                    <span class="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-[#18181b] text-zinc-300 border border-[#3f3f46]">
+                    <span class="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#18181b] text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-[#3f3f46]">
                       {{ item.fileType }}
                     </span>
-                    <span class="text-xs text-zinc-200 truncate">{{ item.originalName }}</span>
+                    <span class="text-xs text-zinc-800 dark:text-zinc-200 truncate">{{ item.originalName }}</span>
                   </div>
                   <span class="text-[10px] text-zinc-500 font-mono">
                     {{ item.type === 'dataset' ? (item.totalRows || 0) + ' rows' : (item.chunkCount || 0) + ' chunks' }}
@@ -284,7 +284,7 @@ export interface IQuickAction {
               }
             </div>
           </div>
-          <p class="text-[11px] text-[#71717a] pt-2">Grounded retrieval with strict ACL authorization.</p>
+          <p class="text-[11px] text-zinc-500 dark:text-[#71717a] pt-2">Grounded retrieval with strict ACL authorization.</p>
         </div>
       </div>
     </div>
@@ -419,7 +419,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  triggerMentionMenu(): void {
+  triggerMentionMenu(event?: MouseEvent): void {
+    if (event) {
+      event.stopPropagation();
+    }
     this.isMentionOpen = true;
     this.api.searchMentions('').subscribe((res) => {
       this.mentionOptions = res.results || [];

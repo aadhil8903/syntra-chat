@@ -4,7 +4,7 @@ from pydantic import BaseModel
 import json
 import asyncio
 from schemas.chat import ChatRequest, ChatResponse, AgentIntent
-from agents.graph import agent_graph
+from agents.graph import agent_graph, guard_output_grounding
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -25,9 +25,10 @@ async def chat_endpoint(request: ChatRequest):
 
         # Invoke LangGraph StateGraph
         final_state = await agent_graph.ainvoke(initial_state)
+        guarded_answer = guard_output_grounding(final_state.get("final_answer", "No answer generated."), final_state)
 
         return ChatResponse(
-            answer=final_state.get("final_answer", "No answer generated."),
+            answer=guarded_answer,
             intent=final_state.get("intent", AgentIntent.GENERAL_CHAT),
             citations=final_state.get("citations"),
             generatedChart=final_state.get("chart_spec"),
@@ -60,7 +61,7 @@ async def chat_stream_endpoint(request: ChatRequest):
 
             # 1. StateGraph resolution & generation
             final_state = await agent_graph.ainvoke(initial_state)
-            answer = final_state.get("final_answer", "No response generated.")
+            answer = guard_output_grounding(final_state.get("final_answer", "No response generated."), final_state)
 
             # 2. Stream tokens in realistic chunks for smooth responsive rendering
             words = answer.split(" ")

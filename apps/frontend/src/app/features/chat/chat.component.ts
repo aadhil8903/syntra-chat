@@ -66,7 +66,7 @@ export interface IDynamicStarterCard {
     MarkdownPipe,
   ],
   template: `
-    <div class="flex h-full bg-[#09090b] overflow-hidden select-text relative">
+    <div class="flex h-full bg-[#f7f8fa] dark:bg-[#09090b] overflow-hidden select-text relative">
       <!-- Floating Selection Contextual Toolbar -->
       <app-text-selection-toolbar
         [targetContainer]="scrollContainer"
@@ -84,25 +84,15 @@ export interface IDynamicStarterCard {
 
         <div
           [style.width.px]="convWidth"
-          class="fixed md:relative inset-y-0 left-0 z-50 md:z-auto w-72 max-w-[85vw] md:max-w-none border-r border-[#27272a] bg-[#0d0d10] flex flex-col justify-between p-3 flex-shrink-0 select-none transition-[width] duration-75 shadow-2xl md:shadow-none"
+          class="fixed md:relative inset-y-0 left-0 z-50 md:z-auto w-72 max-w-[85vw] md:max-w-none border-r border-[#dcdde1] dark:border-[#27272a] bg-white dark:bg-[#0d0d10] flex flex-col justify-between p-3 flex-shrink-0 select-none transition-[width] duration-75 shadow-2xl md:shadow-none"
         >
           <!-- Fixed Top Header & Search Area (Pinned) -->
-          <div class="flex-shrink-0 space-y-2 pb-2 border-b border-[#27272a]/60">
-            <!-- Header & New Chat button -->
-            <div class="flex items-center justify-between gap-2">
-              <button
-                (click)="createNewConversation()"
-                class="flex-1 py-2 px-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors flex items-center justify-center gap-2"
-              >
-                <svg class="w-4 h-4" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                <span>New Chat</span>
-              </button>
-
+          <div class="flex-shrink-0 space-y-2 pb-2 border-b border-[#dcdde1] dark:border-[#27272a]/60">
+            <!-- Header -->
+            <div class="flex items-center justify-end gap-2">
               <button
                 (click)="toggleConvCollapse()"
-                class="p-2 rounded-xl text-[#a1a1aa] hover:text-white hover:bg-[#18181b] transition-colors"
+                class="p-2 rounded-xl text-zinc-500 dark:text-[#a1a1aa] hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-[#18181b] transition-colors"
                 title="Collapse conversations"
               >
                 <svg class="w-4 h-4" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -113,7 +103,7 @@ export interface IDynamicStarterCard {
 
             <!-- Search Input (Strict title search) -->
             <div class="relative">
-              <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-zinc-500">
+              <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-zinc-400 dark:text-zinc-500">
                 <svg class="w-3.5 h-3.5" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
@@ -123,12 +113,12 @@ export interface IDynamicStarterCard {
                 [(ngModel)]="searchQuery"
                 (input)="onSearchInput($event)"
                 placeholder="Search chats by name..."
-                class="w-full pl-8 pr-7 py-1.5 bg-[#111114] border border-[#27272a] focus:border-white focus:outline-none rounded-xl text-white text-xs placeholder-zinc-500 transition-colors"
+                class="w-full pl-8 pr-7 py-1.5 bg-[#f8f9fa] dark:bg-[#111114] border border-[#dcdde1] dark:border-[#27272a] focus:border-zinc-900 dark:focus:border-white focus:outline-none rounded-xl text-zinc-900 dark:text-white text-xs placeholder-zinc-400 dark:placeholder-zinc-500 transition-colors"
               />
               @if (searchQuery) {
                 <button
                   (click)="clearSearch()"
-                  class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-zinc-500 hover:text-white"
+                  class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-white"
                   title="Clear search"
                 >
                   <svg class="w-3.5 h-3.5" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -151,29 +141,29 @@ export interface IDynamicStarterCard {
               <div class="flex items-center justify-between px-2 py-1 text-xs select-none min-w-0">
                 <div
                   (click)="toggleAllCollectionsSectionCollapse()"
-                  class="flex items-center gap-1.5 cursor-pointer text-zinc-400 hover:text-zinc-200 transition-colors group min-w-0 flex-1 truncate"
+                  class="flex items-center gap-1.5 cursor-pointer text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors group min-w-0 flex-1 truncate"
                   title="Toggle collections section"
                 >
                   <svg
-                    class="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform flex-shrink-0"
-                    [ngClass]="isCollectionsGroupExpanded ? 'rotate-90 text-zinc-300' : ''"
+                    class="w-3 h-3 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-transform flex-shrink-0"
+                    [ngClass]="isCollectionsGroupExpanded ? 'rotate-90 text-zinc-700 dark:text-zinc-300' : ''"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
                     <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                   </svg>
-                  <span class="text-[10px] font-bold uppercase tracking-widest text-[#71717a] group-hover:text-zinc-300 truncate">Collections</span>
-                  <span class="text-[10px] text-zinc-500 font-mono font-medium flex-shrink-0">({{ displayedCollections.length }})</span>
+                  <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-[#71717a] group-hover:text-zinc-900 dark:group-hover:text-zinc-300 truncate">Collections</span>
+                  <span class="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono font-medium flex-shrink-0">({{ displayedCollections.length }})</span>
                 </div>
 
                 <button
                   data-tour="create-collection-btn"
                   (click)="openCreateCollectionModal()"
-                  class="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors flex items-center justify-center flex-shrink-0 border border-zinc-800 hover:border-zinc-600"
+                  class="p-1 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors flex items-center justify-center flex-shrink-0 border border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-600"
                   title="New Collection"
                   aria-label="New Collection"
                 >
-                  <svg class="w-3.5 h-3.5 text-zinc-400 hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                   </svg>
                 </button>
@@ -185,7 +175,7 @@ export interface IDynamicStarterCard {
                   @for (col of displayedCollections; track col.id) {
                     <div
                       class="rounded-xl border transition-all"
-                      [ngClass]="dragOverCollectionId === col.id ? 'bg-zinc-800/90 border-white/60 ring-1 ring-white/50' : 'border-transparent hover:border-zinc-800/40 bg-transparent hover:bg-[#111114]/40'"
+                      [ngClass]="dragOverCollectionId === col.id ? 'bg-zinc-200/80 border-zinc-400 ring-1 ring-zinc-400 dark:bg-zinc-800/90 dark:border-white/60 dark:ring-1 dark:ring-white/50' : 'border-transparent hover:border-zinc-200 dark:hover:border-zinc-800/40 bg-transparent hover:bg-zinc-100 dark:hover:bg-[#111114]/40'"
                       (dragover)="onDragOverCollection(col.id, $event)"
                       (dragleave)="onDragLeaveCollection(col.id, $event)"
                       (drop)="onDropOnCollection(col.id, $event)"
@@ -193,33 +183,33 @@ export interface IDynamicStarterCard {
                       <!-- Collection Row -->
                       <div
                         (click)="toggleCollectionExpand(col.id)"
-                        class="flex items-center justify-between px-2 py-1.5 cursor-pointer text-xs group rounded-lg hover:bg-zinc-800/40 transition-colors"
+                        class="flex items-center justify-between px-2 py-1.5 cursor-pointer text-xs group rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/40 transition-colors"
                       >
                         <div class="flex items-center gap-1.5 truncate">
-                          <!-- Exact Folder-Tree Arrow Chevron from Round 7 -->
+                          <!-- Folder-Tree Arrow Chevron -->
                           <button
                             type="button"
                             (click)="toggleCollectionExpand(col.id); $event.stopPropagation()"
-                            class="w-3.5 h-3.5 flex items-center justify-center text-zinc-400 hover:text-white transition-transform p-0 rounded flex-shrink-0"
+                            class="w-3.5 h-3.5 flex items-center justify-center text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-transform p-0 rounded flex-shrink-0"
                             [title]="isCollectionExpanded(col.id) ? 'Collapse collection' : 'Expand collection'"
                           >
                             <svg
                               class="w-3 h-3 transition-transform duration-150"
-                              [ngClass]="isCollectionExpanded(col.id) ? 'rotate-90 text-white' : 'text-zinc-500'"
+                              [ngClass]="isCollectionExpanded(col.id) ? 'rotate-90 text-zinc-900 dark:text-white' : 'text-zinc-400 dark:text-zinc-500'"
                               fill="currentColor"
                               viewBox="0 0 20 20"
                             >
                               <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                             </svg>
                           </button>
-                          <span class="truncate font-medium text-zinc-200 text-xs">{{ col.name }}</span>
-                          <span class="text-[10px] text-zinc-500 font-mono font-normal">({{ getConversationsForCollection(col.id).length }})</span>
+                          <span class="truncate font-medium text-zinc-800 dark:text-zinc-200 text-xs">{{ col.name }}</span>
+                          <span class="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono font-normal">({{ getConversationsForCollection(col.id).length }})</span>
                         </div>
 
                         <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             (click)="createNewConversation(col.id); $event.stopPropagation()"
-                            class="p-1 hover:text-white text-zinc-400 hover:bg-zinc-800 rounded"
+                            class="p-1 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 rounded"
                             title="New chat in this collection"
                           >
                             <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -228,7 +218,7 @@ export interface IDynamicStarterCard {
                           </button>
                           <button
                             (click)="openRenameCollectionModal(col, $event)"
-                            class="p-1 hover:text-white text-zinc-500 hover:bg-zinc-800 rounded"
+                            class="p-1 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800 rounded"
                             title="Rename collection"
                           >
                             <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -237,7 +227,7 @@ export interface IDynamicStarterCard {
                           </button>
                           <button
                             (click)="deleteCollection(col.id, $event)"
-                            class="p-1 hover:text-white text-zinc-500 hover:bg-zinc-800 rounded"
+                            class="p-1 text-zinc-400 hover:text-rose-600 hover:bg-zinc-200/80 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800 rounded"
                             title="Delete collection"
                           >
                             <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -249,28 +239,28 @@ export interface IDynamicStarterCard {
 
                       <!-- Collection Chats (Accordion Body) -->
                       @if (isCollectionExpanded(col.id)) {
-                        <div class="pl-4 pr-1 py-0.5 space-y-0.5 border-l border-zinc-800/60 ml-3.5 mb-1">
+                        <div class="pl-4 pr-1 py-0.5 space-y-0.5 border-l border-zinc-200 dark:border-zinc-800/60 ml-3.5 mb-1">
                           @for (conv of getConversationsForCollection(col.id); track conv.id) {
                             <div
                               draggable="true"
                               (dragstart)="onDragStartChat(conv, $event)"
                               (dragend)="onDragEndChat()"
                               (click)="selectConversation(conv)"
-                              [ngClass]="activeConversation?.id === conv.id ? 'bg-[#18181b] text-white font-medium border border-[#3f3f46]' : 'text-[#a1a1aa] hover:text-white hover:bg-[#141417]'"
+                              [ngClass]="activeConversation?.id === conv.id ? 'bg-[#f0f1f3] text-zinc-900 font-medium border border-[#dcdde1] dark:bg-[#18181b] dark:text-white dark:border-[#3f3f46]' : 'text-zinc-600 hover:text-zinc-900 hover:bg-[#f0f1f3] dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#141417]'"
                               class="group/item flex items-center justify-between px-2 py-1.5 rounded-lg cursor-grab active:cursor-grabbing transition-all text-xs select-none"
                               [class.opacity-50]="draggedConversation?.id === conv.id"
                             >
                               <div class="flex items-center gap-1.5 truncate">
-                                <span class="w-[2px] h-3 rounded-full bg-zinc-600/70 group-hover/item:bg-zinc-400 select-none flex-shrink-0"></span>
+                                <span class="w-[2px] h-3 rounded-full bg-zinc-400 group-hover/item:bg-zinc-600 dark:bg-zinc-600/70 dark:group-hover/item:bg-zinc-400 select-none flex-shrink-0"></span>
                                 <span class="truncate">{{ conv.title }}</span>
                               </div>
                               <div class="flex items-center gap-1">
                                 @if (chatState.isGenerating(conv.id)) {
-                                  <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse flex-shrink-0"></span>
+                                  <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse flex-shrink-0"></span>
                                 }
                                 <button
                                   (click)="unassignFromCollection(conv, $event)"
-                                  class="opacity-0 group-hover/item:opacity-100 p-0.5 hover:text-white text-zinc-500 transition-opacity text-[10px]"
+                                  class="opacity-0 group-hover/item:opacity-100 p-0.5 text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-white transition-opacity text-[10px]"
                                   title="Move to Recent Chats"
                                 >
                                   &times;
@@ -279,11 +269,11 @@ export interface IDynamicStarterCard {
                             </div>
                           }
                           @if (getConversationsForCollection(col.id).length === 0) {
-                            <div class="px-2 py-1.5 flex items-center justify-between text-[11px] text-zinc-500">
+                            <div class="px-2 py-1.5 flex items-center justify-between text-[11px] text-zinc-400 dark:text-zinc-500">
                               <span class="italic text-[10px]">Empty collection</span>
                               <button
                                 (click)="createNewConversation(col.id)"
-                                class="text-[10px] text-zinc-400 hover:text-white underline underline-offset-2"
+                                class="text-[10px] text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white underline underline-offset-2"
                               >
                                 + Add Chat
                               </button>
@@ -297,10 +287,10 @@ export interface IDynamicStarterCard {
                   <!-- Dedicated New Collection Action Row -->
                   <button
                     (click)="openCreateCollectionModal()"
-                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-zinc-800/40 border border-dashed border-zinc-800/80 hover:border-zinc-700 transition-all group mt-1"
+                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800/40 border border-dashed border-zinc-300 hover:border-zinc-400 dark:border-zinc-800/80 dark:hover:border-zinc-700 transition-all group mt-1"
                     title="Create new collection"
                   >
-                    <svg class="w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg class="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600 dark:text-zinc-500 dark:group-hover:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                     </svg>
                     <span class="text-[11px] font-medium tracking-tight">New Collection</span>
@@ -309,28 +299,28 @@ export interface IDynamicStarterCard {
               }
             </div>
 
-            <!-- Recent Chats / Uncollected Chats (Directly continuous in single scroll container) -->
+            <!-- Recent Chats / Uncollected Chats -->
             <div
               data-tour="recent-chats-list"
               class="space-y-1 pt-1 rounded-xl p-1 transition-all border"
-              [ngClass]="isDragOverRecentChats ? 'bg-zinc-800/90 border-white/60 ring-1 ring-white/50' : 'border-transparent'"
+              [ngClass]="isDragOverRecentChats ? 'bg-zinc-200/80 border-zinc-400 ring-1 ring-zinc-400 dark:bg-zinc-800/90 dark:border-white/60 dark:ring-1 dark:ring-white/50' : 'border-transparent'"
               (dragover)="onDragOverRecentChats($event)"
               (dragleave)="onDragLeaveRecentChats($event)"
               (drop)="onDropOnRecentChats($event)"
             >
               <div class="flex items-center justify-between px-1.5 py-1 text-xs">
-                <div class="text-[10px] font-bold uppercase tracking-widest text-[#71717a]">
+                <div class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-[#71717a]">
                   {{ searchQuery ? 'Search Results' : 'Recent Chats' }}
                 </div>
                 @if (chatState.activeGenerationsCount() > 0 && !searchQuery) {
-                  <span class="text-[10px] font-mono text-zinc-300">
+                  <span class="text-[10px] font-mono text-zinc-700 dark:text-zinc-300">
                     {{ chatState.activeGenerationsCount() }}/2 active
                   </span>
                 }
               </div>
 
               @if (getRecentUncollectedChats().length === 0) {
-                <div class="px-3 py-3 text-center text-xs text-zinc-500 italic">
+                <div class="px-3 py-3 text-center text-xs text-zinc-400 dark:text-zinc-500 italic">
                   {{ searchQuery ? 'No chats matching "' + searchQuery + '"' : 'No uncollected chats' }}
                 </div>
               }
@@ -341,27 +331,27 @@ export interface IDynamicStarterCard {
                   (dragstart)="onDragStartChat(conv, $event)"
                   (dragend)="onDragEndChat()"
                   (click)="selectConversation(conv)"
-                  [ngClass]="activeConversation?.id === conv.id ? 'bg-[#18181b] text-white font-medium border border-[#3f3f46]' : 'text-[#a1a1aa] hover:text-white hover:bg-[#141417]'"
+                  [ngClass]="activeConversation?.id === conv.id ? 'bg-[#f0f1f3] text-zinc-900 font-medium border border-[#dcdde1] dark:bg-[#18181b] dark:text-white dark:border-[#3f3f46]' : 'text-zinc-600 hover:text-zinc-900 hover:bg-[#f0f1f3] dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#141417]'"
                   class="group flex items-center justify-between px-2.5 py-2 rounded-xl cursor-grab active:cursor-grabbing transition-all text-xs select-none"
                   [class.opacity-50]="draggedConversation?.id === conv.id"
                 >
                   <div class="flex items-center gap-2 truncate">
-                    <span class="w-[2px] h-3.5 rounded-full bg-zinc-600/70 group-hover:bg-zinc-400 select-none flex-shrink-0"></span>
-                    <svg class="w-3.5 h-3.5 flex-shrink-0 text-zinc-500 group-hover:text-zinc-300" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <span class="w-[2px] h-3.5 rounded-full bg-zinc-400 group-hover:bg-zinc-600 dark:bg-zinc-600/70 dark:group-hover:bg-zinc-400 select-none flex-shrink-0"></span>
+                    <svg class="w-3.5 h-3.5 flex-shrink-0 text-zinc-400 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
                     </svg>
                     <span class="truncate">{{ conv.title }}</span>
                   </div>
                   <div class="flex items-center gap-1">
                     @if (chatState.isGenerating(conv.id)) {
-                      <span class="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-200 text-[9px] font-mono flex-shrink-0" title="Generating in background">
-                        <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                      <span class="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-zinc-100 border border-zinc-300 text-zinc-700 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-200 text-[9px] font-mono flex-shrink-0" title="Generating in background">
+                        <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
                         <span class="hidden sm:inline">running</span>
                       </span>
                     }
                     <button
                       (click)="deleteConversation(conv.id, $event)"
-                      class="opacity-0 group-hover:opacity-100 p-1 hover:text-white text-zinc-500 transition-opacity"
+                      class="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-rose-600 dark:text-zinc-500 dark:hover:text-white transition-opacity"
                       title="Delete chat"
                     >
                       <svg class="w-3 h-3" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -377,22 +367,22 @@ export interface IDynamicStarterCard {
           <!-- Resizing Drag Handle (Desktop Only) -->
           <div
             (mousedown)="startResizeConv($event)"
-            class="hidden md:block absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-white/50 active:bg-white transition-colors z-20"
+            class="hidden md:block absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-zinc-400/50 dark:hover:bg-white/50 active:bg-zinc-600 dark:active:bg-white transition-colors z-20"
             title="Drag to resize conversations"
           ></div>
         </div>
       }
 
       <!-- Main Chat Area -->
-      <div class="flex-1 flex flex-col h-full min-w-0 bg-[#09090b] relative">
+      <div class="flex-1 flex flex-col h-full min-w-0 bg-[#f7f8fa] dark:bg-[#09090b] relative">
 
         <!-- Chat Header -->
-        <div class="h-12 border-b border-[#27272a] px-3 sm:px-4 flex items-center justify-between flex-shrink-0 bg-[#09090b]">
+        <div class="h-12 border-b border-[#dcdde1] dark:border-[#27272a] px-3 sm:px-4 flex items-center justify-between flex-shrink-0 bg-white dark:bg-[#09090b]">
           <div class="flex items-center gap-2 sm:gap-3 min-w-0">
             @if (isConvCollapsed) {
               <button
                 (click)="toggleConvCollapse()"
-                class="min-w-[40px] min-h-[40px] -ml-1 rounded-xl text-[#a1a1aa] hover:text-white hover:bg-[#18181b] flex items-center justify-center transition-colors"
+                class="min-w-[40px] min-h-[40px] -ml-1 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#18181b] flex items-center justify-center transition-colors"
                 title="Show conversations"
                 aria-label="Show conversations"
               >
@@ -401,26 +391,26 @@ export interface IDynamicStarterCard {
                 </svg>
               </button>
             }
-            <div class="w-2 h-2 rounded-full flex-shrink-0" [ngClass]="isCurrentGenerating ? 'bg-zinc-300 animate-pulse' : 'bg-zinc-600'"></div>
-            <h2 class="font-medium text-white text-xs tracking-tight truncate max-w-[180px] sm:max-w-md">
+            <div class="w-2 h-2 rounded-full flex-shrink-0" [ngClass]="isCurrentGenerating ? 'bg-zinc-900 dark:bg-zinc-300 animate-pulse' : 'bg-zinc-400 dark:bg-zinc-600'"></div>
+            <h2 class="font-medium text-zinc-900 dark:text-white text-xs tracking-tight truncate max-w-[180px] sm:max-w-md">
               {{ activeConversation?.title || 'New Workplace Session' }}
             </h2>
           </div>
 
           <div class="flex items-center gap-2">
             @if (chatState.activeGenerationsCount() > 0) {
-              <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-700 text-[10px] font-mono text-zinc-200">
-                <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+              <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-100 border border-zinc-300 dark:bg-zinc-900 dark:border-zinc-700 text-[10px] font-mono text-zinc-700 dark:text-zinc-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
                 <span>{{ chatState.activeGenerationsCount() }}/2 Active Chats</span>
               </div>
             }
             @if (messages.length > 0) {
               <button
                 (click)="exportConversationPdf()"
-                class="min-h-[36px] px-2.5 py-1 rounded-lg bg-[#18181b] hover:bg-[#27272a] text-[#a1a1aa] hover:text-white text-xs font-medium border border-[#27272a] flex items-center gap-1.5 transition-colors"
+                class="min-h-[36px] px-2.5 py-1 rounded-lg bg-white hover:bg-zinc-100 text-zinc-700 hover:text-zinc-900 dark:bg-[#18181b] dark:hover:bg-[#27272a] text-xs font-medium border border-[#dcdde1] dark:border-[#27272a] dark:text-[#a1a1aa] dark:hover:text-white flex items-center gap-1.5 transition-colors"
                 title="Export as PDF"
               >
-                <svg class="w-3.5 h-3.5 text-zinc-400" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <span class="hidden sm:inline">Export PDF</span>
@@ -433,13 +423,13 @@ export interface IDynamicStarterCard {
         <div #scrollContainer class="flex-1 overflow-y-auto px-2.5 sm:px-6 lg:px-8 pt-3 pb-12 sm:pt-4 sm:pb-16 space-y-2.5 sm:space-y-4 max-w-4xl mx-auto w-full min-h-0">
           @if (messages.length === 0 && !isCurrentGenerating) {
             <div class="h-full flex flex-col items-center justify-center text-center space-y-6 py-12 animate-fade-in my-auto">
-              <div class="w-12 h-12 rounded-2xl bg-[#18181b] border border-[#27272a] flex items-center justify-center p-2.5 shadow-lg shadow-rose-950/20">
+              <div class="w-12 h-12 rounded-2xl bg-white dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] flex items-center justify-center p-2.5 shadow-sm dark:shadow-lg dark:shadow-rose-950/20">
                 <img src="/logo-icon.svg" alt="Syntra" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
               </div>
               <div class="space-y-1.5">
-                <h3 class="text-base font-semibold text-white">Syntra Chat AI Assistant</h3>
-                <p class="text-xs text-[#a1a1aa] leading-relaxed max-w-md mx-auto">
-                  Ask questions, summarize documents, analyze spreadsheets and datasets, or mention specific files with <span class="text-white font-mono bg-[#18181b] px-1.5 py-0.5 rounded border border-[#27272a]">&#64;</span>.
+                <h3 class="text-base font-semibold text-zinc-900 dark:text-white">Syntra Chat AI Assistant</h3>
+                <p class="text-xs text-zinc-500 dark:text-[#a1a1aa] leading-relaxed max-w-md mx-auto">
+                  Ask questions, summarize documents, analyze spreadsheets and datasets, or mention specific files with <span class="text-zinc-900 dark:text-white font-mono bg-[#f0f1f3] dark:bg-[#18181b] px-1.5 py-0.5 rounded border border-[#dcdde1] dark:border-[#27272a]">&#64;</span>.
                 </p>
               </div>
 
@@ -449,13 +439,13 @@ export interface IDynamicStarterCard {
                   @for (card of dynamicStarters; track card.title) {
                     <button
                       (click)="sendQuickPrompt(card.promptText, card.resource)"
-                      class="p-3 rounded-xl bg-[#111114] hover:bg-[#18181b] border border-[#27272a] hover:border-[#3f3f46] transition-all text-xs space-y-1 group hover:scale-[1.01]"
+                      class="p-3 rounded-xl bg-white hover:bg-[#f8f9fa] dark:bg-[#111114] dark:hover:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] hover:border-zinc-400 dark:hover:border-[#3f3f46] transition-all text-xs space-y-1 group hover:scale-[1.01] shadow-xs"
                     >
-                      <div class="font-medium text-white flex items-center gap-1.5 truncate">
+                      <div class="font-medium text-zinc-900 dark:text-white flex items-center gap-1.5 truncate">
                         <span class="text-sm flex-shrink-0">{{ card.icon }}</span>
-                        <span class="truncate font-semibold text-zinc-100">{{ card.title }}</span>
+                        <span class="truncate font-semibold text-zinc-900 dark:text-zinc-100">{{ card.title }}</span>
                       </div>
-                      <div class="text-[#71717a] text-[11px] truncate group-hover:text-[#a1a1aa] transition-colors">
+                      <div class="text-zinc-500 dark:text-[#71717a] text-[11px] truncate group-hover:text-zinc-700 dark:group-hover:text-[#a1a1aa] transition-colors">
                         {{ card.subtitle }}
                       </div>
                     </button>
@@ -472,13 +462,13 @@ export interface IDynamicStarterCard {
                 class="flex gap-2 sm:gap-3 animate-fade-in"
               >
                 @if (msg.role !== 'user') {
-                  <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center flex-shrink-0 p-0.5 sm:p-1 mt-0.5">
+                  <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-white dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] flex items-center justify-center flex-shrink-0 p-0.5 sm:p-1 mt-0.5 shadow-xs">
                     <img src="/logo-icon.svg" alt="Syntra" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
                   </div>
                 }
 
                 <div
-                  [ngClass]="msg.role === 'user' ? 'bg-[#212124] text-white rounded-2xl rounded-tr-sm px-3 py-2 sm:px-4 sm:py-3 shadow-[0_1px_3px_rgba(0,0,0,0.3)] max-w-[90%] sm:max-w-[85%]' : 'bg-transparent text-white max-w-full'"
+                  [ngClass]="msg.role === 'user' ? 'bg-[#eceef1] text-[#17191c] border border-[#dcdde1] dark:border-transparent dark:bg-[#212124] dark:text-white rounded-2xl rounded-tr-sm px-3 py-2 sm:px-4 sm:py-3 shadow-xs dark:shadow-[0_1px_3px_rgba(0,0,0,0.3)] max-w-[90%] sm:max-w-[85%]' : 'bg-transparent text-zinc-900 dark:text-white max-w-full'"
                   class="text-sm leading-relaxed group relative min-w-0"
                 >
                   <!-- Rendered Rich Markdown Content -->
@@ -486,8 +476,8 @@ export interface IDynamicStarterCard {
                     @if (msg.referencedResourceIds && msg.referencedResourceIds.length > 0) {
                       <div class="flex flex-wrap gap-1.5 mb-2">
                         @for (rId of msg.referencedResourceIds; track rId) {
-                          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#2b2b30] text-[11px] text-zinc-300">
-                            <span class="text-white font-bold">&#64;</span>
+                          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-200/80 dark:bg-[#2b2b30] text-[11px] text-zinc-800 dark:text-zinc-300">
+                            <span class="font-bold text-zinc-900 dark:text-white">&#64;</span>
                             <span>{{ getResourceDisplayName(rId) }}</span>
                           </span>
                         }
@@ -498,19 +488,19 @@ export interface IDynamicStarterCard {
                     <div class="prose-ai" [innerHTML]="getDisplayContent(msg) | markdown"></div>
                   }
 
-                  <!-- Python Execution Code Viewer Accordion (VS Code Dark+ Pitch Black) -->
+                  <!-- Python Execution Code Viewer Accordion -->
                   @if (msg.pythonCode) {
-                    <details class="mt-3 text-xs border border-[#27272a] rounded-xl overflow-hidden bg-black shadow-xl">
-                      <summary class="px-3.5 py-2 cursor-pointer text-[#a1a1aa] hover:text-white font-mono font-medium flex items-center justify-between bg-[#0a0a0c] border-b border-[#27272a]/70 select-none">
+                    <details class="mt-3 text-xs border border-[#dcdde1] dark:border-[#27272a] rounded-xl overflow-hidden bg-white dark:bg-black shadow-sm dark:shadow-xl">
+                      <summary class="px-3.5 py-2 cursor-pointer text-zinc-700 hover:text-zinc-900 dark:text-[#a1a1aa] dark:hover:text-white font-mono font-medium flex items-center justify-between bg-[#f8f9fa] dark:bg-[#0a0a0c] border-b border-[#dcdde1] dark:border-[#27272a]/70 select-none">
                         <span class="flex items-center gap-2">
                           <svg class="w-3.5 h-3.5 text-[#3b82f6]" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                           </svg>
-                          <span class="text-zinc-300 font-semibold">Python Calculation Script</span>
+                          <span class="text-zinc-800 dark:text-zinc-300 font-semibold">Python Calculation Script</span>
                         </span>
                         <div class="flex items-center gap-2.5">
                           <span class="text-[10px] text-zinc-500 font-mono">Python 3.11</span>
-                          <button type="button" class="copy-code-btn inline-flex items-center gap-1.5 text-[11px] text-zinc-400 hover:text-white px-2 py-0.5 rounded hover:bg-zinc-800 transition-all cursor-pointer select-none active:scale-95" (click)="$event.stopPropagation(); copyDirectText(msg.pythonCode, $event)" title="Copy Python script">
+                          <button type="button" class="copy-code-btn inline-flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white px-2 py-0.5 rounded hover:bg-zinc-200/60 dark:hover:bg-zinc-800 transition-all cursor-pointer select-none active:scale-95" (click)="$event.stopPropagation(); copyDirectText(msg.pythonCode, $event)" title="Copy Python script">
                             <svg class="copy-icon w-3.5 h-3.5" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                             </svg>
@@ -518,7 +508,7 @@ export interface IDynamicStarterCard {
                           </button>
                         </div>
                       </summary>
-                      <div class="p-3.5 bg-black font-mono text-[12px] overflow-x-auto overflow-y-auto max-h-80 leading-relaxed">
+                      <div class="p-3.5 bg-[#f8f9fa] dark:bg-black font-mono text-[12px] overflow-x-auto overflow-y-auto max-h-80 leading-relaxed">
                         <pre class="hljs-vscode-dark m-0"><code class="hljs language-python" [innerHTML]="highlightCode(msg.pythonCode, 'python')"></code></pre>
                       </div>
                     </details>
@@ -540,12 +530,12 @@ export interface IDynamicStarterCard {
                     }
                   </div>
 
-                  <!-- Compact Inline Downloadable File Card (Claude-style borderless pill) -->
+                  <!-- Downloadable File Card -->
                   @if (msg.downloadableFile) {
                     <div class="mt-2 mb-1 inline-block">
                       <div
                         (click)="downloadChatFile(msg.downloadableFile)"
-                        class="group/file-card inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-[#212124] hover:bg-[#28282c] cursor-pointer transition-all shadow-[0_1px_3px_rgba(0,0,0,0.35)] max-w-sm"
+                        class="group/file-card inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-[#f0f1f3] hover:bg-[#e4e6ea] dark:bg-[#212124] dark:hover:bg-[#28282c] border border-[#dcdde1] dark:border-transparent cursor-pointer transition-all shadow-xs dark:shadow-[0_1px_3px_rgba(0,0,0,0.35)] max-w-sm"
                         [class.opacity-75]="isDownloadingFile(msg.downloadableFile.documentId)"
                         role="button"
                         tabindex="0"
@@ -553,10 +543,10 @@ export interface IDynamicStarterCard {
                       >
                         <!-- Left: Compact File Type Badge + Filename -->
                         <div class="flex items-center gap-2 min-w-0">
-                          <span class="flex-shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase bg-red-500/20 text-red-400">
+                          <span class="flex-shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400">
                             PDF
                           </span>
-                          <span class="text-xs font-medium text-zinc-100 group-hover/file-card:text-white truncate max-w-[220px]" [title]="msg.downloadableFile.fileName">
+                          <span class="text-xs font-medium text-zinc-900 group-hover/file-card:text-black dark:text-zinc-100 dark:group-hover/file-card:text-white truncate max-w-[220px]" [title]="msg.downloadableFile.fileName">
                             {{ msg.downloadableFile.fileName }}
                           </span>
                         </div>
@@ -566,17 +556,17 @@ export interface IDynamicStarterCard {
                           type="button"
                           (click)="$event.stopPropagation(); downloadChatFile(msg.downloadableFile)"
                           [disabled]="isDownloadingFile(msg.downloadableFile.documentId)"
-                          class="flex-shrink-0 w-6 h-6 rounded-lg bg-white/5 hover:bg-white/10 active:bg-white/20 text-zinc-300 hover:text-white flex items-center justify-center transition-colors focus:outline-none ml-0.5"
+                          class="flex-shrink-0 w-6 h-6 rounded-lg bg-black/5 hover:bg-black/10 active:bg-black/20 text-zinc-700 hover:text-black dark:bg-white/5 dark:hover:bg-white/10 dark:active:bg-white/20 dark:text-zinc-300 dark:hover:text-white flex items-center justify-center transition-colors focus:outline-none ml-0.5"
                           title="Download file"
                           aria-label="Download file"
                         >
                           @if (isDownloadingFile(msg.downloadableFile.documentId)) {
-                            <svg class="w-3.5 h-3.5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                            <svg class="w-3.5 h-3.5 animate-spin text-zinc-900 dark:text-white" fill="none" viewBox="0 0 24 24">
                               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
                           } @else {
-                            <svg class="w-3.5 h-3.5 text-zinc-300 group-hover/file-card:text-white transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <svg class="w-3.5 h-3.5 text-zinc-600 group-hover/file-card:text-black dark:text-zinc-300 dark:group-hover/file-card:text-white transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                               <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                             </svg>
                           }
@@ -597,12 +587,12 @@ export interface IDynamicStarterCard {
                     <div class="flex items-center justify-start gap-1.5 pt-1.5 mt-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <button
                         (click)="copyMessageText(msg.content, msgIdx)"
-                        class="text-[11px] flex items-center gap-1 transition-colors px-2 py-1 rounded-md hover:bg-[#18181b] border border-transparent hover:border-zinc-800"
-                        [ngClass]="copiedMessageIdx === msgIdx ? 'text-white font-medium bg-[#18181b] border-zinc-700' : 'text-[#71717a] hover:text-white'"
+                        class="text-[11px] flex items-center gap-1 transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-[#18181b] border border-transparent hover:border-zinc-300 dark:hover:border-zinc-800"
+                        [ngClass]="copiedMessageIdx === msgIdx ? 'text-zinc-900 font-medium bg-zinc-100 border-zinc-300 dark:text-white dark:bg-[#18181b] dark:border-zinc-700' : 'text-zinc-500 hover:text-zinc-900 dark:text-[#71717a] dark:hover:text-white'"
                         [title]="copiedMessageIdx === msgIdx ? 'Copied to clipboard' : 'Copy response'"
                       >
                         @if (copiedMessageIdx === msgIdx) {
-                          <svg class="w-3.5 h-3.5 text-white" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <svg class="w-3.5 h-3.5 text-zinc-900 dark:text-white" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                           </svg>
                           <span>Copied</span>
@@ -616,10 +606,10 @@ export interface IDynamicStarterCard {
 
                       <button
                         (click)="exportMessagePdf(msg, $event)"
-                        class="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1.5 transition-colors px-2 py-1 rounded-md hover:bg-[#18181b] border border-transparent hover:border-zinc-700 font-medium"
+                        class="text-[11px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white flex items-center gap-1.5 transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-[#18181b] border border-transparent hover:border-zinc-300 dark:hover:border-zinc-700 font-medium"
                         title="Export this calculation or analysis as a branded PDF report"
                       >
-                        <svg class="w-3.5 h-3.5 text-zinc-400" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
                         <span>Export as PDF Report</span>
@@ -634,27 +624,27 @@ export interface IDynamicStarterCard {
           <!-- Live Reasoning Animation for THIS specific conversation -->
           @if (isCurrentGenerating) {
             <div class="flex gap-3 justify-start animate-fade-in">
-              <div class="w-7 h-7 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center flex-shrink-0 p-1 mt-0.5">
+              <div class="w-7 h-7 rounded-lg bg-white dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] flex items-center justify-center flex-shrink-0 p-1 mt-0.5 shadow-xs">
                 <img src="/logo-icon.svg" alt="Syntra" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
               </div>
-              <div class="bg-[#111114] border border-[#27272a] rounded-xl px-4 py-2.5 text-xs flex items-center gap-2.5 text-white">
-                <span class="w-2 h-2 rounded-full bg-zinc-300 animate-pulse"></span>
-                <span class="font-mono text-[#a1a1aa] transition-all duration-300">{{ currentGeneratingStatus }}</span>
+              <div class="bg-white dark:bg-[#111114] border border-[#dcdde1] dark:border-[#27272a] rounded-xl px-4 py-2.5 text-xs flex items-center gap-2.5 text-zinc-800 dark:text-white shadow-xs">
+                <span class="w-2 h-2 rounded-full bg-zinc-700 dark:bg-zinc-300 animate-pulse"></span>
+                <span class="font-mono text-zinc-600 dark:text-[#a1a1aa] transition-all duration-300">{{ currentGeneratingStatus }}</span>
               </div>
             </div>
           }
 
           <!-- Per-Chat or Global Concurrency Error Banner -->
           @if (activeError) {
-            <div class="p-3 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs flex items-center justify-between">
+            <div class="p-3 rounded-xl bg-zinc-100 border border-zinc-300 text-zinc-800 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-200 text-xs flex items-center justify-between">
               <span>{{ activeError }}</span>
-              <button (click)="dismissError()" class="text-white font-semibold hover:underline ml-3 flex-shrink-0">Dismiss</button>
+              <button (click)="dismissError()" class="text-zinc-900 dark:text-white font-semibold hover:underline ml-3 flex-shrink-0">Dismiss</button>
             </div>
           }
         </div>
 
         <!-- Input Box & Mention Autocomplete -->
-        <div class="p-2 sm:p-4 border-t border-[#27272a] bg-[#0d0d10] relative flex-shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        <div class="p-2 sm:p-4 border-t border-[#dcdde1] dark:border-[#27272a] bg-white dark:bg-[#0d0d10] relative flex-shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
           <div class="max-w-4xl mx-auto relative">
             <!-- Autocomplete Dropdown Component -->
             <app-mention-autocomplete
@@ -668,9 +658,9 @@ export interface IDynamicStarterCard {
             @if (attachedResources.length > 0) {
               <div class="flex flex-wrap gap-2 mb-2">
                 @for (res of attachedResources; track res.id) {
-                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#18181b] border border-[#3f3f46] text-white text-xs font-mono">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#f0f1f3] dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#3f3f46] text-zinc-900 dark:text-white text-xs font-mono">
                     <span>&#64;{{ res.name }}</span>
-                    <button (click)="removeAttachedResource(res.id)" class="hover:text-white ml-1">×</button>
+                    <button (click)="removeAttachedResource(res.id)" class="text-zinc-500 hover:text-zinc-900 dark:hover:text-white ml-1">×</button>
                   </span>
                 }
               </div>
@@ -678,14 +668,14 @@ export interface IDynamicStarterCard {
 
             <!-- Concurrency Notice when limit is reached -->
             @if (isMaxGenerationsReached) {
-              <div class="mb-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-300 text-[11px] flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+              <div class="mb-2 px-3 py-1.5 rounded-lg bg-zinc-100 border border-zinc-300 dark:bg-zinc-900 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[11px] flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
                 <span>2 chats are currently generating in the background. Please wait for one to complete.</span>
               </div>
             }
 
             <!-- Floating Prompt Container (Claude/ChatGPT Style) -->
-            <div data-tour="chat-input-area" class="bg-[#111114] border border-[#27272a] focus-within:border-white rounded-2xl p-1.5 sm:p-2.5 transition-colors">
+            <div data-tour="chat-input-area" class="bg-[#f8f9fa] dark:bg-[#111114] border border-[#dcdde1] dark:border-[#27272a] focus-within:border-zinc-900 dark:focus-within:border-white focus-within:bg-white dark:focus-within:bg-[#111114] rounded-2xl p-1.5 sm:p-2.5 transition-colors shadow-xs">
               <div class="flex items-start gap-1">
                 <textarea
                   #inputArea
@@ -695,7 +685,7 @@ export interface IDynamicStarterCard {
                   placeholder="Ask anything or type @ to mention files..."
                   [disabled]="isCurrentGenerating || isMaxGenerationsReached"
                   rows="1"
-                  class="w-full bg-transparent border-0 text-white text-sm px-2 py-1.5 focus:outline-none resize-none max-h-36 sm:max-h-60 overflow-y-auto leading-relaxed disabled:opacity-50 transition-[height] duration-150 placeholder:text-zinc-400 placeholder:text-[#a1a1aa]"
+                  class="w-full bg-transparent border-0 text-zinc-900 dark:text-white text-sm px-2 py-1.5 focus:outline-none resize-none max-h-36 sm:max-h-60 overflow-y-auto leading-relaxed disabled:opacity-50 transition-[height] duration-150 placeholder:text-zinc-400 dark:placeholder:text-[#a1a1aa]"
                 ></textarea>
 
                 <!-- Voice / Microphone Button in Top-Right of Input Box -->
@@ -703,37 +693,37 @@ export interface IDynamicStarterCard {
                   type="button"
                   (click)="toggleVoiceInput()"
                   [disabled]="isCurrentGenerating || isMaxGenerationsReached"
-                  [ngClass]="voiceService.isListening ? 'bg-white text-black font-semibold border border-white' : 'text-zinc-400 hover:text-white hover:bg-[#18181b] border border-transparent hover:border-[#27272a]'"
+                  [ngClass]="voiceService.isListening ? 'bg-zinc-900 text-white dark:bg-white dark:text-black font-semibold' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#18181b] border border-transparent hover:border-zinc-300 dark:hover:border-[#27272a]'"
                   class="min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] p-2 rounded-xl text-xs flex items-center justify-center transition-all flex-shrink-0"
                   [title]="voiceService.isListening ? 'Listening... Click to stop recording' : 'Voice input (Click to speak)'"
                   aria-label="Voice input"
                 >
-                  <svg class="w-4 h-4" [ngClass]="voiceService.isListening ? 'text-black' : 'text-zinc-400 hover:text-white'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg class="w-4 h-4" [ngClass]="voiceService.isListening ? 'text-white dark:text-black' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                   </svg>
                 </button>
               </div>
 
-              <div class="flex items-center justify-between pt-1 sm:pt-1.5 border-t border-[#27272a] mt-1">
+              <div class="flex items-center justify-between pt-1 sm:pt-1.5 border-t border-[#e7e9ed] dark:border-[#27272a] mt-1">
                 <div class="flex items-center gap-1.5">
                   <button
                     type="button"
-                    (click)="triggerMentionMenu()"
+                    (click)="triggerMentionMenu($event)"
                     data-tour="chat-mention-btn"
                     [disabled]="isCurrentGenerating || isMaxGenerationsReached"
-                    class="min-h-[32px] sm:min-h-[36px] px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[#a1a1aa] hover:text-white hover:bg-[#18181b] border border-[#27272a] text-xs flex items-center gap-1 sm:gap-1.5 transition-colors disabled:opacity-40"
+                    class="min-h-[32px] sm:min-h-[36px] px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] text-xs flex items-center gap-1 sm:gap-1.5 transition-colors disabled:opacity-40"
                     title="Attach & mention document or dataset"
                   >
-                    <span class="text-white font-bold">&#64;</span>
+                    <span class="text-zinc-900 dark:text-white font-bold">&#64;</span>
                     <span class="font-medium">Mention</span>
                   </button>
-                  <span class="text-[11px] text-[#71717a] hidden sm:inline">Folder & File Scoped AI</span>
+                  <span class="text-[11px] text-zinc-500 dark:text-[#71717a] hidden sm:inline">Folder & File Scoped AI</span>
                 </div>
 
                 <button
                   (click)="sendUserMessage()"
                   [disabled]="isCurrentGenerating || isMaxGenerationsReached || (!inputText.trim() && attachedResources.length === 0)"
-                  class="min-h-[34px] sm:min-h-[38px] px-3 sm:px-4 py-1 sm:py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0"
+                  class="min-h-[34px] sm:min-h-[38px] px-3 sm:px-4 py-1 sm:py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0 shadow-xs"
                   title="Send (Enter)"
                 >
                   <span>Send</span>
@@ -744,8 +734,8 @@ export interface IDynamicStarterCard {
               </div>
             </div>
 
-            <div class="hidden sm:flex items-center justify-between mt-2 px-1 text-[11px] text-[#71717a]">
-              <span>Press <kbd class="px-1 py-0.5 rounded bg-[#18181b] text-zinc-300 font-mono text-[10px]">Enter</kbd> to send, <kbd class="px-1 py-0.5 rounded bg-[#18181b] text-zinc-300 font-mono text-[10px]">Shift + Enter</kbd> for a new line</span>
+            <div class="hidden sm:flex items-center justify-between mt-2 px-1 text-[11px] text-zinc-500 dark:text-[#71717a]">
+              <span>Press <kbd class="px-1 py-0.5 rounded bg-zinc-200 text-zinc-700 dark:bg-[#18181b] dark:text-zinc-300 font-mono text-[10px]">Enter</kbd> to send, <kbd class="px-1 py-0.5 rounded bg-zinc-200 text-zinc-700 dark:bg-[#18181b] dark:text-zinc-300 font-mono text-[10px]">Shift + Enter</kbd> for a new line</span>
               <span>AI can make mistakes. Verify critical facts.</span>
             </div>
           </div>
@@ -1925,7 +1915,10 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     }
   }
 
-  triggerMentionMenu(): void {
+  triggerMentionMenu(event?: MouseEvent): void {
+    if (event) {
+      event.stopPropagation();
+    }
     this.isMentionOpen = true;
     this.api.searchMentions('').subscribe((res) => {
       this.mentionOptions = res.results || [];
