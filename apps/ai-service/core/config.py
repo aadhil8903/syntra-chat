@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # LLM Settings
     LLM_PROVIDER: str = "gemini"  # "gemini" or "local"
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-3.5-flash"
+    GEMINI_MODEL: str = "gemini-3.6-flash"
 
     # Local LLM (e.g. Ollama)
     LOCAL_LLM_BASE_URL: str = "http://localhost:11434"

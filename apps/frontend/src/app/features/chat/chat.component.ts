@@ -89,11 +89,22 @@ export interface IDynamicStarterCard {
           <!-- Fixed Top Header & Search Area (Pinned) -->
           <div class="flex-shrink-0 space-y-2 pb-2 border-b border-[#dcdde1] dark:border-[#27272a]/60">
             <!-- Header -->
-            <div class="flex items-center justify-end gap-2">
+            <div class="flex items-center justify-between gap-2">
+              <button
+                (click)="createNewConversation()"
+                class="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-900 font-medium text-xs transition-colors shadow-sm cursor-pointer active:scale-98"
+                title="Start a new chat"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>New Chat</span>
+              </button>
+
               <button
                 (click)="toggleConvCollapse()"
-                class="p-2 rounded-xl text-zinc-500 dark:text-[#a1a1aa] hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-[#18181b] transition-colors"
-                title="Collapse conversations"
+                class="p-2 rounded-xl text-zinc-500 dark:text-[#a1a1aa] hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-[#18181b] transition-colors flex-shrink-0 cursor-pointer"
+                title="Collapse sidebar"
               >
                 <svg class="w-4 h-4" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
@@ -382,12 +393,22 @@ export interface IDynamicStarterCard {
             @if (isConvCollapsed) {
               <button
                 (click)="toggleConvCollapse()"
-                class="min-w-[40px] min-h-[40px] -ml-1 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#18181b] flex items-center justify-center transition-colors"
-                title="Show conversations"
-                aria-label="Show conversations"
+                class="min-w-[36px] min-h-[36px] -ml-1 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#18181b] flex items-center justify-center transition-colors cursor-pointer"
+                title="Show sidebar"
+                aria-label="Show sidebar"
               >
                 <svg class="w-4 h-4" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                </svg>
+              </button>
+              <button
+                (click)="createNewConversation()"
+                class="min-w-[36px] min-h-[36px] rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#18181b] flex items-center justify-center transition-colors cursor-pointer"
+                title="New Chat"
+                aria-label="New Chat"
+              >
+                <svg class="w-4 h-4" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4" />
                 </svg>
               </button>
             }

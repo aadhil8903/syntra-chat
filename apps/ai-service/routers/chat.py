@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, HTTPException, File, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -6,10 +7,15 @@ import asyncio
 from schemas.chat import ChatRequest, ChatResponse, AgentIntent
 from agents.graph import agent_graph, guard_output_grounding
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
 @router.post("", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
+    import uuid
+    req_id = f"req_{uuid.uuid4().hex[:8]}"
+    logger.info(f"[AI] request_id={req_id} start user_id={request.userId} msg='{request.message[:50]}'")
     try:
         active_scope_dict = request.activeScope.model_dump() if request.activeScope else None
         initial_state = {
@@ -26,6 +32,7 @@ async def chat_endpoint(request: ChatRequest):
         # Invoke LangGraph StateGraph
         final_state = await agent_graph.ainvoke(initial_state)
         guarded_answer = guard_output_grounding(final_state.get("final_answer", "No answer generated."), final_state)
+        logger.info(f"[AI] request_id={req_id} complete intent={final_state.get('intent')}")
 
         return ChatResponse(
             answer=guarded_answer,
@@ -39,12 +46,18 @@ async def chat_endpoint(request: ChatRequest):
             downloadableFile=final_state.get("downloadable_file"),
         )
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error in chat processing: {str(e)}")
+        logger.error(f"[AI] request_id={req_id} error: {e}")
+        err_msg = str(e)
+        if "resource_exhausted" in err_msg.lower() or "429" in err_msg.lower() or "quota" in err_msg.lower():
+            err_msg = "Gemini is temporarily unavailable because the AI quota has been reached. Please wait a moment or check your API key credits."
+        raise HTTPException(status_code=500, detail=err_msg)
 
 @router.post("/stream")
 async def chat_stream_endpoint(request: ChatRequest):
+    import uuid
+    req_id = f"req_{uuid.uuid4().hex[:8]}"
+    logger.info(f"[AI Stream] request_id={req_id} start user_id={request.userId} msg='{request.message[:50]}'")
+
     async def event_generator():
         try:
             active_scope_dict = request.activeScope.model_dump() if request.activeScope else None
@@ -62,6 +75,7 @@ async def chat_stream_endpoint(request: ChatRequest):
             # 1. StateGraph resolution & generation
             final_state = await agent_graph.ainvoke(initial_state)
             answer = guard_output_grounding(final_state.get("final_answer", "No response generated."), final_state)
+            logger.info(f"[AI Stream] request_id={req_id} stategraph complete intent={final_state.get('intent')}")
 
             # 2. Stream tokens in realistic chunks for smooth responsive rendering
             words = answer.split(" ")
@@ -88,7 +102,11 @@ async def chat_stream_endpoint(request: ChatRequest):
             yield f"event: metadata\ndata: {json.dumps(metadata)}\n\n"
             yield "event: done\ndata: {}\n\n"
         except Exception as e:
-            err_payload = {"error": str(e)}
+            logger.error(f"[AI Stream] request_id={req_id} error: {e}")
+            err_msg = str(e)
+            if "resource_exhausted" in err_msg.lower() or "429" in err_msg.lower() or "quota" in err_msg.lower():
+                err_msg = "Gemini is temporarily unavailable because the AI quota has been reached. Please wait a moment or check your API key credits."
+            err_payload = {"error": err_msg}
             yield f"event: error\ndata: {json.dumps(err_payload)}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
@@ -101,11 +119,9 @@ class TitleResponse(BaseModel):
 
 def generate_fallback_title(message: str) -> str:
     cleaned = message.replace("\n", " ").strip()
-    # Remove @mentions from title
     import re
     cleaned = re.sub(r'@[a-zA-Z0-9_\-\./]+', '', cleaned).strip()
-    
-    # Strip common conversational question prefixes
+
     fillers = [
         "can you please tell me about", "can you tell me about", "can you explain",
         "please tell me about", "what is the", "what are the", "how does", "tell me about",
@@ -117,7 +133,7 @@ def generate_fallback_title(message: str) -> str:
         if lower.startswith(f):
             cleaned = cleaned[len(f):].strip()
             break
-            
+
     cleaned = cleaned.strip("?:!.,- \"'`")
     words = cleaned.split()
     if not words:
@@ -128,6 +144,13 @@ def generate_fallback_title(message: str) -> str:
 
 @router.post("/title", response_model=TitleResponse)
 async def generate_title_endpoint(request: TitleRequest):
+    msg = (request.message or "").strip()
+    words = msg.split()
+
+    # Fast path: For short inputs (<= 4 words) or common greetings, use rule-based title without consuming Gemini quota
+    if len(words) <= 4 or msg.lower() in ["hey", "hello", "hi", "help", "test", "compare these", "what can you help me with"]:
+        return TitleResponse(title=generate_fallback_title(msg))
+
     try:
         from langchain_core.messages import HumanMessage
         from llm.factory import get_llm_provider
@@ -139,16 +162,16 @@ async def generate_title_endpoint(request: TitleRequest):
             "- Output ONLY the title.\n"
             "- Do not include quotation marks, markdown formatting, or punctuation at the end.\n"
             "- Maximum 5 words.\n\n"
-            f"User Message: {request.message[:400]}"
+            f"User Message: {msg[:400]}"
         )
         response = await llm.generate_response([HumanMessage(content=prompt)], temperature=0.3)
         title = response.strip().strip('"').strip("'").strip("`").replace("\n", " ").strip()
         title = title.strip("?:!.,- ")
         if not title or len(title) > 50 or title.lower() == "new conversation":
-            title = generate_fallback_title(request.message)
+            title = generate_fallback_title(msg)
         return TitleResponse(title=title)
     except Exception as e:
-        fallback = generate_fallback_title(request.message)
+        fallback = generate_fallback_title(msg)
         return TitleResponse(title=fallback)
 
 class TranscribeResponse(BaseModel):
