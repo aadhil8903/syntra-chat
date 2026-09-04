@@ -226,16 +226,20 @@ async def resolve_context_node(state: AgentState) -> Dict[str, Any]:
                     if not any(rds["id"] == ds["id"] for rds in resolved_datasets):
                         resolved_datasets.append(ds)
 
-            # Unified files: add tabular documents to resolved_datasets if explicitly mentioned
-            for d in resolved_docs:
-                if (d.get("sourceType") == "tabular" or d.get("fileType") in ["csv", "xlsx", "xls"]) and not any(rds["id"] == d["id"] for rds in resolved_datasets):
-                    resolved_datasets.append(d)
-
-            # If no explicit filenames mentioned, provide general document awareness for discovery / inventory overview
-            if not resolved_docs and not resolved_datasets:
-                for d in all_accessible_docs:
-                    if not any(rd["id"] == d["id"] for rd in resolved_docs):
-                        resolved_docs.append(d)
+            # If explicit filenames were matched in the text, mark as scoped
+            if resolved_docs or resolved_datasets:
+                is_scoped = True
+            else:
+                # Only load all docs if the user is explicitly requesting a library / inventory overview
+                is_inventory_query = bool(re.search(
+                    r"\b(what files|list files|show files|available files|what documents|what data do you have|what files do you have|what is in my files|what is in my library|all files|all documents)\b",
+                    raw_msg_lower
+                ))
+                if is_inventory_query:
+                    for d in all_accessible_docs:
+                        d["id"] = str(d["_id"])
+                        if not any(rd["id"] == d["id"] for rd in resolved_docs):
+                            resolved_docs.append(d)
         except Exception as e:
             logger.warning(f"Error loading user resources: {e}")
 
@@ -254,6 +258,7 @@ async def resolve_context_node(state: AgentState) -> Dict[str, Any]:
         "resolved_documents": resolved_docs,
         "resolved_datasets": resolved_datasets,
         "is_admin": is_admin,
+        "is_scoped": is_scoped,
     }
 
 
@@ -332,27 +337,45 @@ def detect_ungrounded_operation(
     return None
 
 
-def format_workspace_manifest(docs: List[Dict[str, Any]], datasets: List[Dict[str, Any]], active_scope: Optional[Dict[str, Any]] = None) -> str:
+def format_workspace_manifest(
+    docs: List[Dict[str, Any]],
+    datasets: List[Dict[str, Any]],
+    active_scope: Optional[Dict[str, Any]] = None,
+    is_scoped: bool = False,
+) -> str:
     parts = []
     if active_scope and active_scope.get("name"):
         parts.append(f"### Active Conversation Focus / Scope:\n- **{active_scope.get('name')}** [{str(active_scope.get('type', 'file')).upper()}]\n")
 
-    if docs:
-        parts.append("### Scoped / Available Knowledge Documents:")
+    if is_scoped:
+        parts.append("### User-Selected Target Resources (CRITICAL: Focus strictly on these):")
         for d in docs:
             folder_str = f" (Folder: {d.get('folder')})" if d.get('folder') else ""
             status_str = f"Status: {d.get('status')}, Chunks: {d.get('chunkCount', 0)}"
             parts.append(f"- **{d.get('originalName')}** [{d.get('fileType', '').upper()}]{folder_str} — {status_str}")
-
-    if datasets:
-        parts.append("\n### Scoped / Available Analytical Datasets & Spreadsheets:")
         for ds in datasets:
             folder_str = f" (Folder: {ds.get('folder')})" if ds.get('folder') else ""
             cols = [c.get("name") for c in ds.get("sheets", [{}])[0].get("columns", [])] if ds.get("sheets") else []
             cols_preview = f", Columns: {', '.join(cols[:8])}" if cols else ""
             parts.append(f"- **{ds.get('originalName')}** [{ds.get('fileType', '').upper()}]{folder_str} — {ds.get('totalRows', 0)} rows{cols_preview}")
+        parts.append("\n[CRITICAL DIRECTIVE: The user explicitly selected these specific resources. Answer strictly using only these resources. Do not list, suggest, or dump other files.]")
+    else:
+        if docs:
+            parts.append("### Available Knowledge Documents:")
+            for d in docs:
+                folder_str = f" (Folder: {d.get('folder')})" if d.get('folder') else ""
+                status_str = f"Status: {d.get('status')}, Chunks: {d.get('chunkCount', 0)}"
+                parts.append(f"- **{d.get('originalName')}** [{d.get('fileType', '').upper()}]{folder_str} — {status_str}")
 
-    return "\n".join(parts) if parts else "No documents or datasets selected in this scope."
+        if datasets:
+            parts.append("\n### Available Analytical Datasets & Spreadsheets:")
+            for ds in datasets:
+                folder_str = f" (Folder: {ds.get('folder')})" if ds.get('folder') else ""
+                cols = [c.get("name") for c in ds.get("sheets", [{}])[0].get("columns", [])] if ds.get("sheets") else []
+                cols_preview = f", Columns: {', '.join(cols[:8])}" if cols else ""
+                parts.append(f"- **{ds.get('originalName')}** [{ds.get('fileType', '').upper()}]{folder_str} — {ds.get('totalRows', 0)} rows{cols_preview}")
+
+    return "\n".join(parts) if parts else "No specific documents or datasets selected for this turn."
 
 
 # -------------------------------------------------------------
@@ -365,6 +388,7 @@ async def route_intent_node(state: AgentState) -> Dict[str, Any]:
     resolved_datasets = state.get("resolved_datasets", [])
     active_scope = state.get("active_scope")
     resource_ids = state.get("resource_ids", [])
+    is_scoped = state.get("is_scoped", False) or len(resource_ids) > 0
     shared_memory = state.get("shared_memory")
 
     # 0. File / PDF Discovery and Download Requests -> Priority 0
@@ -373,9 +397,17 @@ async def route_intent_node(state: AgentState) -> Dict[str, Any]:
         "give me", "can i get", "can i have", "can i download", "i wanna download", "i want to download",
         "download", "find", "get me", "where is", "send me", "show me", "fetch", "locate", "i need"
     ]
-    has_file_kw = any(k in message for k in file_keywords) or ".pdf" in message or "@" in message or "the file" in message or "this file" in message
+    has_file_kw = (
+        any(k in message for k in file_keywords)
+        or ".pdf" in message
+        or "@" in message
+        or "the file" in message
+        or "this file" in message
+        or (is_scoped and any(w in message.split() for w in ["this", "it", "these", "that"]))
+        or (active_scope and any(w in message.split() for w in ["this", "it", "these", "that"]))
+    )
     has_verb = any(v in message for v in file_request_verbs)
-    is_file_request = (has_file_kw and has_verb) or bool(re.match(r"^(download|get)\s+", message)) or "i wanna download" in message
+    is_file_request = (has_file_kw and has_verb) or bool(re.match(r"^(download|get)\s+", message)) or "i wanna download" in message or "can i download" in message
     if is_file_request:
         return {"intent": AgentIntent.FILE_REQUEST}
 
@@ -391,7 +423,6 @@ async def route_intent_node(state: AgentState) -> Dict[str, Any]:
         return ungrounded_check
 
     # 2. Chart / Graph / Visualization Requests -> Priority 2 (Action-oriented, never refuse)
-    # Strip filenames and @mentions when checking chart keywords so that e.g. "org_chart.xlsx" doesn't trigger CHART_REQUEST
     message_without_filenames = re.sub(r'@[a-zA-Z0-9_\-\./]+|\b[a-zA-Z0-9_\-]+\.(?:xlsx|xls|csv|pdf|docx|txt|json)\b', '', message)
     chart_explicit_keywords = [
         "plot", "chart", "charts", "graph", "graphs", "visualize", "visualization", "visualizations",
@@ -403,7 +434,34 @@ async def route_intent_node(state: AgentState) -> Dict[str, Any]:
     if any(re.search(r'\b' + re.escape(k) + r'\b', message_without_filenames) for k in chart_explicit_keywords):
         return {"intent": AgentIntent.CHART_REQUEST}
 
-    # 3. Meta / Overview / Greetings / Capabilities / Collection Queries -> GENERAL_CHAT
+    # 3. Explicit Scoped Follow-Up / Deictic Reference Resolution ("this and this", "compare these", "what does this say")
+    deictic_patterns = [
+        r"\bthis\s+and\s+this\b",
+        r"\bthis\s*&\s*this\b",
+        r"\bthese\b",
+        r"\bthose\b",
+        r"\bboth\b",
+        r"\bboth\s+of\s+(?:them|these)\b",
+        r"\bcompare\s+(?:them|these|both)\b",
+        r"\bwhat\s+(?:does\s+this\s+say|is\s+this|is\s+in\s+this)\b",
+    ]
+    is_deictic = any(re.search(p, message) for p in deictic_patterns)
+    last_assistant_was_clarification = False
+    if history:
+        for h in reversed(history[-4:]):
+            if h.get("role") == "assistant":
+                c = h.get("content", "").lower()
+                if "which files would you like" in c or "which file would you like" in c:
+                    last_assistant_was_clarification = True
+                break
+
+    if is_scoped and (is_deictic or last_assistant_was_clarification or len(resolved_docs) + len(resolved_datasets) > 0):
+        if len(resolved_datasets) > 0:
+            return {"intent": AgentIntent.DATA_ANALYSIS}
+        if len(resolved_docs) > 0:
+            return {"intent": AgentIntent.DOCUMENT_RAG}
+
+    # 4. Meta / Overview / Greetings / Capabilities / Collection Queries -> GENERAL_CHAT
     meta_queries = [
         "what are the information", "what information do you have", "what info do you have",
         "what do you have for now", "what is in my files", "what files do you have",
@@ -414,7 +472,6 @@ async def route_intent_node(state: AgentState) -> Dict[str, Any]:
         "how are you", "thank you", "thanks", "ok", "okay", "sure", "cool"
     ]
     if any(re.search(r'\b' + re.escape(q) + r'\b', message) for q in meta_queries if len(q) <= 4) or any(q in message for q in meta_queries if len(q) > 4):
-        # If user explicitly asked about data, calculation, or charts, do not trap under meta query
         has_action_intent = any(k in message for k in ["calculate", "average", "total", "sum", "weight", "highest", "lowest", "max", "min", "top", "sort", "chart", "graph", "plot"])
         if not has_action_intent:
             return {"intent": AgentIntent.GENERAL_CHAT}
@@ -493,13 +550,35 @@ async def document_rag_node(state: AgentState) -> Dict[str, Any]:
     if context_str:
         sources_text += f"--- Sources [Retrieved Files & Spreadsheets] ---\n{context_str}\n\n"
 
-    system_prompt = f"""{ENTERPRISE_AI_PERSONA}
+    is_scoped = state.get("is_scoped", False) or len(state.get("resource_ids", [])) > 0
+    scoped_instruction = ""
+    if is_scoped and resolved_docs:
+        doc_names = [d.get("originalName", "Document") for d in resolved_docs]
+        if len(resolved_docs) >= 2:
+            scoped_instruction = f"""
+TARGET FOCUS:
+The user explicitly selected and is comparing these resources: {', '.join(doc_names)}.
+- Immediately compare these selected resources directly (e.g., "Comparing {doc_names[0]} and {doc_names[1]}...").
+- Highlight the key differences, scope, purpose, and operational details in clean, structured sections.
+- Do NOT ask the user to choose or select files again.
+- Do NOT list or suggest any other workspace files.
+"""
+        else:
+            scoped_instruction = f"""
+TARGET FOCUS:
+The user explicitly selected and is focusing on: {doc_names[0]}.
+- Answer directly using information from this file.
+- Do NOT ask the user to choose files again.
+"""
 
+    system_prompt = f"""{ENTERPRISE_AI_PERSONA}
+{scoped_instruction}
 AVAILABLE KNOWLEDGE SOURCES:
 {sources_text if sources_text else "No knowledge files or collection notes available."}
 
 INSTRUCTIONS:
 - Answer the user's question directly using the AVAILABLE KNOWLEDGE SOURCES above (including facts established in Collection Shared Context).
+- If comparing files, provide a clear, concise comparison structured with headings and bullet points.
 - If the answer is in the Collection Shared Context or Retrieved Files, state the fact directly without boilerplate disclaimer.
 - Only state that information is missing if it is truly absent from all provided knowledge sources above.
 - Speak plainly, directly, and do not use emojis."""
@@ -529,6 +608,7 @@ async def data_analysis_node(state: AgentState) -> Dict[str, Any]:
     message = state.get("message", "")
     resolved_docs = state.get("resolved_documents", [])
     resolved_datasets = state.get("resolved_datasets", [])
+    active_scope = state.get("active_scope")
     history = state.get("history", [])
 
     if not resolved_datasets:
@@ -569,9 +649,30 @@ async def data_analysis_node(state: AgentState) -> Dict[str, Any]:
     )
 
     llm = get_llm_provider()
-    workspace_manifest = format_workspace_manifest(resolved_docs, resolved_datasets)
+    is_scoped = state.get("is_scoped", False) or len(state.get("resource_ids", [])) > 0
+    workspace_manifest = format_workspace_manifest(resolved_docs, resolved_datasets, active_scope=active_scope, is_scoped=is_scoped)
+
+    dataset_names = [ds.get("originalName", "Dataset") for ds in resolved_datasets]
+    target_focus_str = ""
+    if is_scoped and len(dataset_names) >= 2:
+        target_focus_str = f"""
+TARGET COMPARISON DIRECTIVE:
+The user explicitly selected and is comparing: {', '.join(dataset_names)}.
+- Immediately compare these selected datasets/spreadsheets directly (e.g. "Comparing {dataset_names[0]} and {dataset_names[1]}...").
+- Highlight key metric differences, scope, rows, and findings clearly.
+- NEVER ask the user to choose or select files again.
+- NEVER list unrelated files.
+"""
+    elif is_scoped and len(dataset_names) == 1:
+        target_focus_str = f"""
+TARGET FOCUS DIRECTIVE:
+The user explicitly selected: {dataset_names[0]}.
+- Answer directly using the computed data from this dataset.
+- NEVER ask the user to choose files again.
+"""
 
     summary_prompt = f"""You are Syntra Chat, an expert analytical colleague.
+{target_focus_str}
 Answer the user's question directly, concisely, and factually based strictly on the computed data below.
 Rules:
 - DO NOT use emojis.
@@ -587,7 +688,7 @@ Calculations details:
 """
 
     messages = [
-        SystemMessage(content=f"{ENTERPRISE_AI_PERSONA}\n\nScoped Resources:\n{workspace_manifest}"),
+        SystemMessage(content=f"{ENTERPRISE_AI_PERSONA}\n\n{workspace_manifest}"),
     ]
     for h in history[-30:]:
         if h["role"] == "user":
@@ -688,23 +789,24 @@ async def general_chat_node(state: AgentState) -> Dict[str, Any]:
     resolved_docs = state.get("resolved_documents", [])
     resolved_datasets = state.get("resolved_datasets", [])
     active_scope = state.get("active_scope")
-    llm = get_llm_provider()
-
-    workspace_manifest = format_workspace_manifest(resolved_docs, resolved_datasets, active_scope=active_scope)
+    is_scoped = state.get("is_scoped", False) or len(state.get("resource_ids", [])) > 0
+    workspace_manifest = format_workspace_manifest(resolved_docs, resolved_datasets, active_scope=active_scope, is_scoped=is_scoped)
     shared_memory = state.get("shared_memory")
     shared_mem_str = f"\nCOLLECTION SHARED MEMORY (Established facts & decisions from related chats in this collection):\n{shared_memory}\n" if shared_memory else ""
+    llm = get_llm_provider()
 
     system_prompt = f"""{ENTERPRISE_AI_PERSONA}
 {shared_mem_str}
-CURRENT AUTHORIZED WORKSPACE INVENTORY:
+WORKSPACE SCOPE & INVENTORY:
 {workspace_manifest}
 
-CRITICAL ACCESS CONTROL & ANTI-DATA-LEAK RULES (HIGHEST PRIORITY):
-1. You only have access to the items explicitly listed under CURRENT AUTHORIZED WORKSPACE INVENTORY above.
+CRITICAL ACCESS CONTROL & GROUNDING RULES (HIGHEST PRIORITY):
+1. You only have access to the items explicitly listed under WORKSPACE SCOPE & INVENTORY above.
 2. If the user asks about, asks to access, or requests data/details from any folder, dataset, or file that is NOT in the authorized inventory above:
    - State clearly that you do not have access to that resource because access is restricted for their account.
    - Never claim access to restricted items or quote figures from restricted resources.
-3. Answer all authorized topics plainly, helpfully, and without emojis."""
+3. NEVER dump a list of available files unless the user explicitly asks you what files exist in the workspace.
+4. Answer all authorized topics plainly, helpfully, and without emojis."""
 
     messages = [SystemMessage(content=system_prompt)]
     for h in history[-30:]:
@@ -752,6 +854,31 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
     ]
 
     lower_message = message.lower().strip()
+    is_scoped = state.get("is_scoped", False) or len(state.get("resource_ids", [])) > 0
+
+    # 0. Direct Scoped PDF resolution (Explicit @mention / resource_id in this turn)
+    if is_scoped and len(accessible_pdfs) == 1:
+        d = accessible_pdfs[0]
+        eff = get_effective_policy(d)
+        doc_id = str(d.get("_id") or d.get("id", ""))
+        if eff == "allowed":
+            return {
+                "final_answer": "Here is the file.",
+                "downloadable_file": {
+                    "documentId": doc_id,
+                    "fileName": d.get("originalName"),
+                    "fileSize": d.get("fileSize", 0),
+                    "mimeType": d.get("mimeType", "application/pdf"),
+                    "folder": d.get("folder"),
+                },
+                "intent": AgentIntent.FILE_REQUEST,
+            }
+        else:
+            return {
+                "final_answer": f"{d.get('originalName')} is available, but this file is restricted from downloading. This file can't be downloaded.",
+                "downloadable_file": None,
+                "intent": AgentIntent.FILE_REQUEST,
+            }
 
     # 1. Direct @mention extraction
     mention_match = re.search(r"@([a-zA-Z0-9_\-\.\s]+?\.(?:pdf|docx|xlsx|csv|txt)|[a-zA-Z0-9_\-]+)", message, re.IGNORECASE)

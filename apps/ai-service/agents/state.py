@@ -12,6 +12,10 @@ class AgentState(TypedDict, total=False):
     shared_memory: Optional[str]
     history: List[Dict[str, str]]
 
+    user_role: Optional[str]
+    is_admin: Optional[bool]
+    is_scoped: Optional[bool]
+
     # Resolved Resources (Defense-in-depth ownership verified)
     resolved_documents: List[Dict[str, Any]]
     resolved_datasets: List[Dict[str, Any]]

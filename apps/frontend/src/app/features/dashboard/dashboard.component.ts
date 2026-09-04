@@ -245,12 +245,12 @@ export interface IQuickAction {
           <p class="text-[11px] text-zinc-500 dark:text-[#71717a] pt-2">Chats inside a collection share contextual memory.</p>
         </div>
 
-        <!-- Compact Knowledge Preview -->
-        <div class="bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4 flex flex-col justify-between">
+        <!-- Compact Files Preview -->
+        <div class="bg-white dark:bg-[#111114] border border-zinc-200 dark:border-[#27272a] rounded-2xl p-6 space-y-4 flex flex-col justify-between shadow-sm dark:shadow-none">
           <div class="space-y-3">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <h3 class="text-sm font-semibold text-zinc-900 dark:text-white tracking-tight">Knowledge</h3>
+                <h3 class="text-sm font-semibold text-zinc-900 dark:text-white tracking-tight">Files</h3>
               </div>
               <a routerLink="/documents" class="text-xs text-zinc-900 dark:text-white hover:underline font-medium">View all</a>
             </div>

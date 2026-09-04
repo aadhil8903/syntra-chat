@@ -543,9 +543,9 @@ body.light {
   }
 
   /* Form inputs & textareas */
-  input:not(.theme-preview-card input),
-  textarea:not(.theme-preview-card textarea),
-  select:not(.theme-preview-card select) {
+  input:not(.theme-preview-card *):not(.bg-transparent):not(.chat-composer-textarea),
+  textarea:not(.theme-preview-card *):not(.bg-transparent):not(.chat-composer-textarea),
+  select:not(.theme-preview-card *):not(.bg-transparent):not(.chat-composer-textarea) {
     color: #09090b !important;
     background-color: #ffffff !important;
     border-color: #e4e4e7 !important;
@@ -564,6 +564,18 @@ body.light {
       -webkit-text-fill-color: #09090b !important;
       -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
     }
+  }
+
+  /* Chat composer transparent textareas (preserve seamless transparency in light and dark mode) */
+  .chat-composer-textarea,
+  textarea.chat-composer-textarea {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+    -webkit-box-shadow: none !important;
   }
 
   /* Primary active navigation links */

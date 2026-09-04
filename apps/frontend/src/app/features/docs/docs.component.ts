@@ -675,7 +675,7 @@ export interface IDocSection {
                   Chats in a collection share memory
                 </h3>
                 <p class="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                  When you group chats into a collection, something nice happens - they start remembering each other. Facts, decisions, and outcomes from one chat quietly carry over to the others in the same collection.
+                  When you group chats into a collection, something nice happens: they start remembering each other. Facts, decisions, and outcomes from one chat quietly carry over to the others in the same collection.
                 </p>
               </div>
 

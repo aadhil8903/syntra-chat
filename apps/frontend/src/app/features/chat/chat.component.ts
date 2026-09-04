@@ -644,7 +644,7 @@ export interface IDynamicStarterCard {
         </div>
 
         <!-- Input Box & Mention Autocomplete -->
-        <div class="p-2 sm:p-4 border-t border-[#dcdde1] dark:border-[#27272a] bg-white dark:bg-[#0d0d10] relative flex-shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        <div class="p-2 sm:p-4 border-t border-zinc-200 dark:border-[#27272a] bg-[#f7f8fa] dark:bg-[#09090b] relative flex-shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
           <div class="max-w-4xl mx-auto relative">
             <!-- Autocomplete Dropdown Component -->
             <app-mention-autocomplete
@@ -658,9 +658,10 @@ export interface IDynamicStarterCard {
             @if (attachedResources.length > 0) {
               <div class="flex flex-wrap gap-2 mb-2">
                 @for (res of attachedResources; track res.id) {
-                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#f0f1f3] dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#3f3f46] text-zinc-900 dark:text-white text-xs font-mono">
-                    <span>&#64;{{ res.name }}</span>
-                    <button (click)="removeAttachedResource(res.id)" class="text-zinc-500 hover:text-zinc-900 dark:hover:text-white ml-1">×</button>
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-[#3f3f46] text-zinc-800 dark:text-white text-xs font-mono shadow-2xs">
+                    <span class="text-rose-600 dark:text-rose-400 font-bold">&#64;</span>
+                    <span>{{ res.name }}</span>
+                    <button (click)="removeAttachedResource(res.id)" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white ml-1">×</button>
                   </span>
                 }
               </div>
@@ -674,8 +675,8 @@ export interface IDynamicStarterCard {
               </div>
             }
 
-            <!-- Floating Prompt Container (Claude/ChatGPT Style) -->
-            <div data-tour="chat-input-area" class="bg-[#f8f9fa] dark:bg-[#111114] border border-[#dcdde1] dark:border-[#27272a] focus-within:border-zinc-900 dark:focus-within:border-white focus-within:bg-white dark:focus-within:bg-[#111114] rounded-2xl p-1.5 sm:p-2.5 transition-colors shadow-xs">
+            <!-- Floating Prompt Container (Clean Coherent Light/Dark Card) -->
+            <div data-tour="chat-input-area" class="relative rounded-2xl bg-white dark:bg-[#121215] border border-zinc-200 dark:border-[#27272a] focus-within:border-zinc-400 dark:focus-within:border-zinc-500 p-2.5 sm:p-3 transition-all shadow-xs dark:shadow-none">
               <div class="flex items-start gap-1">
                 <textarea
                   #inputArea
@@ -685,7 +686,7 @@ export interface IDynamicStarterCard {
                   placeholder="Ask anything or type @ to mention files..."
                   [disabled]="isCurrentGenerating || isMaxGenerationsReached"
                   rows="1"
-                  class="w-full bg-transparent border-0 text-zinc-900 dark:text-white text-sm px-2 py-1.5 focus:outline-none resize-none max-h-36 sm:max-h-60 overflow-y-auto leading-relaxed disabled:opacity-50 transition-[height] duration-150 placeholder:text-zinc-400 dark:placeholder:text-[#a1a1aa]"
+                  class="chat-composer-textarea w-full bg-transparent border-0 text-zinc-900 dark:text-zinc-100 text-sm px-1.5 py-1 focus:outline-none focus:ring-0 resize-none max-h-36 sm:max-h-60 overflow-y-auto leading-relaxed disabled:opacity-50 transition-[height] duration-150 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                 ></textarea>
 
                 <!-- Voice / Microphone Button in Top-Right of Input Box -->
@@ -693,37 +694,37 @@ export interface IDynamicStarterCard {
                   type="button"
                   (click)="toggleVoiceInput()"
                   [disabled]="isCurrentGenerating || isMaxGenerationsReached"
-                  [ngClass]="voiceService.isListening ? 'bg-zinc-900 text-white dark:bg-white dark:text-black font-semibold' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#18181b] border border-transparent hover:border-zinc-300 dark:hover:border-[#27272a]'"
-                  class="min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] p-2 rounded-xl text-xs flex items-center justify-center transition-all flex-shrink-0"
+                  [ngClass]="voiceService.isListening ? 'bg-rose-600 text-white font-semibold' : 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1f1f23]'"
+                  class="min-w-[32px] min-h-[32px] p-1.5 rounded-xl text-xs flex items-center justify-center transition-all flex-shrink-0"
                   [title]="voiceService.isListening ? 'Listening... Click to stop recording' : 'Voice input (Click to speak)'"
                   aria-label="Voice input"
                 >
-                  <svg class="w-4 h-4" [ngClass]="voiceService.isListening ? 'text-white dark:text-black' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                   </svg>
                 </button>
               </div>
 
-              <div class="flex items-center justify-between pt-1 sm:pt-1.5 border-t border-[#e7e9ed] dark:border-[#27272a] mt-1">
+              <div class="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800/80 mt-1">
                 <div class="flex items-center gap-1.5">
                   <button
                     type="button"
                     (click)="triggerMentionMenu($event)"
                     data-tour="chat-mention-btn"
                     [disabled]="isCurrentGenerating || isMaxGenerationsReached"
-                    class="min-h-[32px] sm:min-h-[36px] px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] text-xs flex items-center gap-1 sm:gap-1.5 transition-colors disabled:opacity-40"
+                    class="min-h-[30px] px-2.5 py-1 rounded-xl text-zinc-700 hover:text-zinc-900 bg-zinc-50 hover:bg-zinc-100 dark:text-[#d4d4d8] dark:hover:text-white dark:bg-[#1f1f23] dark:hover:bg-[#28282d] border border-zinc-200/80 dark:border-[#2e2e33] text-xs flex items-center gap-1.5 transition-all shadow-2xs disabled:opacity-40"
                     title="Attach & mention document or dataset"
                   >
-                    <span class="text-zinc-900 dark:text-white font-bold">&#64;</span>
+                    <span class="text-rose-600 dark:text-rose-400 font-bold">&#64;</span>
                     <span class="font-medium">Mention</span>
                   </button>
-                  <span class="text-[11px] text-zinc-500 dark:text-[#71717a] hidden sm:inline">Folder & File Scoped AI</span>
+                  <span class="text-xs text-zinc-500 dark:text-zinc-400 hidden sm:inline font-sans">Folder & File Scoped AI</span>
                 </div>
 
                 <button
                   (click)="sendUserMessage()"
                   [disabled]="isCurrentGenerating || isMaxGenerationsReached || (!inputText.trim() && attachedResources.length === 0)"
-                  class="min-h-[34px] sm:min-h-[38px] px-3 sm:px-4 py-1 sm:py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0 shadow-xs"
+                  class="min-h-[30px] px-3.5 sm:px-4 py-1 rounded-xl bg-zinc-900 hover:bg-black text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-all disabled:bg-zinc-100 disabled:text-zinc-400 disabled:border disabled:border-zinc-200 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600 dark:disabled:border-transparent disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0 shadow-2xs active:scale-95"
                   title="Send (Enter)"
                 >
                   <span>Send</span>
@@ -734,8 +735,8 @@ export interface IDynamicStarterCard {
               </div>
             </div>
 
-            <div class="hidden sm:flex items-center justify-between mt-2 px-1 text-[11px] text-zinc-500 dark:text-[#71717a]">
-              <span>Press <kbd class="px-1 py-0.5 rounded bg-zinc-200 text-zinc-700 dark:bg-[#18181b] dark:text-zinc-300 font-mono text-[10px]">Enter</kbd> to send, <kbd class="px-1 py-0.5 rounded bg-zinc-200 text-zinc-700 dark:bg-[#18181b] dark:text-zinc-300 font-mono text-[10px]">Shift + Enter</kbd> for a new line</span>
+            <div class="hidden sm:flex items-center justify-between mt-2 px-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+              <span>Press <kbd class="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-[#18181b] dark:text-zinc-400 dark:border-zinc-800 font-mono text-[10px]">Enter</kbd> to send, <kbd class="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-[#18181b] dark:text-zinc-400 dark:border-zinc-800 font-mono text-[10px]">Shift + Enter</kbd> for a new line</span>
               <span>AI can make mistakes. Verify critical facts.</span>
             </div>
           </div>
@@ -760,6 +761,17 @@ export interface IDynamicStarterCard {
         display: block;
         height: 100%;
         overflow: hidden;
+      }
+      :host textarea.chat-composer-textarea,
+      :host .chat-composer-textarea,
+      textarea.chat-composer-textarea {
+        background-color: transparent !important;
+        background: transparent !important;
+        border: none !important;
+        border-color: transparent !important;
+        box-shadow: none !important;
+        outline: none !important;
+        -webkit-box-shadow: none !important;
       }
       .custom-sidebar-scrollbar::-webkit-scrollbar {
         width: 4px;
@@ -904,7 +916,25 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     const msgs = this.messages;
     const lastUserMsg = [...msgs].reverse().find((m) => m.role === 'user');
     const prompt = (lastUserMsg?.content || '').toLowerCase();
-    const hasAttachments = lastUserMsg?.referencedResourceIds && lastUserMsg.referencedResourceIds.length > 0;
+    const resourceIds = lastUserMsg?.referencedResourceIds || [];
+
+    // 0. Explicit Scoped Comparison or File Referencing
+    if (resourceIds.length >= 2) {
+      if (prompt.includes('this and this') || prompt.includes('these') || prompt.includes('compare') || prompt.includes('both') || prompt.includes('differ')) {
+        const phases = [
+          `Comparing ${resourceIds.length} files...`,
+          `Analyzing cross-file differences & metrics...`,
+          `Compiling comparison findings...`,
+        ];
+        return phases[this.generatingPhaseIndex % phases.length];
+      }
+    } else if (resourceIds.length === 1) {
+      const name = this.getResourceDisplayName(resourceIds[0]);
+      if (prompt.includes('download') || prompt.includes('get') || prompt.includes('find')) {
+        return `Locating ${name}...`;
+      }
+      return `Analyzing ${name}...`;
+    }
 
     // 1. Graph / Chart / Visualization Tasks
     if (
@@ -987,7 +1017,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     }
 
     // 5. Scoped Resource Mentions
-    if (hasAttachments) {
+    if (resourceIds.length > 0) {
       const phases = [
         'Accessing scoped workspace resources...',
         'Interrogating file contents & vector embeddings...',

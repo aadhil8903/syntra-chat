@@ -177,10 +177,10 @@ describe('DashboardComponent (AI-First Workspace)', () => {
     expect(component.formatChatDate(new Date().toISOString())).toBe('Today');
   });
 
-  it('9. should render compact Collections and Knowledge sections without large statistic cards', () => {
+  it('9. should render compact Collections and Files sections without large statistic cards', () => {
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Collections');
-    expect(text).toContain('Knowledge');
+    expect(text).toContain('Files');
     expect(text).toContain('1 documents');
     expect(text).toContain('1 datasets');
 

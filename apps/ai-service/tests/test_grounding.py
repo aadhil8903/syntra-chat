@@ -120,3 +120,189 @@ def test_natural_language_discovery_continues_working():
     }
     res = asyncio.run(route_intent_node(state))
     assert res.get("intent") == AgentIntent.FILE_REQUEST
+
+
+def test_screenshot_regression_mentions_with_this_and_this_proceeds_to_compare():
+    # Message 2 in the screenshot: User provided 2 mentions and typed "this and this"
+    state = {
+        "message": "this and this",
+        "resolved_documents": [],
+        "resolved_datasets": [
+            {"id": "ds_cs", "originalName": "Customer_Support.xlsx", "totalRows": 150, "sheets": []},
+            {"id": "ds_mkt", "originalName": "Marketing.xlsx", "totalRows": 200, "sheets": []},
+        ],
+        "resource_ids": ["ds_cs", "ds_mkt"],
+        "is_scoped": True,
+        "history": [
+            {"role": "user", "content": "Compare the following files and highlight key differences."},
+            {"role": "assistant", "content": "Which files would you like me to compare?"},
+        ],
+        "active_scope": None,
+    }
+    res = asyncio.run(route_intent_node(state))
+    # Must NOT ask clarification again! Must proceed directly to data analysis / comparison
+    assert res.get("intent") == AgentIntent.DATA_ANALYSIS
+    assert res.get("intent") != AgentIntent.CLARIFICATION
+
+
+def test_single_mention_what_does_this_say_routes_to_content():
+    state = {
+        "message": "what does this say?",
+        "resolved_documents": [
+            {"id": "doc_hr", "originalName": "HR_Policy.pdf", "fileType": "pdf", "status": "ready"},
+        ],
+        "resolved_datasets": [],
+        "resource_ids": ["doc_hr"],
+        "is_scoped": True,
+        "active_scope": None,
+    }
+    res = asyncio.run(route_intent_node(state))
+    assert res.get("intent") == AgentIntent.DOCUMENT_RAG
+
+
+def test_single_mention_can_i_download_this_routes_to_file_request():
+    state = {
+        "message": "can I download this?",
+        "resolved_documents": [
+            {"id": "doc_hr", "originalName": "HR_Policy.pdf", "fileType": "pdf", "status": "ready"},
+        ],
+        "resolved_datasets": [],
+        "resource_ids": ["doc_hr"],
+        "is_scoped": True,
+        "active_scope": None,
+    }
+    res = asyncio.run(route_intent_node(state))
+    assert res.get("intent") == AgentIntent.FILE_REQUEST
+
+
+def test_two_mentions_compare_these_routes_to_comparison():
+    state = {
+        "message": "compare these",
+        "resolved_documents": [
+            {"id": "doc_1", "originalName": "Policy_A.pdf", "fileType": "pdf", "status": "ready"},
+            {"id": "doc_2", "originalName": "Policy_B.pdf", "fileType": "pdf", "status": "ready"},
+        ],
+        "resolved_datasets": [],
+        "resource_ids": ["doc_1", "doc_2"],
+        "is_scoped": True,
+        "active_scope": None,
+    }
+    res = asyncio.run(route_intent_node(state))
+    assert res.get("intent") == AgentIntent.DOCUMENT_RAG
+    assert res.get("intent") != AgentIntent.CLARIFICATION
+
+
+@pytest.mark.asyncio
+async def test_normal_chat_general_chat_node_does_not_raise_nameerror():
+    from agents.graph import general_chat_node
+    from unittest.mock import AsyncMock
+
+    state = {
+        "message": "hey",
+        "history": [],
+        "user_id": "test_user",
+        "resolved_documents": [],
+        "resolved_datasets": [],
+        "resource_ids": [],
+        "active_scope": None,
+    }
+
+    with patch("agents.graph.get_llm_provider") as mock_get_llm:
+        mock_llm = MagicMock()
+        mock_llm.generate_response = AsyncMock(return_value="Hello! How can I assist you today?")
+        mock_get_llm.return_value = mock_llm
+
+        res = await general_chat_node(state)
+        assert "final_answer" in res
+        assert res["final_answer"] == "Hello! How can I assist you today?"
+
+
+@pytest.mark.asyncio
+async def test_normal_chat_graph_invocation_hey():
+    from agents.graph import agent_graph
+    from unittest.mock import AsyncMock
+
+    initial_state = {
+        "user_id": "test_user",
+        "user_role": "member",
+        "conversation_id": "conv_123",
+        "message": "hey",
+        "resource_ids": [],
+        "active_scope": None,
+        "shared_memory": None,
+        "history": [],
+    }
+
+    with patch("agents.graph.get_llm_provider") as mock_get_llm, \
+         patch("agents.graph.get_database") as mock_get_db:
+        mock_db = MagicMock()
+        mock_docs = MagicMock()
+        mock_docs.find.return_value = []
+        mock_datasets = MagicMock()
+        mock_datasets.find.return_value = []
+        mock_folders = MagicMock()
+        mock_folders.find.return_value = []
+        mock_users = MagicMock()
+        mock_users.find_one.return_value = {"_id": "test_user", "role": "member"}
+
+        mock_db.__getitem__.side_effect = lambda key: {
+            "documents": mock_docs,
+            "datasets": mock_datasets,
+            "folders": mock_folders,
+            "users": mock_users,
+        }.get(key, MagicMock())
+        mock_get_db.return_value = mock_db
+
+        mock_llm = MagicMock()
+        mock_llm.generate_response = AsyncMock(return_value="Hello! How can I help you today?")
+        mock_get_llm.return_value = mock_llm
+
+        final_state = await agent_graph.ainvoke(initial_state)
+        assert "final_answer" in final_state
+        assert final_state["final_answer"] == "Hello! How can I help you today?"
+        assert final_state.get("intent") == AgentIntent.GENERAL_CHAT
+
+
+@pytest.mark.asyncio
+async def test_normal_chat_graph_invocation_what_can_you_help_me_with():
+    from agents.graph import agent_graph
+    from unittest.mock import AsyncMock
+
+    initial_state = {
+        "user_id": "test_user",
+        "user_role": "member",
+        "conversation_id": "conv_123",
+        "message": "What can you help me with?",
+        "resource_ids": [],
+        "active_scope": None,
+        "shared_memory": None,
+        "history": [],
+    }
+
+    with patch("agents.graph.get_llm_provider") as mock_get_llm, \
+         patch("agents.graph.get_database") as mock_get_db:
+        mock_db = MagicMock()
+        mock_docs = MagicMock()
+        mock_docs.find.return_value = []
+        mock_datasets = MagicMock()
+        mock_datasets.find.return_value = []
+        mock_folders = MagicMock()
+        mock_folders.find.return_value = []
+        mock_users = MagicMock()
+        mock_users.find_one.return_value = {"_id": "test_user", "role": "member"}
+
+        mock_db.__getitem__.side_effect = lambda key: {
+            "documents": mock_docs,
+            "datasets": mock_datasets,
+            "folders": mock_folders,
+            "users": mock_users,
+        }.get(key, MagicMock())
+        mock_get_db.return_value = mock_db
+
+        mock_llm = MagicMock()
+        mock_llm.generate_response = AsyncMock(return_value="I can help you search documents, analyze data, and create visualizations.")
+        mock_get_llm.return_value = mock_llm
+
+        final_state = await agent_graph.ainvoke(initial_state)
+        assert "final_answer" in final_state
+        assert "I can help you search documents" in final_state["final_answer"]
