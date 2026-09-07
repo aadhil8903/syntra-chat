@@ -111,6 +111,3 @@ Syntra Chat is currently in **active development and internal testing**, and has
 
 ---
 
-## License
-
-_Add license details here._
