@@ -1,4 +1,4 @@
-<div align="center">
+<div align="center"> <img src="./assets/logo.png" alt="Syntra Chat Logo" width="120" />
 
 # Syntra Chat
 
