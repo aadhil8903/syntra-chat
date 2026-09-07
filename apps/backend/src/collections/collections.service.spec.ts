@@ -97,6 +97,7 @@ describe('CollectionsService', () => {
         }
         return Promise.resolve(null);
       }),
+      findOneAndUpdate: jest.fn().mockResolvedValue({ _id: new Types.ObjectId(mockConvId) }),
       updateMany: jest.fn().mockResolvedValue({ modifiedCount: 1 }),
     };
 

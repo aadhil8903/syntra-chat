@@ -178,8 +178,8 @@ export class MessagesService {
   }
 
   async findByConversation(userId: string, conversationId: string): Promise<IMessage[]> {
-    if (!Types.ObjectId.isValid(conversationId)) {
-      throw new NotFoundException('Conversation not found');
+    if (!Types.ObjectId.isValid(conversationId) || conversationId.startsWith('temp-')) {
+      return [];
     }
 
     // Verify conversation ownership
@@ -482,25 +482,46 @@ export class MessagesService {
     dto: SendMessageDto,
     userRole?: string,
   ): Promise<ISendMessageResponse> {
-    const { conversationId, content, referencedResourceIds = [] } = dto;
+    const { conversationId, content, referencedResourceIds = [], temporary = false } = dto;
+    const isTemp = temporary === true || (typeof conversationId === 'string' && conversationId.startsWith('temp-'));
+    const sessionKey = conversationId || ('temp-session-' + userId);
 
-    if (!Types.ObjectId.isValid(conversationId)) {
-      throw new NotFoundException('Conversation not found');
-    }
+    let conv: any;
 
-    // 1. Verify conversation ownership
-    const conv = await this.conversationModel.findOne({
-      _id: new Types.ObjectId(conversationId),
-      userId: new Types.ObjectId(userId),
-    });
-    if (!conv) {
-      throw new NotFoundException('Conversation not found or not accessible');
+    if (isTemp) {
+      this.logger.log(`[CHAT] temporary=true conversationId=${conversationId || 'none'} skipping persistent conversation lookup`);
+      this.logger.log(`[CHAT] skipping message persistence`);
+      conv = {
+        _id: conversationId || ('temp-session-' + Date.now()),
+        title: 'Temporary Chat',
+        userId,
+        collectionId: null,
+        attachedResourceIds: [],
+        activeScope: null,
+        pinned: false,
+        archived: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    } else {
+      if (!conversationId || !Types.ObjectId.isValid(conversationId)) {
+        throw new NotFoundException('Conversation not found');
+      }
+
+      // 1. Verify conversation ownership
+      conv = await this.conversationModel.findOne({
+        _id: new Types.ObjectId(conversationId),
+        userId: new Types.ObjectId(userId),
+      });
+      if (!conv) {
+        throw new NotFoundException('Conversation not found or not accessible');
+      }
     }
 
     // 2. Concurrency Check (Max 2 active chats generating simultaneously per user)
     const userActive = this.activeGenerationsByUser.get(userId) || new Set<string>();
 
-    if (userActive.has(conversationId)) {
+    if (userActive.has(sessionKey)) {
       throw new BadRequestException(
         'A message is already being generated in this chat. Please wait for it to complete.',
       );
@@ -514,66 +535,119 @@ export class MessagesService {
     }
 
     // Register active generation
-    userActive.add(conversationId);
+    userActive.add(sessionKey);
     this.activeGenerationsByUser.set(userId, userActive);
 
     try {
       // 3. Resolve Active Scope and Resource IDs
       const scopeData = await this.resolveScopeAndResources(userId, conv, content, referencedResourceIds);
 
-      // 4. Save User Message (ONLY save explicit user mentions to prevent unwanted UI chip badges)
-      const userMsgDoc = new this.messageModel({
-        conversationId: new Types.ObjectId(conversationId),
-        userId: new Types.ObjectId(userId),
-        role: MessageRole.USER,
-        content,
-        referencedResourceIds: scopeData.explicitMentionedIds,
-      });
-      const savedUserMsg = await userMsgDoc.save();
+      // 4. Handle User Message (Save to DB only for persistent chats)
+      let savedUserMsg: any;
+      if (!isTemp) {
+        const userMsgDoc = new this.messageModel({
+          conversationId: new Types.ObjectId(conversationId),
+          userId: new Types.ObjectId(userId),
+          role: MessageRole.USER,
+          content,
+          referencedResourceIds: scopeData.explicitMentionedIds,
+        });
+        savedUserMsg = await userMsgDoc.save();
+      } else {
+        savedUserMsg = {
+          _id: 'temp-msg-user-' + Date.now(),
+          conversationId,
+          userId,
+          role: MessageRole.USER,
+          content,
+          referencedResourceIds: scopeData.explicitMentionedIds,
+          createdAt: new Date(),
+        };
+      }
 
       // Check for ungrounded / unresolved operational intent
       const unresolvedCheck = detectUnresolvedTargetOperation(content, scopeData.effectiveResourceIds, scopeData.activeScope);
       if (unresolvedCheck.isUnresolved && unresolvedCheck.clarificationAnswer) {
-        const assistantMsgDoc = new this.messageModel({
-          conversationId: new Types.ObjectId(conversationId),
-          userId: new Types.ObjectId(userId),
-          role: MessageRole.ASSISTANT,
-          content: unresolvedCheck.clarificationAnswer,
-          referencedResourceIds: [],
-          citations: [],
-        });
-        const savedAssistantMsg = await assistantMsgDoc.save();
+        let savedAssistantMsg: any;
+        if (!isTemp) {
+          const assistantMsgDoc = new this.messageModel({
+            conversationId: new Types.ObjectId(conversationId),
+            userId: new Types.ObjectId(userId),
+            role: MessageRole.ASSISTANT,
+            content: unresolvedCheck.clarificationAnswer,
+            referencedResourceIds: [],
+            citations: [],
+          });
+          savedAssistantMsg = await assistantMsgDoc.save();
 
-        const updatePayload: any = { lastMessageAt: new Date() };
-        if (scopeData.updatedActiveScopePayload !== undefined) {
-          updatePayload.activeScope = scopeData.updatedActiveScopePayload;
-        }
+          const updatePayload: any = { lastMessageAt: new Date() };
+          if (scopeData.updatedActiveScopePayload !== undefined) {
+            updatePayload.activeScope = scopeData.updatedActiveScopePayload;
+          }
 
-        const updatedConv = await this.conversationModel.findByIdAndUpdate(
-          conversationId,
-          { $set: updatePayload },
-          { new: true },
-        );
+          const updatedConv = await this.conversationModel.findByIdAndUpdate(
+            conversationId,
+            { $set: updatePayload },
+            { new: true },
+          );
 
-        return {
-          userMessage: this.toIMessage(savedUserMsg),
-          assistantMessage: this.toIMessage(savedAssistantMsg),
-          conversation: updatedConv ? {
-            id: updatedConv._id.toString(),
-            title: updatedConv.title,
-            userId: updatedConv.userId.toString(),
-            collectionId: updatedConv.collectionId ? updatedConv.collectionId.toString() : null,
-            attachedResourceIds: updatedConv.attachedResourceIds,
-            activeScope: updatedConv.activeScope ? {
-              type: updatedConv.activeScope.type,
-              id: updatedConv.activeScope.id,
-              name: updatedConv.activeScope.name,
-              updatedAt: updatedConv.activeScope.updatedAt instanceof Date ? updatedConv.activeScope.updatedAt.toISOString() : (updatedConv.activeScope.updatedAt as any)?.toString?.(),
+          return {
+            userMessage: this.toIMessage(savedUserMsg),
+            assistantMessage: this.toIMessage(savedAssistantMsg),
+            conversation: updatedConv ? {
+              id: updatedConv._id.toString(),
+              title: updatedConv.title,
+              userId: updatedConv.userId.toString(),
+              collectionId: updatedConv.collectionId ? updatedConv.collectionId.toString() : null,
+              attachedResourceIds: updatedConv.attachedResourceIds,
+              pinned: updatedConv.pinned,
+              archived: updatedConv.archived,
+              activeScope: updatedConv.activeScope ? {
+                type: updatedConv.activeScope.type,
+                id: updatedConv.activeScope.id,
+                name: updatedConv.activeScope.name,
+                updatedAt: updatedConv.activeScope.updatedAt instanceof Date ? updatedConv.activeScope.updatedAt.toISOString() : (updatedConv.activeScope.updatedAt as any)?.toString?.(),
+              } : undefined,
+              createdAt: updatedConv.createdAt.toISOString(),
+              updatedAt: updatedConv.updatedAt.toISOString(),
             } : undefined,
-            createdAt: updatedConv.createdAt.toISOString(),
-            updatedAt: updatedConv.updatedAt.toISOString(),
-          } : undefined,
-        };
+          };
+        } else {
+          return {
+            userMessage: {
+              id: savedUserMsg._id,
+              conversationId,
+              userId,
+              role: MessageRole.USER,
+              content,
+              referencedResourceIds: scopeData.explicitMentionedIds,
+              citations: [],
+              createdAt: new Date().toISOString(),
+            },
+            assistantMessage: {
+              id: 'temp-msg-asst-' + Date.now(),
+              conversationId,
+              userId,
+              role: MessageRole.ASSISTANT,
+              content: unresolvedCheck.clarificationAnswer,
+              referencedResourceIds: [],
+              citations: [],
+              createdAt: new Date().toISOString(),
+            },
+            conversation: {
+              id: conversationId,
+              title: 'Temporary Chat',
+              userId,
+              collectionId: null,
+              attachedResourceIds: [],
+              pinned: false,
+              archived: false,
+              activeScope: scopeData.activeScope || undefined,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        }
       }
 
       // 5. Validate and filter ANY legacy attached resources from the conversation
@@ -588,20 +662,24 @@ export class MessagesService {
       );
 
       // 6. Fetch previous conversation history (up to 50 recent messages in chronological order)
-      const pastMessages = await this.messageModel
-        .find({
-          conversationId: new Types.ObjectId(conversationId),
-          userId: new Types.ObjectId(userId),
-          _id: { $ne: savedUserMsg._id },
-        })
-        .sort({ createdAt: -1 })
-        .limit(50)
-        .exec();
+      let history: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+      let pastMessages: any[] = [];
+      if (!isTemp) {
+        pastMessages = await this.messageModel
+          .find({
+            conversationId: new Types.ObjectId(conversationId),
+            userId: new Types.ObjectId(userId),
+            _id: { $ne: savedUserMsg._id },
+          })
+          .sort({ createdAt: -1 })
+          .limit(50)
+          .exec();
 
-      const history = pastMessages.reverse().map((m) => ({
-        role: m.role as 'user' | 'assistant' | 'system',
-        content: m.content,
-      }));
+        history = pastMessages.reverse().map((m) => ({
+          role: m.role as 'user' | 'assistant' | 'system',
+          content: m.content,
+        }));
+      }
 
       // 7. Retrieve Collection Shared Memory if conversation is assigned to a collection
       let sharedMemory = '';
@@ -676,63 +754,111 @@ export class MessagesService {
         }
       }
 
-      // 9. Save Assistant Message
-      const assistantMsgDoc = new this.messageModel({
-        conversationId: new Types.ObjectId(conversationId),
-        userId: new Types.ObjectId(userId),
-        role: MessageRole.ASSISTANT,
-        content: aiResponse.answer || 'No response generated.',
-        referencedResourceIds: combinedResourceIds,
-        citations: aiResponse.citations || [],
-        generatedChart: aiResponse.generatedChart,
-        generatedCharts: (aiResponse as any).generatedCharts || (aiResponse.generatedChart ? [aiResponse.generatedChart] : []),
-        generatedTable: aiResponse.generatedTable,
-        pythonCode: aiResponse.pythonCode,
-        executionOutput: aiResponse.executionOutput,
-        downloadableFile: authoritativeDownloadableFile,
-      });
-      const savedAssistantMsg = await assistantMsgDoc.save();
+      // 9. Save Assistant Message (Skip DB save for temporary chats)
+      let savedAssistantMsg: any;
+      let updatedConv: any = null;
 
-      // 10. Update Collection Shared Memory if collection assigned
-      if (conv.collectionId && aiResponse.answer) {
-        const summaryCandidate = `Chat "${conv.title}": Q: "${content.slice(0, 120)}" -> A: ${aiResponse.answer.slice(0, 250).replace(/[\r\n]+/g, ' ')}`;
-        this.collectionsService.updateSharedMemory(userId, conv.collectionId.toString(), summaryCandidate).catch((err) => {
-          console.error('Failed to update collection shared memory:', err);
+      if (!isTemp) {
+        const assistantMsgDoc = new this.messageModel({
+          conversationId: new Types.ObjectId(conversationId),
+          userId: new Types.ObjectId(userId),
+          role: MessageRole.ASSISTANT,
+          content: aiResponse.answer || 'No response generated.',
+          referencedResourceIds: combinedResourceIds,
+          citations: aiResponse.citations || [],
+          generatedChart: aiResponse.generatedChart,
+          generatedCharts: (aiResponse as any).generatedCharts || (aiResponse.generatedChart ? [aiResponse.generatedChart] : []),
+          generatedTable: aiResponse.generatedTable,
+          pythonCode: aiResponse.pythonCode,
+          executionOutput: aiResponse.executionOutput,
+          downloadableFile: authoritativeDownloadableFile,
         });
-      }
+        savedAssistantMsg = await assistantMsgDoc.save();
 
-      // 11. Update conversation timestamp, activeScope, and title
-      const updatePayload: any = { lastMessageAt: new Date() };
-      if (scopeData.updatedActiveScopePayload !== undefined) {
-        updatePayload.activeScope = scopeData.updatedActiveScopePayload;
-      }
-
-      if (pastMessages.length === 0 || conv.title === 'New Conversation' || !conv.title || conv.title.startsWith('New Conversation')) {
-        try {
-          const title = await this.aiGatewayService.generateTitle(content);
-          if (title && title !== 'New Conversation') {
-            updatePayload.title = title;
-          }
-        } catch (e) {
-          console.error('Auto-naming failed:', e);
+        // 10. Update Collection Shared Memory if collection assigned
+        if (conv.collectionId && aiResponse.answer) {
+          const summaryCandidate = `Chat "${conv.title}": Q: "${content.slice(0, 120)}" -> A: ${aiResponse.answer.slice(0, 250).replace(/[\r\n]+/g, ' ')}`;
+          this.collectionsService.updateSharedMemory(userId, conv.collectionId.toString(), summaryCandidate).catch((err) => {
+            console.error('Failed to update collection shared memory:', err);
+          });
         }
-      }
 
-      const updatedConv = await this.conversationModel.findByIdAndUpdate(
-        conversationId,
-        { $set: updatePayload },
-        { new: true },
-      );
+        // 11. Update conversation timestamp, activeScope, and title
+        const updatePayload: any = { lastMessageAt: new Date() };
+        if (scopeData.updatedActiveScopePayload !== undefined) {
+          updatePayload.activeScope = scopeData.updatedActiveScopePayload;
+        }
+
+        if (pastMessages.length === 0 || conv.title === 'New Conversation' || !conv.title || conv.title.startsWith('New Conversation')) {
+          try {
+            const title = await this.aiGatewayService.generateTitle(content);
+            if (title && title !== 'New Conversation') {
+              updatePayload.title = title;
+            }
+          } catch (e) {
+            console.error('Auto-naming failed:', e);
+          }
+        }
+
+        updatedConv = await this.conversationModel.findByIdAndUpdate(
+          conversationId,
+          { $set: updatePayload },
+          { new: true },
+        );
+      } else {
+        savedAssistantMsg = {
+          _id: 'temp-msg-asst-' + Date.now(),
+          conversationId,
+          userId,
+          role: MessageRole.ASSISTANT,
+          content: aiResponse.answer || 'No response generated.',
+          referencedResourceIds: combinedResourceIds,
+          citations: aiResponse.citations || [],
+          generatedChart: aiResponse.generatedChart,
+          generatedCharts: (aiResponse as any).generatedCharts || (aiResponse.generatedChart ? [aiResponse.generatedChart] : []),
+          generatedTable: aiResponse.generatedTable,
+          pythonCode: aiResponse.pythonCode,
+          executionOutput: aiResponse.executionOutput,
+          downloadableFile: authoritativeDownloadableFile,
+          createdAt: new Date(),
+        };
+      }
 
       return {
-        userMessage: this.toIMessage(savedUserMsg),
-        assistantMessage: this.toIMessage(savedAssistantMsg),
-        conversation: updatedConv ? {
+        userMessage: !isTemp ? this.toIMessage(savedUserMsg) : {
+          id: savedUserMsg._id,
+          conversationId,
+          userId,
+          role: MessageRole.USER,
+          content,
+          referencedResourceIds: scopeData.explicitMentionedIds,
+          citations: [],
+          createdAt: savedUserMsg.createdAt.toISOString(),
+        },
+        assistantMessage: !isTemp ? this.toIMessage(savedAssistantMsg) : {
+          id: savedAssistantMsg._id,
+          conversationId,
+          userId,
+          role: MessageRole.ASSISTANT,
+          content: savedAssistantMsg.content,
+          referencedResourceIds: savedAssistantMsg.referencedResourceIds,
+          citations: savedAssistantMsg.citations,
+          generatedChart: savedAssistantMsg.generatedChart,
+          generatedCharts: savedAssistantMsg.generatedCharts,
+          generatedTable: savedAssistantMsg.generatedTable,
+          pythonCode: savedAssistantMsg.pythonCode,
+          executionOutput: savedAssistantMsg.executionOutput,
+          downloadableFile: savedAssistantMsg.downloadableFile,
+          createdAt: savedAssistantMsg.createdAt.toISOString(),
+        },
+        conversation: !isTemp ? (updatedConv ? {
           id: updatedConv._id.toString(),
           title: updatedConv.title,
           userId: updatedConv.userId.toString(),
           collectionId: updatedConv.collectionId ? updatedConv.collectionId.toString() : null,
           attachedResourceIds: updatedConv.attachedResourceIds,
+          pinned: updatedConv.pinned,
+          archived: updatedConv.archived,
           activeScope: updatedConv.activeScope ? {
             type: updatedConv.activeScope.type,
             id: updatedConv.activeScope.id,
@@ -741,10 +867,21 @@ export class MessagesService {
           } : undefined,
           createdAt: updatedConv.createdAt.toISOString(),
           updatedAt: updatedConv.updatedAt.toISOString(),
-        } : undefined,
+        } : undefined) : {
+          id: conversationId,
+          title: 'Temporary Chat',
+          userId,
+          collectionId: null,
+          attachedResourceIds: [],
+          pinned: false,
+          archived: false,
+          activeScope: scopeData.activeScope || undefined,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
       };
     } finally {
-      userActive.delete(conversationId);
+      userActive.delete(sessionKey);
       if (userActive.size === 0) {
         this.activeGenerationsByUser.delete(userId);
       }
@@ -757,25 +894,46 @@ export class MessagesService {
     res: any,
     userRole?: string,
   ): Promise<void> {
-    const { conversationId, content, referencedResourceIds = [] } = dto;
+    const { conversationId, content, referencedResourceIds = [], temporary = false } = dto;
+    const isTemp = temporary === true || (typeof conversationId === 'string' && conversationId.startsWith('temp-'));
+    const sessionKey = conversationId || ('temp-session-' + userId);
 
-    if (!Types.ObjectId.isValid(conversationId)) {
-      throw new NotFoundException('Conversation not found');
-    }
+    let conv: any;
 
-    // 1. Verify conversation ownership
-    const conv = await this.conversationModel.findOne({
-      _id: new Types.ObjectId(conversationId),
-      userId: new Types.ObjectId(userId),
-    });
-    if (!conv) {
-      throw new NotFoundException('Conversation not found or not accessible');
+    if (isTemp) {
+      this.logger.log(`[CHAT] temporary=true conversationId=${conversationId || 'none'} skipping persistent conversation lookup`);
+      this.logger.log(`[CHAT] skipping message persistence`);
+      conv = {
+        _id: conversationId || ('temp-session-' + Date.now()),
+        title: 'Temporary Chat',
+        userId,
+        collectionId: null,
+        attachedResourceIds: [],
+        activeScope: null,
+        pinned: false,
+        archived: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    } else {
+      if (!conversationId || !Types.ObjectId.isValid(conversationId)) {
+        throw new NotFoundException('Conversation not found');
+      }
+
+      // 1. Verify conversation ownership
+      conv = await this.conversationModel.findOne({
+        _id: new Types.ObjectId(conversationId),
+        userId: new Types.ObjectId(userId),
+      });
+      if (!conv) {
+        throw new NotFoundException('Conversation not found or not accessible');
+      }
     }
 
     // 2. Concurrency Check (Max 2 active chats generating simultaneously per user)
     const userActive = this.activeGenerationsByUser.get(userId) || new Set<string>();
 
-    if (userActive.has(conversationId)) {
+    if (userActive.has(sessionKey)) {
       throw new BadRequestException(
         'A message is already being generated in this chat. Please wait for it to complete.',
       );
@@ -789,7 +947,7 @@ export class MessagesService {
     }
 
     // Register active generation
-    userActive.add(conversationId);
+    userActive.add(sessionKey);
     this.activeGenerationsByUser.set(userId, userActive);
 
     // Prepare SSE response headers
@@ -802,18 +960,31 @@ export class MessagesService {
       // 3. Resolve Active Scope and Resource IDs
       const scopeData = await this.resolveScopeAndResources(userId, conv, content, referencedResourceIds);
 
-      // 4. Save User Message (ONLY save explicit user mentions to prevent unwanted UI chip badges)
-      const userMsgDoc = new this.messageModel({
-        conversationId: new Types.ObjectId(conversationId),
-        userId: new Types.ObjectId(userId),
-        role: MessageRole.USER,
-        content,
-        referencedResourceIds: scopeData.explicitMentionedIds,
-      });
-      const savedUserMsg = await userMsgDoc.save();
-
-      // Send initial user message event to frontend
-      res.write(`event: user_message\ndata: ${JSON.stringify(this.toIMessage(savedUserMsg))}\n\n`);
+      // 4. Handle User Message (Save to DB only for persistent chats)
+      let savedUserMsg: any;
+      if (!isTemp) {
+        const userMsgDoc = new this.messageModel({
+          conversationId: new Types.ObjectId(conversationId),
+          userId: new Types.ObjectId(userId),
+          role: MessageRole.USER,
+          content,
+          referencedResourceIds: scopeData.explicitMentionedIds,
+        });
+        savedUserMsg = await userMsgDoc.save();
+        res.write(`event: user_message\ndata: ${JSON.stringify(this.toIMessage(savedUserMsg))}\n\n`);
+      } else {
+        savedUserMsg = {
+          id: 'temp-msg-user-' + Date.now(),
+          conversationId,
+          userId,
+          role: MessageRole.USER,
+          content,
+          referencedResourceIds: scopeData.explicitMentionedIds,
+          citations: [],
+          createdAt: new Date().toISOString(),
+        };
+        res.write(`event: user_message\ndata: ${JSON.stringify(savedUserMsg)}\n\n`);
+      }
 
       // Check for ungrounded / unresolved operational intent
       const unresolvedCheck = detectUnresolvedTargetOperation(content, scopeData.effectiveResourceIds, scopeData.activeScope);
@@ -828,21 +999,23 @@ export class MessagesService {
         res.write(`event: metadata\ndata: ${JSON.stringify({ citations: [], intent: 'clarification' })}\n\n`);
         res.write(`event: done\ndata: {}\n\n`);
 
-        const assistantMsgDoc = new this.messageModel({
-          conversationId: new Types.ObjectId(conversationId),
-          userId: new Types.ObjectId(userId),
-          role: MessageRole.ASSISTANT,
-          content: unresolvedCheck.clarificationAnswer,
-          referencedResourceIds: [],
-          citations: [],
-        });
-        await assistantMsgDoc.save();
+        if (!isTemp) {
+          const assistantMsgDoc = new this.messageModel({
+            conversationId: new Types.ObjectId(conversationId),
+            userId: new Types.ObjectId(userId),
+            role: MessageRole.ASSISTANT,
+            content: unresolvedCheck.clarificationAnswer,
+            referencedResourceIds: [],
+            citations: [],
+          });
+          await assistantMsgDoc.save();
 
-        const updatePayload: any = { lastMessageAt: new Date() };
-        if (scopeData.updatedActiveScopePayload !== undefined) {
-          updatePayload.activeScope = scopeData.updatedActiveScopePayload;
+          const updatePayload: any = { lastMessageAt: new Date() };
+          if (scopeData.updatedActiveScopePayload !== undefined) {
+            updatePayload.activeScope = scopeData.updatedActiveScopePayload;
+          }
+          await this.conversationModel.findByIdAndUpdate(conversationId, { $set: updatePayload });
         }
-        await this.conversationModel.findByIdAndUpdate(conversationId, { $set: updatePayload });
         res.end();
         return;
       }
@@ -859,20 +1032,24 @@ export class MessagesService {
       );
 
       // 6. Fetch previous conversation history (up to 50 recent messages in chronological order)
-      const pastMessages = await this.messageModel
-        .find({
-          conversationId: new Types.ObjectId(conversationId),
-          userId: new Types.ObjectId(userId),
-          _id: { $ne: savedUserMsg._id },
-        })
-        .sort({ createdAt: -1 })
-        .limit(50)
-        .exec();
+      let history: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+      let pastMessages: any[] = [];
+      if (!isTemp) {
+        pastMessages = await this.messageModel
+          .find({
+            conversationId: new Types.ObjectId(conversationId),
+            userId: new Types.ObjectId(userId),
+            _id: { $ne: savedUserMsg._id },
+          })
+          .sort({ createdAt: -1 })
+          .limit(50)
+          .exec();
 
-      const history = pastMessages.reverse().map((m) => ({
-        role: m.role as 'user' | 'assistant' | 'system',
-        content: m.content,
-      }));
+        history = pastMessages.reverse().map((m) => ({
+          role: m.role as 'user' | 'assistant' | 'system',
+          content: m.content,
+        }));
+      }
 
       // 7. Retrieve Collection Shared Memory if conversation is assigned to a collection
       let sharedMemory = '';
@@ -1030,61 +1207,100 @@ export class MessagesService {
       }
       res.write(`event: metadata\ndata: ${JSON.stringify(metadata)}\n\n`);
 
-      // Save Assistant Message
-      const assistantMsgDoc = new this.messageModel({
-        conversationId: new Types.ObjectId(conversationId),
-        userId: new Types.ObjectId(userId),
-        role: MessageRole.ASSISTANT,
-        content: fullAnswer || 'No response generated.',
-        referencedResourceIds: combinedResourceIds,
-        citations: metadata.citations || [],
-        generatedChart: metadata.generatedChart,
-        generatedCharts: metadata.generatedCharts || (metadata.generatedChart ? [metadata.generatedChart] : []),
-        generatedTable: metadata.generatedTable,
-        pythonCode: metadata.pythonCode,
-        executionOutput: metadata.executionOutput,
-        downloadableFile: authoritativeDownloadableFile,
-      });
-      const savedAssistantMsg = await assistantMsgDoc.save();
+      // Save Assistant Message (Skip DB save for temporary chats)
+      let savedAssistantMsg: any;
+      let updatedConv: any = null;
 
-      // Update Collection Shared Memory if conversation belongs to a collection
-      if (conv.collectionId && fullAnswer) {
-        const summaryCandidate = `Chat "${conv.title}": Q: "${content.slice(0, 120)}" -> A: ${fullAnswer.slice(0, 250).replace(/[\r\n]+/g, ' ')}`;
-        this.collectionsService.updateSharedMemory(userId, conv.collectionId.toString(), summaryCandidate).catch((err) => {
-          console.error('Failed to update collection shared memory:', err);
+      if (!isTemp) {
+        const assistantMsgDoc = new this.messageModel({
+          conversationId: new Types.ObjectId(conversationId),
+          userId: new Types.ObjectId(userId),
+          role: MessageRole.ASSISTANT,
+          content: fullAnswer || 'No response generated.',
+          referencedResourceIds: combinedResourceIds,
+          citations: metadata.citations || [],
+          generatedChart: metadata.generatedChart,
+          generatedCharts: metadata.generatedCharts || (metadata.generatedChart ? [metadata.generatedChart] : []),
+          generatedTable: metadata.generatedTable,
+          pythonCode: metadata.pythonCode,
+          executionOutput: metadata.executionOutput,
+          downloadableFile: authoritativeDownloadableFile,
         });
-      }
+        savedAssistantMsg = await assistantMsgDoc.save();
 
-      // Update conversation title and activeScope if needed
-      const updatePayload: any = { lastMessageAt: new Date() };
-      if (scopeData.updatedActiveScopePayload !== undefined) {
-        updatePayload.activeScope = scopeData.updatedActiveScopePayload;
-      }
+        // Update Collection Shared Memory if conversation belongs to a collection
+        if (conv.collectionId && fullAnswer) {
+          const summaryCandidate = `Chat "${conv.title}": Q: "${content.slice(0, 120)}" -> A: ${fullAnswer.slice(0, 250).replace(/[\r\n]+/g, ' ')}`;
+          this.collectionsService.updateSharedMemory(userId, conv.collectionId.toString(), summaryCandidate).catch((err) => {
+            console.error('Failed to update collection shared memory:', err);
+          });
+        }
 
-      if (pastMessages.length === 0 || conv.title === 'New Conversation' || !conv.title || conv.title.startsWith('New Conversation')) {
-        try {
-          const title = await this.aiGatewayService.generateTitle(content);
-          if (title && title !== 'New Conversation') {
-            updatePayload.title = title;
-          }
-        } catch (e) {}
-      }
+        // Update conversation title and activeScope if needed
+        const updatePayload: any = { lastMessageAt: new Date() };
+        if (scopeData.updatedActiveScopePayload !== undefined) {
+          updatePayload.activeScope = scopeData.updatedActiveScopePayload;
+        }
 
-      const updatedConv = await this.conversationModel.findByIdAndUpdate(
-        conversationId,
-        { $set: updatePayload },
-        { new: true },
-      );
+        if (pastMessages.length === 0 || conv.title === 'New Conversation' || !conv.title || conv.title.startsWith('New Conversation')) {
+          try {
+            const title = await this.aiGatewayService.generateTitle(content);
+            if (title && title !== 'New Conversation') {
+              updatePayload.title = title;
+            }
+          } catch (e) {}
+        }
+
+        updatedConv = await this.conversationModel.findByIdAndUpdate(
+          conversationId,
+          { $set: updatePayload },
+          { new: true },
+        );
+      } else {
+        savedAssistantMsg = {
+          _id: 'temp-msg-asst-' + Date.now(),
+          conversationId,
+          userId,
+          role: MessageRole.ASSISTANT,
+          content: fullAnswer || 'No response generated.',
+          referencedResourceIds: combinedResourceIds,
+          citations: metadata.citations || [],
+          generatedChart: metadata.generatedChart,
+          generatedCharts: metadata.generatedCharts || (metadata.generatedChart ? [metadata.generatedChart] : []),
+          generatedTable: metadata.generatedTable,
+          pythonCode: metadata.pythonCode,
+          executionOutput: metadata.executionOutput,
+          downloadableFile: authoritativeDownloadableFile,
+          createdAt: new Date(),
+        };
+      }
 
       // Send completion message
       res.write(`event: completed_message\ndata: ${JSON.stringify({
-        assistantMessage: this.toIMessage(savedAssistantMsg),
-        conversation: updatedConv ? {
+        assistantMessage: !isTemp ? this.toIMessage(savedAssistantMsg) : {
+          id: savedAssistantMsg._id,
+          conversationId,
+          userId,
+          role: MessageRole.ASSISTANT,
+          content: savedAssistantMsg.content,
+          referencedResourceIds: savedAssistantMsg.referencedResourceIds,
+          citations: savedAssistantMsg.citations,
+          generatedChart: savedAssistantMsg.generatedChart,
+          generatedCharts: savedAssistantMsg.generatedCharts,
+          generatedTable: savedAssistantMsg.generatedTable,
+          pythonCode: savedAssistantMsg.pythonCode,
+          executionOutput: savedAssistantMsg.executionOutput,
+          downloadableFile: savedAssistantMsg.downloadableFile,
+          createdAt: savedAssistantMsg.createdAt.toISOString(),
+        },
+        conversation: !isTemp ? (updatedConv ? {
           id: updatedConv._id.toString(),
           title: updatedConv.title,
           userId: updatedConv.userId.toString(),
           collectionId: updatedConv.collectionId ? updatedConv.collectionId.toString() : null,
           attachedResourceIds: updatedConv.attachedResourceIds,
+          pinned: updatedConv.pinned,
+          archived: updatedConv.archived,
           activeScope: updatedConv.activeScope ? {
             type: updatedConv.activeScope.type,
             id: updatedConv.activeScope.id,
@@ -1093,7 +1309,18 @@ export class MessagesService {
           } : undefined,
           createdAt: updatedConv.createdAt.toISOString(),
           updatedAt: updatedConv.updatedAt.toISOString(),
-        } : undefined,
+        } : undefined) : {
+          id: conversationId,
+          title: 'Temporary Chat',
+          userId,
+          collectionId: null,
+          attachedResourceIds: [],
+          pinned: false,
+          archived: false,
+          activeScope: scopeData.activeScope || undefined,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
       })}\n\n`);
 
       res.end();
@@ -1104,7 +1331,7 @@ export class MessagesService {
       res.write(`event: error\ndata: ${JSON.stringify({ error: err.message || 'Processing failed' })}\n\n`);
       res.end();
     } finally {
-      userActive.delete(conversationId);
+      userActive.delete(sessionKey);
       if (userActive.size === 0) {
         this.activeGenerationsByUser.delete(userId);
       }

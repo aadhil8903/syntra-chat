@@ -498,5 +498,81 @@ describe('MessagesService — Spec Round 22 Active Scope Persistence', () => {
         }),
       );
     });
+
+    it('Scenario M: Temporary Chat requires no DB conversation, saves no records, and succeeds with AI', async () => {
+      const tempId = 'temp-session-' + Date.now();
+      mockConversationModel.findOne.mockClear();
+      mockConversationModel.findByIdAndUpdate.mockClear();
+      mockMessageModel.mockClear();
+
+      const response = await service.sendMessage(mockUserId, {
+        conversationId: tempId,
+        content: 'hey',
+        temporary: true,
+      });
+
+      // No Mongo findOne or findByIdAndUpdate should be performed
+      expect(mockConversationModel.findOne).not.toHaveBeenCalled();
+      expect(mockConversationModel.findByIdAndUpdate).not.toHaveBeenCalled();
+      expect(mockMessageModel).not.toHaveBeenCalled();
+
+      // AI should have been invoked with temporary conversation
+      expect(mockAiGatewayService.chat).toHaveBeenCalledWith(
+        expect.objectContaining({
+          conversationId: tempId,
+          message: 'hey',
+          history: [],
+        }),
+      );
+
+      expect(response.userMessage.content).toBe('hey');
+      expect(response.assistantMessage.content).toBe('This is the AI response.');
+      expect(response.conversation?.id).toBe(tempId);
+    });
+
+    it('Scenario N: findByConversation returns empty array for temporary conversation without throwing', async () => {
+      const tempId = 'temp-session-12345';
+      const messages = await service.findByConversation(mockUserId, tempId);
+      expect(messages).toEqual([]);
+    });
+
+    it('Scenario O: streamMessage in Temporary Chat streams tokens without Mongo lookup or persistence', async () => {
+      const tempId = 'temp-session-stream-999';
+      mockConversationModel.findOne.mockClear();
+      mockConversationModel.findByIdAndUpdate.mockClear();
+      mockMessageModel.mockClear();
+
+      const writtenEvents: string[] = [];
+      const mockRes = {
+        setHeader: jest.fn(),
+        flushHeaders: jest.fn(),
+        write: jest.fn((chunk: string) => {
+          writtenEvents.push(chunk);
+          return true;
+        }),
+        end: jest.fn(),
+      };
+
+      await service.streamMessage(
+        mockUserId,
+        {
+          conversationId: tempId,
+          content: 'hey from stream',
+          temporary: true,
+        },
+        mockRes,
+      );
+
+      // Verify zero DB calls
+      expect(mockConversationModel.findOne).not.toHaveBeenCalled();
+      expect(mockConversationModel.findByIdAndUpdate).not.toHaveBeenCalled();
+      expect(mockMessageModel).not.toHaveBeenCalled();
+
+      // Verify SSE events were written
+      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/event-stream');
+      expect(writtenEvents.some((e) => e.includes('event: user_message'))).toBe(true);
+      expect(writtenEvents.some((e) => e.includes('event: completed_message'))).toBe(true);
+      expect(mockRes.end).toHaveBeenCalled();
+    });
   });
 });

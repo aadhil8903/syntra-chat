@@ -107,6 +107,7 @@ export class ChatStateService {
     content: string,
     referencedResourceIds: string[] = [],
     onConversationUpdated?: (conv: IConversation) => void,
+    temporary: boolean = false,
   ): Observable<ISendMessageResponse> {
     // 1. Check if this conversation is already generating
     if (this.isGenerating(conversationId)) {
@@ -145,6 +146,7 @@ export class ChatStateService {
         conversationId,
         content,
         referencedResourceIds,
+        temporary,
       })
       .pipe(
         tap((res) => {
@@ -189,6 +191,7 @@ export class ChatStateService {
     content: string,
     referencedResourceIds: string[] = [],
     onConversationUpdated?: (conv: IConversation) => void,
+    temporary: boolean = false,
   ): Promise<void> {
     if (this.isGenerating(conversationId)) {
       throw new Error('This chat is already generating a response.');
@@ -239,6 +242,7 @@ export class ChatStateService {
           conversationId,
           content,
           referencedResourceIds,
+          temporary,
         }),
       });
 

@@ -59,4 +59,50 @@ describe('ChatStateService (Streaming & Responsiveness)', () => {
     service.deleteConversationState('conv-100');
     expect(service.getCachedMessages('conv-100')).toBeNull();
   });
+
+  it('should send temporary=true and valid payload to /messages/stream endpoint', async () => {
+    const mockFetch = jest.fn().mockResolvedValue({
+      ok: true,
+      body: {
+        getReader: () => ({
+          read: jest
+            .fn()
+            .mockResolvedValueOnce({
+              done: false,
+              value: new TextEncoder().encode(
+                'event: user_message\ndata: {"id":"u1"}\n\nevent: text_delta\ndata: {"delta":"Hello!"}\n\nevent: completed_message\ndata: {"assistantMessage":{"id":"a1","content":"Hello!"}}\n\n'
+              ),
+            })
+            .mockResolvedValueOnce({ done: true }),
+        }),
+      },
+    });
+    (global as any).fetch = mockFetch;
+
+    await service.sendMessageStream('temp-session-123', 'hey?', [], undefined, true);
+
+    expect(mockFetch).toHaveBeenCalled();
+    const [calledUrl, calledOptions] = mockFetch.mock.calls[0];
+    expect(calledUrl).toContain('/messages/stream');
+    expect(calledOptions.method).toBe('POST');
+    const parsedBody = JSON.parse(calledOptions.body);
+    expect(parsedBody.conversationId).toBe('temp-session-123');
+    expect(parsedBody.content).toBe('hey?');
+    expect(parsedBody.temporary).toBe(true);
+  });
+
+  it('should extract error message on non-ok HTTP response', async () => {
+    const mockFetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: jest.fn().mockResolvedValue({ message: 'Conversation not found' }),
+    });
+    (global as any).fetch = mockFetch;
+
+    await expect(
+      service.sendMessageStream('temp-session-456', 'hey?', [], undefined, true)
+    ).rejects.toThrow('Conversation not found');
+
+    expect(service.getError('temp-session-456')).toBe('Conversation not found');
+  });
 });

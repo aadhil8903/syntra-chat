@@ -173,8 +173,12 @@ export class ApiService {
   }
 
   // ---------------- Conversations ----------------
-  getConversations(): Observable<IConversation[]> {
-    return this.http.get<IConversation[]>(`${this.baseUrl}/conversations`);
+  getConversations(archived?: boolean): Observable<IConversation[]> {
+    let params = new HttpParams();
+    if (archived !== undefined) {
+      params = params.set('archived', String(archived));
+    }
+    return this.http.get<IConversation[]>(`${this.baseUrl}/conversations`, { params });
   }
 
   getConversation(id: string): Observable<IConversation> {
@@ -189,8 +193,27 @@ export class ApiService {
     return this.http.patch<IConversation>(`${this.baseUrl}/conversations/${id}`, dto);
   }
 
-  searchConversations(query: string): Observable<IConversation[]> {
-    const params = new HttpParams().set('q', query);
+  pinConversation(id: string): Observable<IConversation> {
+    return this.updateConversation(id, { pinned: true });
+  }
+
+  unpinConversation(id: string): Observable<IConversation> {
+    return this.updateConversation(id, { pinned: false });
+  }
+
+  archiveConversation(id: string): Observable<IConversation> {
+    return this.updateConversation(id, { archived: true });
+  }
+
+  unarchiveConversation(id: string): Observable<IConversation> {
+    return this.updateConversation(id, { archived: false });
+  }
+
+  searchConversations(query: string, archived?: boolean): Observable<IConversation[]> {
+    let params = new HttpParams().set('q', query);
+    if (archived !== undefined) {
+      params = params.set('archived', String(archived));
+    }
     return this.http.get<IConversation[]>(`${this.baseUrl}/conversations/search`, { params });
   }
 

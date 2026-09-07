@@ -352,6 +352,9 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
       const dropEvent = { preventDefault: jest.fn() } as unknown as DragEvent;
       component.onDropOnCollection('demo-col-titan', dropEvent);
 
+      // Target collection should be automatically expanded
+      expect(component.isCollectionExpanded('demo-col-titan')).toBe(true);
+
       // No API call should be executed during demo walkthrough!
       expect(apiServiceMock.moveConversationToCollection).not.toHaveBeenCalled();
 
@@ -364,5 +367,238 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
       expect(component.displayedCollections.length).toBe(0);
       expect(component.displayedConversations.length).toBe(0);
     });
+
+    it('13. should automatically expand collections group when dragging over or dropping on collections header', () => {
+      component.isCollectionsGroupExpanded = false;
+      const dragOverEvent = {
+        preventDefault: jest.fn(),
+        dataTransfer: { dropEffect: 'none' },
+      } as unknown as DragEvent;
+
+      component.onDragOverCollectionsHeader(dragOverEvent);
+      expect(component.isCollectionsGroupExpanded).toBe(true);
+      expect(component.isDragOverCollectionsHeader).toBe(true);
+
+      component.onDragLeaveCollectionsHeader(dragOverEvent);
+      expect(component.isDragOverCollectionsHeader).toBe(false);
+
+      expect(component.isCollectionsGroupExpanded).toBe(true);
+    });
+
+    it('14. should enable Temporary Chat from persistent chat as a separate empty session without altering persistent chat', () => {
+      component.selectConversation(mockConvA);
+      expect(component.activeConversation?.id).toBe(mockConvA.id);
+      expect(component.isTemporaryMode).toBe(false);
+
+      // Enable temporary mode
+      component.enableTemporaryChat();
+
+      expect(component.isTemporaryMode).toBe(true);
+      expect(component.activeConversation?.id).toMatch(/^temp-session-/);
+      expect(component.previousPersistentConversation?.id).toBe(mockConvA.id);
+      expect(mockConvA.title).toBe('Chat Alpha'); // Unaltered
+      expect(component.messages).toEqual([]); // Fresh empty session
+      expect(apiServiceMock.createConversation).not.toHaveBeenCalled();
+    });
+
+    it('15. should return to previous persistent chat when exiting Temporary Chat', () => {
+      component.selectConversation(mockConvA);
+      component.enableTemporaryChat();
+      expect(component.isTemporaryMode).toBe(true);
+
+      // Exit temporary mode
+      component.exitTemporaryChat();
+
+      expect(component.isTemporaryMode).toBe(false);
+      expect(component.activeConversation?.id).toBe(mockConvA.id);
+      expect(component.previousPersistentConversation).toBeNull();
+    });
+
+    it('16. should create a fresh temporary session without MongoDB call when creating new chat while in temporary mode', () => {
+      component.enableTemporaryChat();
+      const firstTempId = component.activeConversation?.id;
+
+      component.createNewConversation();
+
+      expect(component.isTemporaryMode).toBe(true);
+      expect(component.activeConversation?.id).toMatch(/^temp-session-/);
+      expect(component.activeConversation?.id).not.toBe(firstTempId);
+      expect(apiServiceMock.createConversation).not.toHaveBeenCalled();
+    });
+
+    it('17. should exit temporary mode cleanly when user clicks a persistent chat from the sidebar list', () => {
+      component.enableTemporaryChat();
+      expect(component.isTemporaryMode).toBe(true);
+
+      // User clicks Chat B in the sidebar
+      component.selectConversation(mockConvB);
+
+      expect(component.isTemporaryMode).toBe(false);
+      expect(component.activeConversation?.id).toBe(mockConvB.id);
+      expect(component.temporaryConversation).toBeNull();
+    });
+
+    it('18. should archive a conversation, call API, and display in archived chats list', () => {
+      apiServiceMock.archiveConversation = jest.fn().mockReturnValue(of({ ...mockConvA, archived: true }));
+      component.conversations = [{ ...mockConvA, archived: false }, { ...mockConvB, archived: false }];
+      component.filteredConversations = [...component.conversations];
+
+      component.toggleArchive(component.conversations[0]);
+
+      expect(apiServiceMock.archiveConversation).toHaveBeenCalledWith('conv-a');
+      expect(component.getArchivedChats().length).toBe(1);
+      expect(component.getArchivedChats()[0].id).toBe('conv-a');
+      expect(component.getRecentUncollectedChats().length).toBe(1);
+    });
+
+    it('19. should preserve archived chats on conversation reload (simulating refresh)', () => {
+      const convWithArchived = [
+        { ...mockConvA, archived: true },
+        { ...mockConvB, archived: false },
+      ];
+      apiServiceMock.getConversations.mockReturnValue(of(convWithArchived));
+
+      component.isArchivedView = true;
+      component.loadConversations();
+
+      expect(component.conversations.length).toBe(2);
+      expect(component.getArchivedChats().length).toBe(1);
+      expect(component.getArchivedChats()[0].id).toBe('conv-a');
+    });
+
+    it('20. should unarchive an archived conversation and restore to recent chats', () => {
+      apiServiceMock.unarchiveConversation = jest.fn().mockReturnValue(of({ ...mockConvA, archived: false }));
+      component.conversations = [{ ...mockConvA, archived: true }, { ...mockConvB, archived: false }];
+      component.filteredConversations = [...component.conversations];
+      component.isArchivedView = true;
+
+      component.toggleArchive(component.conversations[0]);
+
+      expect(apiServiceMock.unarchiveConversation).toHaveBeenCalledWith('conv-a');
+      expect(component.getArchivedChats().length).toBe(0);
+      expect(component.getRecentUncollectedChats().length).toBe(2);
+    });
+  });
+
+  describe('New Chat Persistence Lifecycle (Deferred Creation)', () => {
+    it('Scenario A: clicking New Chat and navigating away without sending does NOT call createConversation', () => {
+      apiServiceMock.createConversation.mockClear();
+
+      component.createNewConversation();
+
+      expect(component.activeConversation).toBeNull();
+      expect(component.isTemporaryMode).toBe(false);
+      expect(apiServiceMock.createConversation).not.toHaveBeenCalled();
+
+      // Navigate away
+      component.ngOnDestroy();
+      expect(apiServiceMock.createConversation).not.toHaveBeenCalled();
+    });
+
+    it('Scenario B: typing a draft in New Chat and navigating away saves draft locally but does NOT create DB conversation', () => {
+      apiServiceMock.createConversation.mockClear();
+
+      component.createNewConversation();
+      component.inputText = 'Unsent draft text for new chat';
+
+      // Save on unload/navigation
+      component.onBeforeUnload();
+      component.ngOnDestroy();
+
+      expect(chatDraftServiceMock.saveDraft).toHaveBeenCalledWith(
+        TEMPORARY_NEW_CHAT_ID,
+        'Unsent draft text for new chat',
+        []
+      );
+      expect(apiServiceMock.createConversation).not.toHaveBeenCalled();
+    });
+
+    it('Scenario C: sending the first message creates the MongoDB conversation with real ID and migrates draft', async () => {
+      apiServiceMock.createConversation.mockClear();
+      apiServiceMock.createConversation.mockReturnValue(
+        of({
+          id: 'conv-persisted-999',
+          title: 'What is our Q3 forecast?',
+          userId: 'user-1',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as IConversation)
+      );
+
+      component.createNewConversation();
+      component.inputText = 'What is our Q3 forecast?';
+      mockDraftStore[TEMPORARY_NEW_CHAT_ID] = { text: 'What is our Q3 forecast?', attachedResources: [] };
+
+      component.sendUserMessage();
+
+      expect(apiServiceMock.createConversation).toHaveBeenCalledTimes(1);
+      expect(apiServiceMock.createConversation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'What is our Q3 forecast?',
+        })
+      );
+      expect(component.activeConversation?.id).toBe('conv-persisted-999');
+      expect(component.conversations.some((c) => c.id === 'conv-persisted-999')).toBe(true);
+      expect(chatDraftServiceMock.migrateDraft).toHaveBeenCalledWith(TEMPORARY_NEW_CHAT_ID, 'conv-persisted-999');
+      expect(chatStateMock.sendMessageStream).toHaveBeenCalledWith(
+        'conv-persisted-999',
+        'What is our Q3 forecast?',
+        expect.any(Array),
+        expect.any(Function),
+        false
+      );
+    });
+
+    it('Scenario F: sending a message in an existing persistent chat does NOT create a new conversation', () => {
+      apiServiceMock.createConversation.mockClear();
+      component.selectConversation(mockConvA);
+      component.inputText = 'Follow-up question';
+
+      component.sendUserMessage();
+
+      expect(apiServiceMock.createConversation).not.toHaveBeenCalled();
+      expect(chatStateMock.sendMessageStream).toHaveBeenCalledWith(
+        'conv-a',
+        'Follow-up question',
+        expect.any(Array),
+        expect.any(Function),
+        false
+      );
+    });
+
+    it('Scenario G: sending a message in Temporary Chat streams directly without calling createConversation', () => {
+      apiServiceMock.createConversation.mockClear();
+      component.enableTemporaryChat();
+      const tempId = component.activeConversation?.id;
+      component.inputText = 'Temporary query';
+
+      component.sendUserMessage();
+
+      expect(apiServiceMock.createConversation).not.toHaveBeenCalled();
+      expect(chatStateMock.sendMessageStream).toHaveBeenCalledWith(
+        tempId,
+        'Temporary query',
+        expect.any(Array),
+        expect.any(Function),
+        true
+      );
+    });
+
+    it('Scenario H: double-click send on New Chat creates only 1 conversation (concurrency protection)', () => {
+      apiServiceMock.createConversation.mockClear();
+      const createSubject = new Subject<IConversation>();
+      apiServiceMock.createConversation.mockReturnValue(createSubject.asObservable());
+
+      component.createNewConversation();
+      component.inputText = 'Double clicked prompt';
+
+      // First click
+      component.sendUserMessage();
+      // Second click immediately while creation is in-flight
+      component.sendUserMessage();
+
+      expect(apiServiceMock.createConversation).toHaveBeenCalledTimes(1);
+    });
   });
 });
+

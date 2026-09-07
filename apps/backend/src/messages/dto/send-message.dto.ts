@@ -1,10 +1,10 @@
-import { IsNotEmpty, IsString, IsArray, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsString, IsArray, IsOptional, IsBoolean } from 'class-validator';
 import { ISendMessageDto } from '@enter-chat/shared-types';
 
 export class SendMessageDto implements ISendMessageDto {
   @IsString()
-  @IsNotEmpty()
-  conversationId: string;
+  @IsOptional()
+  conversationId?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -14,5 +14,9 @@ export class SendMessageDto implements ISendMessageDto {
   @IsString({ each: true })
   @IsOptional()
   referencedResourceIds?: string[];
+
+  @IsBoolean()
+  @IsOptional()
+  temporary?: boolean;
 }
 

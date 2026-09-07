@@ -32,16 +32,22 @@ export class ConversationsController {
   }
 
   @Get()
-  async findAll(@CurrentUser('id') userId: string): Promise<IConversation[]> {
-    return this.conversationsService.findAllByUser(userId);
+  async findAll(
+    @CurrentUser('id') userId: string,
+    @Query('archived') archived?: string,
+  ): Promise<IConversation[]> {
+    const isArchived = archived === 'true' ? true : archived === 'false' ? false : undefined;
+    return this.conversationsService.findAllByUser(userId, isArchived);
   }
 
   @Get('search')
   async search(
     @CurrentUser('id') userId: string,
     @Query('q') query: string,
+    @Query('archived') archived?: string,
   ): Promise<IConversation[]> {
-    return this.conversationsService.search(userId, query);
+    const isArchived = archived === 'true' ? true : archived === 'false' ? false : undefined;
+    return this.conversationsService.search(userId, query, isArchived);
   }
 
   @Get(':id')

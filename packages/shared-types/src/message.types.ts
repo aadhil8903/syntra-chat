@@ -44,9 +44,10 @@ export interface IMessage {
 }
 
 export interface ISendMessageDto {
-  conversationId: string;
+  conversationId?: string;
   content: string;
   referencedResourceIds?: string[];
+  temporary?: boolean;
 }
 
 export interface ISendMessageResponse {

@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsArray } from 'class-validator';
+import { IsOptional, IsString, IsArray, IsBoolean } from 'class-validator';
 import { ICreateConversationDto } from '@enter-chat/shared-types';
 
 export class CreateConversationDto implements ICreateConversationDto {
@@ -14,5 +14,13 @@ export class CreateConversationDto implements ICreateConversationDto {
   @IsString({ each: true })
   @IsOptional()
   attachedResourceIds?: string[];
+
+  @IsBoolean()
+  @IsOptional()
+  pinned?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  archived?: boolean;
 }
 

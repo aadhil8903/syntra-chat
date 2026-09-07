@@ -55,6 +55,7 @@ import { NavigationDrawerService } from '../../../core/services/navigation-drawe
           <a
             routerLink="/chat"
             routerLinkActive="bg-[#f0f1f3] text-zinc-900 font-semibold dark:bg-white dark:text-black shadow-2xs"
+            [routerLinkActiveOptions]="{ matrixParams: 'ignored', queryParams: 'exact', paths: 'exact', fragment: 'ignored' }"
             data-tour="nav-chat"
             class="flex items-center gap-3 px-3 py-2 rounded-xl text-zinc-600 dark:text-[#a1a1aa] hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-[#18181b] transition-colors text-sm"
             [title]="isCollapsed ? 'Chat' : ''"
@@ -64,6 +65,23 @@ import { NavigationDrawerService } from '../../../core/services/navigation-drawe
             </svg>
             @if (!isCollapsed) {
               <span class="truncate">Chat</span>
+            }
+          </a>
+
+          <a
+            routerLink="/chat"
+            [queryParams]="{ view: 'archived' }"
+            routerLinkActive="bg-[#f0f1f3] text-zinc-900 font-semibold dark:bg-white dark:text-black shadow-2xs"
+            [routerLinkActiveOptions]="{ matrixParams: 'ignored', queryParams: 'exact', paths: 'exact', fragment: 'ignored' }"
+            data-tour="nav-archived"
+            class="flex items-center gap-3 px-3 py-2 rounded-xl text-zinc-600 dark:text-[#a1a1aa] hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-[#18181b] transition-colors text-sm"
+            [title]="isCollapsed ? 'Archived Chats' : ''"
+          >
+            <svg class="w-5 h-5 flex-shrink-0" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+            </svg>
+            @if (!isCollapsed) {
+              <span class="truncate">Archived Chats</span>
             }
           </a>
 
@@ -204,6 +222,7 @@ import { NavigationDrawerService } from '../../../core/services/navigation-drawe
             <a
               routerLink="/chat"
               routerLinkActive="bg-[#f0f1f3] text-zinc-900 font-semibold dark:bg-white dark:text-black shadow-2xs"
+              [routerLinkActiveOptions]="{ matrixParams: 'ignored', queryParams: 'exact', paths: 'exact', fragment: 'ignored' }"
               (click)="drawerService.close()"
               class="flex items-center gap-3 px-3.5 min-h-[44px] rounded-xl text-zinc-600 dark:text-[#a1a1aa] hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-[#18181b] transition-colors text-sm font-medium"
             >
@@ -211,6 +230,20 @@ import { NavigationDrawerService } from '../../../core/services/navigation-drawe
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
               <span>Chat</span>
+            </a>
+
+            <a
+              routerLink="/chat"
+              [queryParams]="{ view: 'archived' }"
+              routerLinkActive="bg-[#f0f1f3] text-zinc-900 font-semibold dark:bg-white dark:text-black shadow-2xs"
+              [routerLinkActiveOptions]="{ matrixParams: 'ignored', queryParams: 'exact', paths: 'exact', fragment: 'ignored' }"
+              (click)="drawerService.close()"
+              class="flex items-center gap-3 px-3.5 min-h-[44px] rounded-xl text-zinc-600 dark:text-[#a1a1aa] hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-[#18181b] transition-colors text-sm font-medium"
+            >
+              <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+              <span>Archived Chats</span>
             </a>
 
             <a

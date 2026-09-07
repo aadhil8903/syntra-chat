@@ -39,6 +39,12 @@ export class ConversationEntity {
   @Prop({ type: ActiveScopeSchema, required: false, default: null })
   activeScope?: ActiveScopeEntity | null;
 
+  @Prop({ type: Boolean, default: false, index: true })
+  pinned: boolean;
+
+  @Prop({ type: Boolean, default: false, index: true })
+  archived: boolean;
+
   @Prop({ required: false })
   lastMessageAt?: Date;
 
@@ -47,5 +53,5 @@ export class ConversationEntity {
 }
 
 export const ConversationSchema = SchemaFactory.createForClass(ConversationEntity);
-ConversationSchema.index({ userId: 1, updatedAt: -1 });
+ConversationSchema.index({ userId: 1, archived: 1, pinned: -1, updatedAt: -1 });
 ConversationSchema.index({ userId: 1, collectionId: 1, updatedAt: -1 });

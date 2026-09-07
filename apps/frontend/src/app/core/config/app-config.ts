@@ -50,6 +50,19 @@ export function getApiBaseUrl(): string {
       window.location.hostname === 'localhost' ||
       window.location.hostname === '127.0.0.1';
 
+    // In local development (localhost and not production mode), strictly use the local development backend
+    if (isLocalhost && !environment.production) {
+      // Clear any obsolete remote Render URL from localStorage if present
+      const stored =
+        localStorage.getItem('SYNTRA_API_BASE_URL') ||
+        localStorage.getItem('API_BASE_URL');
+      if (stored && (stored.includes('onrender.com') || stored.includes('trycloudflare.com'))) {
+        localStorage.removeItem('SYNTRA_API_BASE_URL');
+        localStorage.removeItem('API_BASE_URL');
+      }
+      return normalizeApiUrl(environment.apiBaseUrl || 'http://localhost:3000/api');
+    }
+
     // 1. Runtime window configuration (from /config.js)
     const windowConfig = window.__APP_CONFIG__;
     if (windowConfig && typeof windowConfig.apiBaseUrl === 'string') {

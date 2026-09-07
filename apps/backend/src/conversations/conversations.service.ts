@@ -39,37 +39,50 @@ export class ConversationsService {
         name: dto.activeScope.name,
         updatedAt: dto.activeScope.updatedAt ? new Date(dto.activeScope.updatedAt) : new Date(),
       } : undefined,
+      pinned: dto.pinned || false,
+      archived: dto.archived || false,
     });
 
     const saved = await conversation.save();
     return this.toIConversation(saved);
   }
 
-  async findAllByUser(userId: string): Promise<IConversation[]> {
+  async findAllByUser(userId: string, archived?: boolean): Promise<IConversation[]> {
+    const filter: any = { userId: new Types.ObjectId(userId) };
+    if (archived !== undefined) {
+      filter.archived = archived;
+    }
     const convs = await this.conversationModel
-      .find({ userId: new Types.ObjectId(userId) })
-      .sort({ updatedAt: -1 })
+      .find(filter)
+      .sort({ pinned: -1, updatedAt: -1 })
       .exec();
 
     return convs.map((c) => this.toIConversation(c));
   }
 
-  async search(userId: string, query: string): Promise<IConversation[]> {
+  async search(userId: string, query: string, archived?: boolean): Promise<IConversation[]> {
     const trimmed = (query || '').trim();
+    const filter: any = { userId: new Types.ObjectId(userId) };
+    if (archived !== undefined) {
+      filter.archived = archived;
+    }
+
     if (!trimmed) {
-      return this.findAllByUser(userId);
+      const convs = await this.conversationModel
+        .find(filter)
+        .sort({ pinned: -1, updatedAt: -1 })
+        .exec();
+      return convs.map((c) => this.toIConversation(c));
     }
 
     const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(escaped, 'i');
+    filter.title = { $regex: regex };
 
     // Strict keyword match on chat title only
     const matchedConvs = await this.conversationModel
-      .find({
-        userId: new Types.ObjectId(userId),
-        title: { $regex: regex },
-      })
-      .sort({ updatedAt: -1 })
+      .find(filter)
+      .sort({ pinned: -1, updatedAt: -1 })
       .exec();
 
     return matchedConvs.map((c) => this.toIConversation(c));
@@ -113,6 +126,8 @@ export class ConversationsService {
         : null;
     }
     if (dto.attachedResourceIds !== undefined) updateData.attachedResourceIds = dto.attachedResourceIds;
+    if (dto.pinned !== undefined) updateData.pinned = dto.pinned;
+    if (dto.archived !== undefined) updateData.archived = dto.archived;
     if (dto.activeScope !== undefined) {
       updateData.activeScope = dto.activeScope ? {
         type: dto.activeScope.type,
@@ -172,6 +187,8 @@ export class ConversationsService {
           ? doc.activeScope.updatedAt.toISOString()
           : (doc.activeScope.updatedAt as any)?.toString?.(),
       } : undefined,
+      pinned: !!doc.pinned,
+      archived: !!doc.archived,
       lastMessageAt: doc.lastMessageAt?.toISOString(),
       createdAt: doc.createdAt?.toISOString() || new Date().toISOString(),
       updatedAt: doc.updatedAt?.toISOString() || new Date().toISOString(),

@@ -12,6 +12,8 @@ export interface IConversation {
   collectionId?: string | null;
   attachedResourceIds: string[];
   activeScope?: IActiveScope | null;
+  pinned?: boolean;
+  archived?: boolean;
   lastMessageAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -22,6 +24,8 @@ export interface ICreateConversationDto {
   collectionId?: string | null;
   attachedResourceIds?: string[];
   activeScope?: IActiveScope | null;
+  pinned?: boolean;
+  archived?: boolean;
 }
 
 export interface IUpdateConversationDto {
@@ -29,4 +33,6 @@ export interface IUpdateConversationDto {
   collectionId?: string | null;
   attachedResourceIds?: string[];
   activeScope?: IActiveScope | null;
+  pinned?: boolean;
+  archived?: boolean;
 }

@@ -90,16 +90,29 @@ export interface IDynamicStarterCard {
           <div class="flex-shrink-0 space-y-2 pb-2 border-b border-[#dcdde1] dark:border-[#27272a]/60">
             <!-- Header -->
             <div class="flex items-center justify-between gap-2">
-              <button
-                (click)="createNewConversation()"
-                class="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-900 font-medium text-xs transition-colors shadow-sm cursor-pointer active:scale-98"
-                title="Start a new chat"
-              >
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4" />
-                </svg>
-                <span>New Chat</span>
-              </button>
+              @if (isArchivedView) {
+                <a
+                  routerLink="/chat"
+                  class="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 font-medium text-xs transition-colors shadow-xs cursor-pointer"
+                  title="Back to Active Chats"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  <span>Back to Chats</span>
+                </a>
+              } @else {
+                <button
+                  (click)="createNewConversation()"
+                  class="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-100 dark:text-zinc-900 font-medium text-xs transition-colors shadow-sm cursor-pointer active:scale-98"
+                  title="Start a new chat"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span>New Chat</span>
+                </button>
+              }
 
               <button
                 (click)="toggleConvCollapse()"
@@ -123,7 +136,7 @@ export interface IDynamicStarterCard {
                 type="text"
                 [(ngModel)]="searchQuery"
                 (input)="onSearchInput($event)"
-                placeholder="Search chats by name..."
+                [placeholder]="isArchivedView ? 'Search archived chats...' : 'Search chats by name...'"
                 class="w-full pl-8 pr-7 py-1.5 bg-[#f8f9fa] dark:bg-[#111114] border border-[#dcdde1] dark:border-[#27272a] focus:border-zinc-900 dark:focus:border-white focus:outline-none rounded-xl text-zinc-900 dark:text-white text-xs placeholder-zinc-400 dark:placeholder-zinc-500 transition-colors"
               />
               @if (searchQuery) {
@@ -140,239 +153,356 @@ export interface IDynamicStarterCard {
             </div>
           </div>
 
-          <!-- ONE Continuous Scrollable Region: Collections + Recent Chats -->
+          <!-- ONE Continuous Scrollable Region: Collections + Pinned + Recent + Archived Chats -->
           <div
             #convScrollContainer
+            (scroll)="closeActionMenus()"
             (dragover)="onDragOverScrollContainer($event)"
             class="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pt-2 space-y-4 pr-0.5 custom-sidebar-scrollbar"
           >
-            <!-- Collections Section -->
-            <div data-tour="collections-section" class="space-y-1">
-              <!-- Compact Collections Header Row -->
-              <div class="flex items-center justify-between px-2 py-1 text-xs select-none min-w-0">
-                <div
-                  (click)="toggleAllCollectionsSectionCollapse()"
-                  class="flex items-center gap-1.5 cursor-pointer text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors group min-w-0 flex-1 truncate"
-                  title="Toggle collections section"
-                >
-                  <svg
-                    class="w-3 h-3 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-transform flex-shrink-0"
-                    [ngClass]="isCollectionsGroupExpanded ? 'rotate-90 text-zinc-700 dark:text-zinc-300' : ''"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                  </svg>
-                  <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-[#71717a] group-hover:text-zinc-900 dark:group-hover:text-zinc-300 truncate">Collections</span>
-                  <span class="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono font-medium flex-shrink-0">({{ displayedCollections.length }})</span>
+            @if (isArchivedView) {
+              <!-- Dedicated Archived Chats List -->
+              <div class="space-y-1">
+                <div class="flex items-center justify-between px-2 py-1 text-xs select-none">
+                  <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-[#71717a]">Archived Chats</span>
+                  <span class="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono font-medium">({{ getArchivedChats().length }})</span>
                 </div>
 
-                <button
-                  data-tour="create-collection-btn"
-                  (click)="openCreateCollectionModal()"
-                  class="p-1 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors flex items-center justify-center flex-shrink-0 border border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-600"
-                  title="New Collection"
-                  aria-label="New Collection"
-                >
-                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                  </svg>
-                </button>
-              </div>
+                @if (getArchivedChats().length === 0) {
+                  <div class="px-3 py-10 text-center text-xs text-zinc-400 dark:text-zinc-500">
+                    No archived conversations yet.
+                  </div>
+                }
 
-              <!-- Collections List (when group expanded) -->
-              @if (isCollectionsGroupExpanded) {
-                <div data-tour="collections-list" class="space-y-0.5">
-                  @for (col of displayedCollections; track col.id) {
+                <div class="space-y-0.5">
+                  @for (conv of getArchivedChats(); track conv.id) {
                     <div
-                      class="rounded-xl border transition-all"
-                      [ngClass]="dragOverCollectionId === col.id ? 'bg-zinc-200/80 border-zinc-400 ring-1 ring-zinc-400 dark:bg-zinc-800/90 dark:border-white/60 dark:ring-1 dark:ring-white/50' : 'border-transparent hover:border-zinc-200 dark:hover:border-zinc-800/40 bg-transparent hover:bg-zinc-100 dark:hover:bg-[#111114]/40'"
-                      (dragover)="onDragOverCollection(col.id, $event)"
-                      (dragleave)="onDragLeaveCollection(col.id, $event)"
-                      (drop)="onDropOnCollection(col.id, $event)"
+                      [id]="'conv-item-' + conv.id"
+                      (click)="selectConversation(conv)"
+                      [ngClass]="activeConversation?.id === conv.id ? 'bg-[#f0f1f3] text-zinc-900 font-medium border border-[#dcdde1] dark:bg-[#18181b] dark:text-white dark:border-[#3f3f46]' : 'text-zinc-500 hover:text-zinc-900 hover:bg-[#f0f1f3] dark:text-[#71717a] dark:hover:text-white dark:hover:bg-[#141417]'"
+                      class="group flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-all text-xs select-none relative"
                     >
-                      <!-- Collection Row -->
-                      <div
-                        (click)="toggleCollectionExpand(col.id)"
-                        class="flex items-center justify-between px-2 py-1.5 cursor-pointer text-xs group rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/40 transition-colors"
+                      <div class="flex items-center gap-2 truncate flex-1 min-w-0">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                        </svg>
+                        <span class="truncate">{{ conv.title }}</span>
+                      </div>
+
+                      <!-- 3-Dot Action Button -->
+                      <button
+                        type="button"
+                        (click)="toggleActionMenu(conv, $event)"
+                        class="p-1 rounded-md text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 flex-shrink-0"
+                        [class.opacity-100]="openActionMenuConvId === conv.id"
+                        title="Chat options"
+                        aria-label="Chat options"
                       >
-                        <div class="flex items-center gap-1.5 truncate">
-                          <!-- Folder-Tree Arrow Chevron -->
-                          <button
-                            type="button"
-                            (click)="toggleCollectionExpand(col.id); $event.stopPropagation()"
-                            class="w-3.5 h-3.5 flex items-center justify-center text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-transform p-0 rounded flex-shrink-0"
-                            [title]="isCollectionExpanded(col.id) ? 'Collapse collection' : 'Expand collection'"
-                          >
-                            <svg
-                              class="w-3 h-3 transition-transform duration-150"
-                              [ngClass]="isCollectionExpanded(col.id) ? 'rotate-90 text-zinc-900 dark:text-white' : 'text-zinc-400 dark:text-zinc-500'"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="12" cy="5" r="2"></circle>
+                          <circle cx="12" cy="12" r="2"></circle>
+                          <circle cx="12" cy="19" r="2"></circle>
+                        </svg>
+                      </button>
+                    </div>
+                  }
+                </div>
+              </div>
+            } @else {
+              <!-- Collections Section -->
+              <div data-tour="collections-section" class="space-y-1">
+                <!-- Compact Collections Header Row -->
+                <div
+                  class="flex items-center justify-between px-2 py-1 text-xs select-none min-w-0 rounded-lg transition-all"
+                  [ngClass]="isDragOverCollectionsHeader ? 'bg-zinc-200/80 ring-1 ring-zinc-400 dark:bg-zinc-800/90 dark:ring-1 dark:ring-white/50' : ''"
+                  (dragover)="onDragOverCollectionsHeader($event)"
+                  (dragleave)="onDragLeaveCollectionsHeader($event)"
+                  (drop)="onDropOnCollectionsHeader($event)"
+                >
+                  <div
+                    (click)="toggleAllCollectionsSectionCollapse()"
+                    class="flex items-center gap-1.5 cursor-pointer text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors group min-w-0 flex-1 truncate"
+                    title="Toggle collections section"
+                  >
+                    <svg
+                      class="w-3 h-3 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-transform flex-shrink-0"
+                      [ngClass]="isCollectionsGroupExpanded ? 'rotate-90 text-zinc-700 dark:text-zinc-300' : ''"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-[#71717a] group-hover:text-zinc-900 dark:group-hover:text-zinc-300 truncate">Collections</span>
+                    <span class="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono font-medium flex-shrink-0">({{ displayedCollections.length }})</span>
+                  </div>
+
+                  <button
+                    data-tour="create-collection-btn"
+                    (click)="openCreateCollectionModal()"
+                    class="p-1 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors flex items-center justify-center flex-shrink-0 border border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-600"
+                    title="New Collection"
+                    aria-label="New Collection"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- Collections List (when group expanded) -->
+                @if (isCollectionsGroupExpanded) {
+                  <div data-tour="collections-list" class="space-y-0.5">
+                    @for (col of displayedCollections; track col.id) {
+                      <div
+                        class="rounded-xl border transition-all"
+                        [ngClass]="dragOverCollectionId === col.id ? 'bg-zinc-200/80 border-zinc-400 ring-1 ring-zinc-400 dark:bg-zinc-800/90 dark:border-white/60 dark:ring-1 dark:ring-white/50' : 'border-transparent hover:border-zinc-200 dark:hover:border-zinc-800/40 bg-transparent hover:bg-zinc-100 dark:hover:bg-[#111114]/40'"
+                        (dragover)="onDragOverCollection(col.id, $event)"
+                        (dragleave)="onDragLeaveCollection(col.id, $event)"
+                        (drop)="onDropOnCollection(col.id, $event)"
+                      >
+                        <!-- Collection Row -->
+                        <div
+                          (click)="toggleCollectionExpand(col.id)"
+                          class="flex items-center justify-between px-2 py-1.5 cursor-pointer text-xs group rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/40 transition-colors"
+                        >
+                          <div class="flex items-center gap-1.5 truncate">
+                            <!-- Folder-Tree Arrow Chevron -->
+                            <button
+                              type="button"
+                              (click)="toggleCollectionExpand(col.id); $event.stopPropagation()"
+                              class="w-3.5 h-3.5 flex items-center justify-center text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-transform p-0 rounded flex-shrink-0"
+                              [title]="isCollectionExpanded(col.id) ? 'Collapse collection' : 'Expand collection'"
                             >
-                              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                            </svg>
-                          </button>
-                          <span class="truncate font-medium text-zinc-800 dark:text-zinc-200 text-xs">{{ col.name }}</span>
-                          <span class="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono font-normal">({{ getConversationsForCollection(col.id).length }})</span>
+                              <svg
+                                class="w-3 h-3 transition-transform duration-150"
+                                [ngClass]="isCollectionExpanded(col.id) ? 'rotate-90 text-zinc-900 dark:text-white' : 'text-zinc-400 dark:text-zinc-500'"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                              </svg>
+                            </button>
+                            <span class="truncate font-medium text-zinc-800 dark:text-zinc-200 text-xs">{{ col.name }}</span>
+                            <span class="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono font-normal">({{ getConversationsForCollection(col.id).length }})</span>
+                          </div>
+
+                          <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              (click)="createNewConversation(col.id); $event.stopPropagation()"
+                              class="p-1 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 rounded"
+                              title="New chat in this collection"
+                            >
+                              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                              </svg>
+                            </button>
+                            <button
+                              (click)="openRenameCollectionModal(col, $event)"
+                              class="p-1 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800 rounded"
+                              title="Rename collection"
+                            >
+                              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                            <button
+                              (click)="deleteCollection(col.id, $event)"
+                              class="p-1 text-zinc-400 hover:text-rose-600 hover:bg-zinc-200/80 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800 rounded"
+                              title="Delete collection"
+                            >
+                              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
 
-                        <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <!-- Collection Conversations Nested Under Folder -->
+                        @if (isCollectionExpanded(col.id)) {
+                          <div class="pl-4 pr-1 py-1 space-y-0.5 border-l border-zinc-200 dark:border-zinc-800/80 ml-3 my-0.5 animate-fade-in">
+                            @for (conv of getConversationsForCollection(col.id); track conv.id) {
+                              <div
+                                [id]="'conv-item-' + conv.id"
+                                (click)="selectConversation(conv)"
+                                draggable="true"
+                                (dragstart)="onDragStartChat(conv, $event)"
+                                (dragend)="onDragEndChat()"
+                                [ngClass]="activeConversation?.id === conv.id ? 'bg-[#f0f1f3] text-zinc-900 font-medium border border-[#dcdde1] dark:bg-[#18181b] dark:text-white dark:border-[#3f3f46]' : 'text-zinc-500 hover:text-zinc-900 hover:bg-[#f0f1f3] dark:text-[#71717a] dark:hover:text-white dark:hover:bg-[#141417]'"
+                                class="group/item flex items-center justify-between px-2 py-1 rounded-md cursor-pointer transition-all text-xs select-none relative"
+                              >
+                                <div class="flex items-center gap-1.5 truncate flex-1 min-w-0">
+                                  @if (conv.pinned) {
+                                    <svg class="w-3 h-3 text-zinc-500 dark:text-zinc-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                      <line x1="12" y1="17" x2="12" y2="22"></line>
+                                      <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>
+                                    </svg>
+                                  } @else {
+                                    <span class="w-[2px] h-3 rounded-full bg-zinc-400 group-hover/item:bg-zinc-600 dark:bg-zinc-600/70 dark:group-hover/item:bg-zinc-400 select-none flex-shrink-0"></span>
+                                  }
+                                  <span class="truncate">{{ conv.title }}</span>
+                                </div>
+                                <div class="flex items-center gap-1 flex-shrink-0">
+                                  @if (chatState.isGenerating(conv.id)) {
+                                    <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse flex-shrink-0"></span>
+                                  }
+
+                                  <!-- 3-Dot Action Button -->
+                                  <button
+                                    type="button"
+                                    (click)="toggleActionMenu(conv, $event)"
+                                    class="p-1 rounded-md text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors opacity-0 group-hover/item:opacity-100 focus:opacity-100 flex-shrink-0"
+                                    [class.opacity-100]="openActionMenuConvId === conv.id"
+                                    title="Chat options"
+                                    aria-label="Chat options"
+                                  >
+                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                                      <circle cx="12" cy="5" r="2"></circle>
+                                      <circle cx="12" cy="12" r="2"></circle>
+                                      <circle cx="12" cy="19" r="2"></circle>
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            }
+                            @if (getConversationsForCollection(col.id).length === 0) {
+                              <div class="px-2 py-1.5 flex items-center justify-between text-[11px] text-zinc-400 dark:text-zinc-500">
+                                <span class="italic text-[10px]">Empty collection</span>
+                                <button
+                                  (click)="createNewConversation(col.id)"
+                                  class="text-[10px] text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white underline underline-offset-2"
+                                >
+                                  + Add Chat
+                                </button>
+                              </div>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+
+                    <!-- Dedicated New Collection Action Row -->
+                    <button
+                      (click)="openCreateCollectionModal()"
+                      class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-[#18181b] transition-colors text-xs font-medium border border-dashed border-zinc-200 dark:border-zinc-800/80"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span>New Collection</span>
+                    </button>
+                  </div>
+                }
+              </div>
+
+              <!-- Pinned Chats Section -->
+              @if (getPinnedChats().length > 0) {
+                <div class="space-y-1">
+                  <div class="flex items-center justify-between px-2 py-1 text-xs select-none">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-[#71717a]">Pinned</span>
+                    <span class="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono font-medium">({{ getPinnedChats().length }})</span>
+                  </div>
+
+                  <div class="space-y-0.5">
+                    @for (conv of getPinnedChats(); track conv.id) {
+                      <div
+                        [id]="'conv-item-' + conv.id"
+                        (click)="selectConversation(conv)"
+                        draggable="true"
+                        (dragstart)="onDragStartChat(conv, $event)"
+                        (dragend)="onDragEndChat()"
+                        [ngClass]="activeConversation?.id === conv.id ? 'bg-[#f0f1f3] text-zinc-900 font-medium border border-[#dcdde1] dark:bg-[#18181b] dark:text-white dark:border-[#3f3f46]' : 'text-zinc-500 hover:text-zinc-900 hover:bg-[#f0f1f3] dark:text-[#71717a] dark:hover:text-white dark:hover:bg-[#141417]'"
+                        class="group flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-all text-xs select-none relative"
+                      >
+                        <div class="flex items-center gap-2 truncate flex-1 min-w-0">
+                          <svg class="w-3.5 h-3.5 flex-shrink-0 text-zinc-600 dark:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="17" x2="12" y2="22"></line>
+                            <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>
+                          </svg>
+                          <span class="truncate">{{ conv.title }}</span>
+                        </div>
+                        <div class="flex items-center gap-1 flex-shrink-0">
+                          @if (chatState.isGenerating(conv.id)) {
+                            <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse flex-shrink-0"></span>
+                          }
+                          <!-- 3-Dot Action Button -->
                           <button
-                            (click)="createNewConversation(col.id); $event.stopPropagation()"
-                            class="p-1 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 rounded"
-                            title="New chat in this collection"
+                            type="button"
+                            (click)="toggleActionMenu(conv, $event)"
+                            class="p-1 rounded-md text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 flex-shrink-0"
+                            [class.opacity-100]="openActionMenuConvId === conv.id"
+                            title="Chat options"
+                            aria-label="Chat options"
                           >
-                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-                            </svg>
-                          </button>
-                          <button
-                            (click)="openRenameCollectionModal(col, $event)"
-                            class="p-1 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800 rounded"
-                            title="Rename collection"
-                          >
-                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                          </button>
-                          <button
-                            (click)="deleteCollection(col.id, $event)"
-                            class="p-1 text-zinc-400 hover:text-rose-600 hover:bg-zinc-200/80 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800 rounded"
-                            title="Delete collection"
-                          >
-                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                              <circle cx="12" cy="5" r="2"></circle>
+                              <circle cx="12" cy="12" r="2"></circle>
+                              <circle cx="12" cy="19" r="2"></circle>
                             </svg>
                           </button>
                         </div>
                       </div>
-
-                      <!-- Collection Chats (Accordion Body) -->
-                      @if (isCollectionExpanded(col.id)) {
-                        <div class="pl-4 pr-1 py-0.5 space-y-0.5 border-l border-zinc-200 dark:border-zinc-800/60 ml-3.5 mb-1">
-                          @for (conv of getConversationsForCollection(col.id); track conv.id) {
-                            <div
-                              draggable="true"
-                              (dragstart)="onDragStartChat(conv, $event)"
-                              (dragend)="onDragEndChat()"
-                              (click)="selectConversation(conv)"
-                              [ngClass]="activeConversation?.id === conv.id ? 'bg-[#f0f1f3] text-zinc-900 font-medium border border-[#dcdde1] dark:bg-[#18181b] dark:text-white dark:border-[#3f3f46]' : 'text-zinc-600 hover:text-zinc-900 hover:bg-[#f0f1f3] dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#141417]'"
-                              class="group/item flex items-center justify-between px-2 py-1.5 rounded-lg cursor-grab active:cursor-grabbing transition-all text-xs select-none"
-                              [class.opacity-50]="draggedConversation?.id === conv.id"
-                            >
-                              <div class="flex items-center gap-1.5 truncate">
-                                <span class="w-[2px] h-3 rounded-full bg-zinc-400 group-hover/item:bg-zinc-600 dark:bg-zinc-600/70 dark:group-hover/item:bg-zinc-400 select-none flex-shrink-0"></span>
-                                <span class="truncate">{{ conv.title }}</span>
-                              </div>
-                              <div class="flex items-center gap-1">
-                                @if (chatState.isGenerating(conv.id)) {
-                                  <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse flex-shrink-0"></span>
-                                }
-                                <button
-                                  (click)="unassignFromCollection(conv, $event)"
-                                  class="opacity-0 group-hover/item:opacity-100 p-0.5 text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-white transition-opacity text-[10px]"
-                                  title="Move to Recent Chats"
-                                >
-                                  &times;
-                                </button>
-                              </div>
-                            </div>
-                          }
-                          @if (getConversationsForCollection(col.id).length === 0) {
-                            <div class="px-2 py-1.5 flex items-center justify-between text-[11px] text-zinc-400 dark:text-zinc-500">
-                              <span class="italic text-[10px]">Empty collection</span>
-                              <button
-                                (click)="createNewConversation(col.id)"
-                                class="text-[10px] text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white underline underline-offset-2"
-                              >
-                                + Add Chat
-                              </button>
-                            </div>
-                          }
-                        </div>
-                      }
-                    </div>
-                  }
-
-                  <!-- Dedicated New Collection Action Row -->
-                  <button
-                    (click)="openCreateCollectionModal()"
-                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800/40 border border-dashed border-zinc-300 hover:border-zinc-400 dark:border-zinc-800/80 dark:hover:border-zinc-700 transition-all group mt-1"
-                    title="Create new collection"
-                  >
-                    <svg class="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600 dark:text-zinc-500 dark:group-hover:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                    </svg>
-                    <span class="text-[11px] font-medium tracking-tight">New Collection</span>
-                  </button>
+                    }
+                  </div>
                 </div>
               }
-            </div>
 
-            <!-- Recent Chats / Uncollected Chats -->
-            <div
-              data-tour="recent-chats-list"
-              class="space-y-1 pt-1 rounded-xl p-1 transition-all border"
-              [ngClass]="isDragOverRecentChats ? 'bg-zinc-200/80 border-zinc-400 ring-1 ring-zinc-400 dark:bg-zinc-800/90 dark:border-white/60 dark:ring-1 dark:ring-white/50' : 'border-transparent'"
-              (dragover)="onDragOverRecentChats($event)"
-              (dragleave)="onDragLeaveRecentChats($event)"
-              (drop)="onDropOnRecentChats($event)"
-            >
-              <div class="flex items-center justify-between px-1.5 py-1 text-xs">
-                <div class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-[#71717a]">
-                  {{ searchQuery ? 'Search Results' : 'Recent Chats' }}
+              <!-- Recent Chats / Uncollected Chats -->
+              <div data-tour="recent-chats" class="space-y-1">
+                <div class="flex items-center justify-between px-2 py-1 text-xs select-none">
+                  <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-[#71717a]">Recent Chats</span>
+                  <span class="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono font-medium">({{ getRecentUncollectedChats().length }})</span>
                 </div>
-                @if (chatState.activeGenerationsCount() > 0 && !searchQuery) {
-                  <span class="text-[10px] font-mono text-zinc-700 dark:text-zinc-300">
-                    {{ chatState.activeGenerationsCount() }}/2 active
-                  </span>
+
+                @if (getRecentUncollectedChats().length === 0) {
+                  <div class="px-3 py-4 text-center text-xs text-zinc-400 dark:text-zinc-500 italic">
+                    No recent chats
+                  </div>
+                }
+
+                @for (conv of getRecentUncollectedChats(); track conv.id) {
+                  <div
+                    [id]="'conv-item-' + conv.id"
+                    (click)="selectConversation(conv)"
+                    draggable="true"
+                    (dragstart)="onDragStartChat(conv, $event)"
+                    (dragend)="onDragEndChat()"
+                    [ngClass]="activeConversation?.id === conv.id ? 'bg-[#f0f1f3] text-zinc-900 font-medium border border-[#dcdde1] dark:bg-[#18181b] dark:text-white dark:border-[#3f3f46]' : 'text-zinc-500 hover:text-zinc-900 hover:bg-[#f0f1f3] dark:text-[#71717a] dark:hover:text-white dark:hover:bg-[#141417]'"
+                    class="group flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-all text-xs select-none relative"
+                  >
+                    <div class="flex items-center gap-2 truncate flex-1 min-w-0">
+                      <svg class="w-3.5 h-3.5 flex-shrink-0 text-zinc-400 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+                      </svg>
+                      <span class="truncate">{{ conv.title }}</span>
+                    </div>
+                    <div class="flex items-center gap-1 flex-shrink-0">
+                      @if (chatState.isGenerating(conv.id)) {
+                        <span class="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-zinc-100 border border-zinc-300 text-zinc-700 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-200 text-[9px] font-mono flex-shrink-0" title="Generating in background">
+                          <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
+                          <span class="hidden sm:inline">running</span>
+                        </span>
+                      }
+
+                      <!-- 3-Dot Action Button -->
+                      <button
+                        type="button"
+                        (click)="toggleActionMenu(conv, $event)"
+                        class="p-1 rounded-md text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 flex-shrink-0"
+                        [class.opacity-100]="openActionMenuConvId === conv.id"
+                        title="Chat options"
+                        aria-label="Chat options"
+                      >
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="12" cy="5" r="2"></circle>
+                          <circle cx="12" cy="12" r="2"></circle>
+                          <circle cx="12" cy="19" r="2"></circle>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                 }
               </div>
-
-              @if (getRecentUncollectedChats().length === 0) {
-                <div class="px-3 py-3 text-center text-xs text-zinc-400 dark:text-zinc-500 italic">
-                  {{ searchQuery ? 'No chats matching "' + searchQuery + '"' : 'No uncollected chats' }}
-                </div>
-              }
-
-              @for (conv of getRecentUncollectedChats(); track conv.id) {
-                <div
-                  draggable="true"
-                  (dragstart)="onDragStartChat(conv, $event)"
-                  (dragend)="onDragEndChat()"
-                  (click)="selectConversation(conv)"
-                  [ngClass]="activeConversation?.id === conv.id ? 'bg-[#f0f1f3] text-zinc-900 font-medium border border-[#dcdde1] dark:bg-[#18181b] dark:text-white dark:border-[#3f3f46]' : 'text-zinc-600 hover:text-zinc-900 hover:bg-[#f0f1f3] dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#141417]'"
-                  class="group flex items-center justify-between px-2.5 py-2 rounded-xl cursor-grab active:cursor-grabbing transition-all text-xs select-none"
-                  [class.opacity-50]="draggedConversation?.id === conv.id"
-                >
-                  <div class="flex items-center gap-2 truncate">
-                    <span class="w-[2px] h-3.5 rounded-full bg-zinc-400 group-hover:bg-zinc-600 dark:bg-zinc-600/70 dark:group-hover:bg-zinc-400 select-none flex-shrink-0"></span>
-                    <svg class="w-3.5 h-3.5 flex-shrink-0 text-zinc-400 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
-                    </svg>
-                    <span class="truncate">{{ conv.title }}</span>
-                  </div>
-                  <div class="flex items-center gap-1">
-                    @if (chatState.isGenerating(conv.id)) {
-                      <span class="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-zinc-100 border border-zinc-300 text-zinc-700 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-200 text-[9px] font-mono flex-shrink-0" title="Generating in background">
-                        <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
-                        <span class="hidden sm:inline">running</span>
-                      </span>
-                    }
-                    <button
-                      (click)="deleteConversation(conv.id, $event)"
-                      class="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-rose-600 dark:text-zinc-500 dark:hover:text-white transition-opacity"
-                      title="Delete chat"
-                    >
-                      <svg class="w-3 h-3" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              }
-            </div>
+            }
           </div>
 
           <!-- Resizing Drag Handle (Desktop Only) -->
@@ -401,24 +531,65 @@ export interface IDynamicStarterCard {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                 </svg>
               </button>
-              <button
-                (click)="createNewConversation()"
-                class="min-w-[36px] min-h-[36px] rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#18181b] flex items-center justify-center transition-colors cursor-pointer"
-                title="New Chat"
-                aria-label="New Chat"
-              >
-                <svg class="w-4 h-4" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
+              @if (!isArchivedView) {
+                <button
+                  (click)="createNewConversation()"
+                  class="min-w-[36px] min-h-[36px] rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#18181b] flex items-center justify-center transition-colors cursor-pointer"
+                  title="New Chat"
+                  aria-label="New Chat"
+                >
+                  <svg class="w-4 h-4" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              }
             }
             <div class="w-2 h-2 rounded-full flex-shrink-0" [ngClass]="isCurrentGenerating ? 'bg-zinc-900 dark:bg-zinc-300 animate-pulse' : 'bg-zinc-400 dark:bg-zinc-600'"></div>
-            <h2 class="font-medium text-zinc-900 dark:text-white text-xs tracking-tight truncate max-w-[180px] sm:max-w-md">
-              {{ activeConversation?.title || 'New Workplace Session' }}
-            </h2>
+            <div class="flex items-center gap-2 truncate">
+              <h2 class="font-medium text-zinc-900 dark:text-white text-xs tracking-tight truncate max-w-[180px] sm:max-w-md">
+                {{ isTemporaryMode ? 'Temporary Chat' : (isArchivedView && !activeConversation ? 'Archived Chats' : (activeConversation?.title || 'New Workplace Session')) }}
+              </h2>
+              @if (activeConversation?.archived) {
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">Archived</span>
+              }
+            </div>
           </div>
 
           <div class="flex items-center gap-2">
+            @if (activeConversation?.archived) {
+              <button
+                type="button"
+                (click)="toggleArchive(activeConversation!)"
+                class="min-h-[30px] px-2.5 py-1 rounded-md text-xs border bg-white hover:bg-zinc-50 text-zinc-600 hover:text-zinc-900 dark:bg-[#18181b] dark:hover:bg-[#27272a] dark:text-[#a1a1aa] dark:hover:text-white border-[#dcdde1] dark:border-[#27272a] flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Unarchive chat"
+              >
+                <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+                <span>Unarchive</span>
+              </button>
+            }
+
+            @if (!isArchivedView) {
+              <!-- Temporary Chat Toggle -->
+              <button
+                type="button"
+                (click)="toggleTemporaryMode()"
+                [ngClass]="isTemporaryMode ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100 font-medium' : 'bg-white hover:bg-zinc-50 text-zinc-600 hover:text-zinc-900 dark:bg-[#18181b] dark:hover:bg-[#27272a] dark:text-[#a1a1aa] dark:hover:text-white border-[#dcdde1] dark:border-[#27272a]'"
+                class="min-h-[30px] px-2.5 py-1 rounded-md text-xs border flex items-center gap-2 transition-colors cursor-pointer"
+                [title]="isTemporaryMode ? 'Exit Temporary Chat' : 'Enable Temporary Chat'"
+                aria-label="Toggle temporary chat mode"
+              >
+                <span>Temporary Chat</span>
+                <span
+                  class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono uppercase font-semibold"
+                  [ngClass]="isTemporaryMode ? 'bg-white/20 text-white dark:bg-black/15 dark:text-zinc-900' : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'"
+                >
+                  {{ isTemporaryMode ? 'ON' : 'OFF' }}
+                </span>
+              </button>
+            }
+
             @if (chatState.activeGenerationsCount() > 0) {
               <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-100 border border-zinc-300 dark:bg-zinc-900 dark:border-zinc-700 text-[10px] font-mono text-zinc-700 dark:text-zinc-200">
                 <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
@@ -442,9 +613,44 @@ export interface IDynamicStarterCard {
 
         <!-- Messages Thread -->
         <div #scrollContainer class="flex-1 overflow-y-auto px-2.5 sm:px-6 lg:px-8 pt-3 pb-12 sm:pt-4 sm:pb-16 space-y-2.5 sm:space-y-4 max-w-4xl mx-auto w-full min-h-0">
-          @if (messages.length === 0 && !isCurrentGenerating) {
+          <!-- Temporary Mode Notice Banner -->
+          @if (isTemporaryMode && !isTemporaryNoticeDismissed) {
+            <div class="px-3 py-2 rounded-lg bg-zinc-100/80 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs flex items-center justify-between animate-fade-in mb-3">
+              <div class="flex items-center gap-2">
+                <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Messages from this session aren't saved to chat history.</span>
+              </div>
+              <button
+                type="button"
+                (click)="dismissTemporaryNotice()"
+                class="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer ml-3 flex-shrink-0"
+                title="Dismiss message"
+                aria-label="Dismiss message"
+              >
+                Dismiss
+              </button>
+            </div>
+          }
+
+          @if (isArchivedView && !activeConversation) {
+            <div class="h-full flex flex-col items-center justify-center text-center space-y-4 py-12 animate-fade-in my-auto">
+              <div class="w-12 h-12 rounded-2xl bg-white dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] flex items-center justify-center p-2.5 text-zinc-400">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+              </div>
+              <div class="space-y-1.5">
+                <h3 class="text-base font-semibold text-zinc-900 dark:text-white">Archived Conversations</h3>
+                <p class="text-xs text-zinc-500 dark:text-[#a1a1aa] leading-relaxed max-w-md mx-auto">
+                  Select an archived conversation from the sidebar to view its message history, citations, and analytical insights.
+                </p>
+              </div>
+            </div>
+          } @else if (messages.length === 0 && !isCurrentGenerating) {
             <div class="h-full flex flex-col items-center justify-center text-center space-y-6 py-12 animate-fade-in my-auto">
-              <div class="w-12 h-12 rounded-2xl bg-white dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] flex items-center justify-center p-2.5 shadow-sm dark:shadow-lg dark:shadow-rose-950/20">
+              <div class="w-12 h-12 rounded-2xl bg-white dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] flex items-center justify-center p-2.5">
                 <img src="/logo-icon.svg" alt="Syntra" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
               </div>
               <div class="space-y-1.5">
@@ -460,7 +666,7 @@ export interface IDynamicStarterCard {
                   @for (card of dynamicStarters; track card.title) {
                     <button
                       (click)="sendQuickPrompt(card.promptText, card.resource)"
-                      class="p-3 rounded-xl bg-white hover:bg-[#f8f9fa] dark:bg-[#111114] dark:hover:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] hover:border-zinc-400 dark:hover:border-[#3f3f46] transition-all text-xs space-y-1 group hover:scale-[1.01] shadow-xs"
+                      class="p-3 rounded-xl bg-white hover:bg-[#f8f9fa] dark:bg-[#111114] dark:hover:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] hover:border-zinc-400 dark:hover:border-[#3f3f46] transition-all text-xs space-y-1 group"
                     >
                       <div class="font-medium text-zinc-900 dark:text-white flex items-center gap-1.5 truncate">
                         <span class="text-sm flex-shrink-0">{{ card.icon }}</span>
@@ -665,104 +871,261 @@ export interface IDynamicStarterCard {
         </div>
 
         <!-- Input Box & Mention Autocomplete -->
-        <div class="p-2 sm:p-4 border-t border-zinc-200 dark:border-[#27272a] bg-[#f7f8fa] dark:bg-[#09090b] relative flex-shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-          <div class="max-w-4xl mx-auto relative">
-            <!-- Autocomplete Dropdown Component -->
-            <app-mention-autocomplete
-              [isOpen]="isMentionOpen"
-              [options]="mentionOptions"
-              (optionSelected)="onMentionSelected($event)"
-              (closed)="isMentionOpen = false"
-            ></app-mention-autocomplete>
+        @if (!isArchivedView || activeConversation) {
+          <div class="p-2 sm:p-4 border-t border-zinc-200 dark:border-[#27272a] bg-[#f7f8fa] dark:bg-[#09090b] relative flex-shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+            <div class="max-w-4xl mx-auto relative">
+              <!-- Autocomplete Dropdown Component -->
+              <app-mention-autocomplete
+                [isOpen]="isMentionOpen"
+                [options]="mentionOptions"
+                (optionSelected)="onMentionSelected($event)"
+                (closed)="isMentionOpen = false"
+              ></app-mention-autocomplete>
 
-            <!-- Attached Mention Chips -->
-            @if (attachedResources.length > 0) {
-              <div class="flex flex-wrap gap-2 mb-2">
-                @for (res of attachedResources; track res.id) {
-                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-[#3f3f46] text-zinc-800 dark:text-white text-xs font-mono shadow-2xs">
-                    <span class="text-rose-600 dark:text-rose-400 font-bold">&#64;</span>
-                    <span>{{ res.name }}</span>
-                    <button (click)="removeAttachedResource(res.id)" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white ml-1">×</button>
-                  </span>
-                }
-              </div>
-            }
+              <!-- Attached Mention Chips -->
+              @if (attachedResources.length > 0) {
+                <div class="flex flex-wrap gap-2 mb-2">
+                  @for (res of attachedResources; track res.id) {
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-[#3f3f46] text-zinc-800 dark:text-white text-xs font-mono shadow-2xs">
+                      <span class="text-rose-600 dark:text-rose-400 font-bold">&#64;</span>
+                      <span>{{ res.name }}</span>
+                      <button (click)="removeAttachedResource(res.id)" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white ml-1">×</button>
+                    </span>
+                  }
+                </div>
+              }
 
-            <!-- Concurrency Notice when limit is reached -->
-            @if (isMaxGenerationsReached) {
-              <div class="mb-2 px-3 py-1.5 rounded-lg bg-zinc-100 border border-zinc-300 dark:bg-zinc-900 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[11px] flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
-                <span>2 chats are currently generating in the background. Please wait for one to complete.</span>
-              </div>
-            }
+              <!-- Concurrency Notice when limit is reached -->
+              @if (isMaxGenerationsReached) {
+                <div class="mb-2 px-3 py-1.5 rounded-lg bg-zinc-100 border border-zinc-300 dark:bg-zinc-900 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[11px] flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
+                  <span>2 chats are currently generating in the background. Please wait for one to complete.</span>
+                </div>
+              }
 
-            <!-- Floating Prompt Container (Clean Coherent Light/Dark Card) -->
-            <div data-tour="chat-input-area" class="relative rounded-2xl bg-white dark:bg-[#121215] border border-zinc-200 dark:border-[#27272a] focus-within:border-zinc-400 dark:focus-within:border-zinc-500 p-2.5 sm:p-3 transition-all shadow-xs dark:shadow-none">
-              <div class="flex items-start gap-1">
-                <textarea
-                  #inputArea
-                  [(ngModel)]="inputText"
-                  (input)="onInputChange($event)"
-                  (keydown)="onKeyDown($event)"
-                  placeholder="Ask anything or type @ to mention files..."
-                  [disabled]="isCurrentGenerating || isMaxGenerationsReached"
-                  rows="1"
-                  class="chat-composer-textarea w-full bg-transparent border-0 text-zinc-900 dark:text-zinc-100 text-sm px-1.5 py-1 focus:outline-none focus:ring-0 resize-none max-h-36 sm:max-h-60 overflow-y-auto leading-relaxed disabled:opacity-50 transition-[height] duration-150 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
-                ></textarea>
+              <!-- Floating Prompt Container (Clean Coherent Light/Dark Card) -->
+              <div data-tour="chat-input-area" class="relative rounded-2xl bg-white dark:bg-[#121215] border border-zinc-200 dark:border-[#27272a] focus-within:border-zinc-400 dark:focus-within:border-zinc-500 p-2.5 sm:p-3 transition-all shadow-xs dark:shadow-none">
+                <div class="flex items-start gap-1">
+                  <textarea
+                    #inputArea
+                    [(ngModel)]="inputText"
+                    (input)="onInputChange($event)"
+                    (keydown)="onKeyDown($event)"
+                    placeholder="Ask anything or type @ to mention files..."
+                    [disabled]="isCurrentGenerating || isMaxGenerationsReached"
+                    rows="1"
+                    class="chat-composer-textarea w-full bg-transparent border-0 text-zinc-900 dark:text-zinc-100 text-sm px-1.5 py-1 focus:outline-none focus:ring-0 resize-none max-h-36 sm:max-h-60 overflow-y-auto leading-relaxed disabled:opacity-50 transition-[height] duration-150 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                  ></textarea>
 
-                <!-- Voice / Microphone Button in Top-Right of Input Box -->
-                <button
-                  type="button"
-                  (click)="toggleVoiceInput()"
-                  [disabled]="isCurrentGenerating || isMaxGenerationsReached"
-                  [ngClass]="voiceService.isListening ? 'bg-rose-600 text-white font-semibold' : 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1f1f23]'"
-                  class="min-w-[32px] min-h-[32px] p-1.5 rounded-xl text-xs flex items-center justify-center transition-all flex-shrink-0"
-                  [title]="voiceService.isListening ? 'Listening... Click to stop recording' : 'Voice input (Click to speak)'"
-                  aria-label="Voice input"
-                >
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                  </svg>
-                </button>
-              </div>
-
-              <div class="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800/80 mt-1">
-                <div class="flex items-center gap-1.5">
+                  <!-- Voice / Microphone Button in Top-Right of Input Box -->
                   <button
                     type="button"
-                    (click)="triggerMentionMenu($event)"
-                    data-tour="chat-mention-btn"
+                    (click)="toggleVoiceInput()"
                     [disabled]="isCurrentGenerating || isMaxGenerationsReached"
-                    class="min-h-[30px] px-2.5 py-1 rounded-xl text-zinc-700 hover:text-zinc-900 bg-zinc-50 hover:bg-zinc-100 dark:text-[#d4d4d8] dark:hover:text-white dark:bg-[#1f1f23] dark:hover:bg-[#28282d] border border-zinc-200/80 dark:border-[#2e2e33] text-xs flex items-center gap-1.5 transition-all shadow-2xs disabled:opacity-40"
-                    title="Attach & mention document or dataset"
+                    [ngClass]="voiceService.isListening ? 'bg-rose-600 text-white font-semibold' : 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1f1f23]'"
+                    class="min-w-[32px] min-h-[32px] p-1.5 rounded-xl text-xs flex items-center justify-center transition-all flex-shrink-0"
+                    [title]="voiceService.isListening ? 'Listening... Click to stop recording' : 'Voice input (Click to speak)'"
+                    aria-label="Voice input"
                   >
-                    <span class="text-rose-600 dark:text-rose-400 font-bold">&#64;</span>
-                    <span class="font-medium">Mention</span>
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
                   </button>
-                  <span class="text-xs text-zinc-500 dark:text-zinc-400 hidden sm:inline font-sans">Folder & File Scoped AI</span>
                 </div>
 
-                <button
-                  (click)="sendUserMessage()"
-                  [disabled]="isCurrentGenerating || isMaxGenerationsReached || (!inputText.trim() && attachedResources.length === 0)"
-                  class="min-h-[30px] px-3.5 sm:px-4 py-1 rounded-xl bg-zinc-900 hover:bg-black text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-all disabled:bg-zinc-100 disabled:text-zinc-400 disabled:border disabled:border-zinc-200 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600 dark:disabled:border-transparent disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0 shadow-2xs active:scale-95"
-                  title="Send (Enter)"
-                >
-                  <span>Send</span>
-                  <svg class="w-3.5 h-3.5" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
-                </button>
+                <div class="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800/80 mt-1">
+                  <div class="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      (click)="triggerMentionMenu($event)"
+                      data-tour="chat-mention-btn"
+                      [disabled]="isCurrentGenerating || isMaxGenerationsReached"
+                      class="min-h-[30px] px-2.5 py-1 rounded-xl text-zinc-700 hover:text-zinc-900 bg-zinc-50 hover:bg-zinc-100 dark:text-[#d4d4d8] dark:hover:text-white dark:bg-[#1f1f23] dark:hover:bg-[#28282d] border border-zinc-200/80 dark:border-[#2e2e33] text-xs flex items-center gap-1.5 transition-all shadow-2xs disabled:opacity-40"
+                      title="Attach & mention document or dataset"
+                    >
+                      <span class="text-rose-600 dark:text-rose-400 font-bold">&#64;</span>
+                      <span class="font-medium">Mention</span>
+                    </button>
+                    <span class="text-xs text-zinc-500 dark:text-zinc-400 hidden sm:inline font-sans">Folder & File Scoped AI</span>
+                  </div>
+
+                  <button
+                    (click)="sendUserMessage()"
+                    [disabled]="isCurrentGenerating || isMaxGenerationsReached || (!inputText.trim() && attachedResources.length === 0)"
+                    class="min-h-[30px] px-3.5 sm:px-4 py-1 rounded-xl bg-zinc-900 hover:bg-black text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-all disabled:bg-zinc-100 disabled:text-zinc-400 disabled:border disabled:border-zinc-200 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600 dark:disabled:border-transparent disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0 shadow-2xs active:scale-95"
+                    title="Send (Enter)"
+                  >
+                    <span>Send</span>
+                    <svg class="w-3.5 h-3.5" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="hidden sm:flex items-center justify-between mt-2 px-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+                <span>Press <kbd class="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-[#18181b] dark:text-zinc-400 dark:border-zinc-800 font-mono text-[10px]">Enter</kbd> to send, <kbd class="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-[#18181b] dark:text-zinc-400 dark:border-zinc-800 font-mono text-[10px]">Shift + Enter</kbd> for a new line</span>
+                <span>AI can make mistakes. Verify critical facts.</span>
               </div>
             </div>
-
-            <div class="hidden sm:flex items-center justify-between mt-2 px-1 text-[11px] text-zinc-400 dark:text-zinc-500">
-              <span>Press <kbd class="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-[#18181b] dark:text-zinc-400 dark:border-zinc-800 font-mono text-[10px]">Enter</kbd> to send, <kbd class="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-[#18181b] dark:text-zinc-400 dark:border-zinc-800 font-mono text-[10px]">Shift + Enter</kbd> for a new line</span>
-              <span>AI can make mistakes. Verify critical facts.</span>
-            </div>
           </div>
-        </div>
+        }
       </div>
+
+      <!-- Chat Action Contextual Menu Overlay -->
+      @if (openActionMenuConv) {
+        <!-- Backdrop to close on outside click -->
+        <div
+          class="fixed inset-0 z-50 bg-transparent"
+          (click)="closeActionMenus()"
+          (contextmenu)="closeActionMenus()"
+        ></div>
+
+        <!-- Menu Popover Container -->
+        <div
+          (click)="$event.stopPropagation()"
+          [style.top.px]="actionMenuPos.top"
+          [style.left.px]="actionMenuPos.left"
+          [class.-translate-y-full]="actionMenuPos.openAbove"
+          class="fixed z-50 w-44 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] rounded-lg shadow-xl py-1 text-xs text-zinc-800 dark:text-zinc-200 animate-fade-in select-none"
+        >
+          @if (!openActionMenuConv.archived) {
+            <!-- Pin / Unpin -->
+            <button
+              type="button"
+              (mouseenter)="onOtherMenuItemMouseEnter()"
+              (click)="togglePin(openActionMenuConv, $event)"
+              class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-zinc-100 dark:hover:bg-[#27272a] transition-colors text-left"
+            >
+              <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="17" x2="12" y2="22"></line>
+                <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>
+              </svg>
+              <span>{{ openActionMenuConv.pinned ? 'Unpin chat' : 'Pin chat' }}</span>
+            </button>
+
+            <!-- Archive -->
+            <button
+              type="button"
+              (mouseenter)="onOtherMenuItemMouseEnter()"
+              (click)="toggleArchive(openActionMenuConv, $event)"
+              class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-zinc-100 dark:hover:bg-[#27272a] transition-colors text-left"
+            >
+              <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+              <span>Archive chat</span>
+            </button>
+          } @else {
+            <!-- Unarchive -->
+            <button
+              type="button"
+              (mouseenter)="onOtherMenuItemMouseEnter()"
+              (click)="toggleArchive(openActionMenuConv, $event)"
+              class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-zinc-100 dark:hover:bg-[#27272a] transition-colors text-left font-medium"
+            >
+              <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+              <span>Unarchive chat</span>
+            </button>
+          }
+
+          <!-- Collection Menu Item with Nested Submenu (Available for both active and archived) -->
+          <div
+            class="relative group/submenu"
+            (mouseenter)="onCollectionRowMouseEnter()"
+          >
+            <button
+              type="button"
+              (click)="toggleCollectionSubmenu($event)"
+              class="w-full px-3 py-1.5 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-[#27272a] transition-colors text-left cursor-pointer"
+              [class.bg-zinc-100]="isCollectionSubmenuOpen"
+              [class.dark:bg-[#27272a]]="isCollectionSubmenuOpen"
+            >
+              <div class="flex items-center gap-2">
+                <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                <span>Collection</span>
+              </div>
+              <svg class="w-3 h-3 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+
+            @if (isCollectionSubmenuOpen) {
+              <!-- Submenu Flyout -->
+              <div
+                (click)="$event.stopPropagation()"
+                class="absolute top-0 z-50 w-44"
+                [ngClass]="actionMenuPos.submenuOpenLeft ? 'right-full -mr-1 pr-1' : 'left-full -ml-1 pl-1'"
+              >
+                <div class="bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] rounded-lg shadow-xl py-1 text-xs text-zinc-800 dark:text-zinc-200 max-h-56 overflow-y-auto custom-sidebar-scrollbar">
+                  @if (openActionMenuConv.collectionId) {
+                    <button
+                      type="button"
+                      (click)="setConversationCollection(openActionMenuConv, null, $event)"
+                      class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-zinc-100 dark:hover:bg-[#27272a] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white text-left font-medium transition-colors"
+                    >
+                      <span>Remove from collection</span>
+                    </button>
+                    <div class="my-1 border-t border-zinc-100 dark:border-zinc-800"></div>
+                  }
+
+                  @if (collections.length === 0) {
+                    <div class="px-3 py-1.5 text-zinc-400 dark:text-zinc-500 italic text-[11px]">
+                      No collections
+                    </div>
+                  } @else {
+                    @for (c of collections; track c.id) {
+                      <button
+                        type="button"
+                        (click)="setConversationCollection(openActionMenuConv, c.id, $event)"
+                        class="w-full px-3 py-1.5 flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-[#27272a] text-left transition-colors"
+                      >
+                        <span class="truncate">{{ c.name }}</span>
+                        @if (openActionMenuConv.collectionId === c.id) {
+                          <svg class="w-3.5 h-3.5 text-zinc-900 dark:text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                          </svg>
+                        }
+                      </button>
+                    }
+                  }
+
+                  <div class="my-1 border-t border-zinc-100 dark:border-zinc-800"></div>
+                  <button
+                    type="button"
+                    (click)="openCreateCollectionForConversation(openActionMenuConv, $event)"
+                    class="w-full px-3 py-1.5 flex items-center gap-1.5 hover:bg-zinc-100 dark:hover:bg-[#27272a] text-zinc-900 dark:text-white font-medium text-left transition-colors"
+                  >
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>Create collection</span>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="my-1 border-t border-zinc-100 dark:border-zinc-800"></div>
+
+          <!-- Delete Chat -->
+          <button
+            type="button"
+            (mouseenter)="onOtherMenuItemMouseEnter()"
+            (click)="deleteConversation(openActionMenuConv.id, $event)"
+            class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 transition-colors text-left"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span>Delete chat</span>
+          </button>
+        </div>
+      }
 
       <!-- File Download Error Toast -->
       @if (fileDownloadError) {
@@ -825,6 +1188,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   private voiceSub?: Subscription;
   private voiceErrorSub?: Subscription;
   private routeSub?: Subscription;
+  private queryParamsSub?: Subscription;
 
   @ViewChild('scrollContainer') scrollContainer?: ElementRef<HTMLDivElement>;
   @ViewChild('convScrollContainer') convScrollContainer?: ElementRef<HTMLDivElement>;
@@ -1097,6 +1461,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.voiceSub?.unsubscribe();
     this.voiceErrorSub?.unsubscribe();
     this.routeSub?.unsubscribe();
+    this.queryParamsSub?.unsubscribe();
   }
 
   private voiceBaseText = '';
@@ -1149,6 +1514,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   draggedConversation: IConversation | null = null;
   dragOverCollectionId: string | null = null;
   isDragOverRecentChats = false;
+  isDragOverCollectionsHeader = false;
   private autoScrollRafId: number | null = null;
   private autoScrollSpeed = 0;
   undoToast: { message: string; conversationId: string; previousCollectionId: string | null; timer: any } | null = null;
@@ -1354,6 +1720,28 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
         }
       }
     });
+
+    // Query param subscription for navigating to archived chats view
+    this.queryParamsSub = this.route.queryParams.subscribe((queryParams) => {
+      const wasArchived = this.isArchivedView;
+      this.isArchivedView = queryParams['view'] === 'archived';
+      if (this.isArchivedView) {
+        this.isArchivedGroupExpanded = true;
+      }
+      if (wasArchived !== this.isArchivedView) {
+        this.clearSearch();
+        if (this.isArchivedView) {
+          if (this.activeConversation && !this.activeConversation.archived) {
+            this.activeConversation = null;
+          }
+        } else {
+          if (this.activeConversation && this.activeConversation.archived) {
+            const activeChats = this.displayedConversations.filter((c) => !c.archived);
+            this.activeConversation = activeChats.length > 0 ? activeChats[0] : null;
+          }
+        }
+      }
+    });
   }
 
   // ---------------- Collection Collapse State Persistence ----------------
@@ -1460,14 +1848,292 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.savePersistedCollectionState();
   }
 
-  getConversationsForCollection(colId: string): IConversation[] {
+  // Chat management state
+  openActionMenuConv: IConversation | null = null;
+  openActionMenuConvId: string | null = null;
+  actionMenuPos: { top: number; left: number; openAbove: boolean; submenuOpenLeft: boolean } = {
+    top: 0,
+    left: 0,
+    openAbove: false,
+    submenuOpenLeft: false,
+  };
+  isCollectionSubmenuOpen = false;
+  isArchivedGroupExpanded = false;
+  isArchivedView = false;
+  isTemporaryMode = false;
+  isTemporaryNoticeDismissed = false;
+  temporaryConversation: IConversation | null = null;
+  previousPersistentConversation: IConversation | null = null;
+  pendingCollectionId: string | null = null;
+  private isCreatingNewConversation = false;
+
+  toggleActionMenu(conv: IConversation, event: MouseEvent): void {
+    event.stopPropagation();
+    if (this.openActionMenuConvId === conv.id) {
+      this.closeActionMenus();
+      return;
+    }
+
+    const button = (event.currentTarget as HTMLElement) || (event.target as HTMLElement);
+    const rect = button.getBoundingClientRect();
+    const menuWidth = 176; // w-44 = 176px
+    const menuEstimatedHeight = 160;
+    const submenuWidth = 176;
+
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openAbove = spaceBelow < menuEstimatedHeight && rect.top > menuEstimatedHeight;
+    const top = openAbove ? Math.max(8, rect.top - 4) : rect.bottom + 4;
+
+    let left = rect.right - menuWidth;
+    if (left < 8) left = 8;
+    if (left + menuWidth > window.innerWidth - 8) {
+      left = window.innerWidth - menuWidth - 8;
+    }
+
+    const submenuOpenLeft = left + menuWidth + submenuWidth > window.innerWidth - 8;
+
+    this.openActionMenuConv = conv;
+    this.openActionMenuConvId = conv.id;
+    this.actionMenuPos = { top, left, openAbove, submenuOpenLeft };
+    this.isCollectionSubmenuOpen = false;
+  }
+
+  onCollectionRowMouseEnter(): void {
+    this.isCollectionSubmenuOpen = true;
+  }
+
+  onOtherMenuItemMouseEnter(): void {
+    this.isCollectionSubmenuOpen = false;
+  }
+
+  toggleCollectionSubmenu(event: MouseEvent): void {
+    event.stopPropagation();
+    this.isCollectionSubmenuOpen = !this.isCollectionSubmenuOpen;
+  }
+
+  closeActionMenus(): void {
+    this.openActionMenuConvId = null;
+    this.openActionMenuConv = null;
+    this.isCollectionSubmenuOpen = false;
+  }
+
+  toggleArchivedGroupExpand(): void {
+    this.isArchivedGroupExpanded = !this.isArchivedGroupExpanded;
+  }
+
+  togglePin(conv: IConversation, event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    this.closeActionMenus();
+    const newPinned = !conv.pinned;
+    conv.pinned = newPinned;
+
+    if (newPinned) {
+      this.api.pinConversation(conv.id).subscribe();
+    } else {
+      this.api.unpinConversation(conv.id).subscribe();
+    }
+  }
+
+  toggleArchive(conv: IConversation, event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    this.closeActionMenus();
+    const newArchived = !conv.archived;
+    conv.archived = newArchived;
+
+    if (newArchived) {
+      this.api.archiveConversation(conv.id).subscribe({
+        next: (updated) => {
+          const idx = this.conversations.findIndex((c) => c.id === conv.id);
+          if (idx !== -1) {
+            this.conversations[idx] = { ...this.conversations[idx], archived: true };
+          }
+          const fIdx = this.filteredConversations.findIndex((c) => c.id === conv.id);
+          if (fIdx !== -1) {
+            this.filteredConversations[fIdx] = { ...this.filteredConversations[fIdx], archived: true };
+          }
+        },
+        error: (err) => {
+          conv.archived = !newArchived;
+          this.modal.alert(err.error?.message || 'Failed to archive chat', 'Error');
+        },
+      });
+      if (!this.isArchivedView && this.activeConversation?.id === conv.id) {
+        const remaining = this.displayedConversations.filter((c) => !c.archived);
+        this.activeConversation = remaining.length > 0 ? remaining[0] : null;
+      }
+    } else {
+      this.api.unarchiveConversation(conv.id).subscribe({
+        next: (updated) => {
+          const idx = this.conversations.findIndex((c) => c.id === conv.id);
+          if (idx !== -1) {
+            this.conversations[idx] = { ...this.conversations[idx], archived: false };
+          }
+          const fIdx = this.filteredConversations.findIndex((c) => c.id === conv.id);
+          if (fIdx !== -1) {
+            this.filteredConversations[fIdx] = { ...this.filteredConversations[fIdx], archived: false };
+          }
+        },
+        error: (err) => {
+          conv.archived = !newArchived;
+          this.modal.alert(err.error?.message || 'Failed to unarchive chat', 'Error');
+        },
+      });
+      if (this.isArchivedView && this.activeConversation?.id === conv.id) {
+        const remaining = this.getArchivedChats();
+        this.activeConversation = remaining.length > 0 ? remaining[0] : null;
+      }
+    }
+  }
+
+  setConversationCollection(conv: IConversation, collectionId: string | null, event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    this.closeActionMenus();
+    const prevCollectionId = conv.collectionId || null;
+    if (prevCollectionId === collectionId) return;
+
+    conv.collectionId = collectionId;
+    if (collectionId) {
+      this.isCollectionsGroupExpanded = true;
+      this.expandedCollectionIds.add(collectionId);
+      this.savePersistedCollectionState();
+    }
+
+    const targetCol = collectionId ? this.collections.find((c) => c.id === collectionId) : null;
+    const colName = targetCol ? targetCol.name : 'Recent Chats';
+
+    this.api.moveConversationToCollection(conv.id, collectionId).subscribe({
+      next: () => {
+        this.showUndoToast(`Moved "${conv.title}" to ${colName}`, conv.id, prevCollectionId);
+      },
+      error: (err) => {
+        conv.collectionId = prevCollectionId;
+        this.modal.alert(err.error?.message || 'Failed to move chat', 'Error');
+      },
+    });
+  }
+
+  async openCreateCollectionForConversation(conv: IConversation, event?: MouseEvent): Promise<void> {
+    if (event) event.stopPropagation();
+    this.closeActionMenus();
+    const name = await this.modal.prompt(
+      'Enter a name for your new collection:',
+      'New Collection',
+      '',
+      'e.g. Q1 Audits, Project Athena...'
+    );
+    if (!name || !name.trim()) return;
+    const trimmed = name.trim();
+
+    this.api.createCollection({ name: trimmed }).subscribe({
+      next: (newCol) => {
+        this.collections.unshift(newCol);
+        this.expandedCollectionIds.add(newCol.id);
+        this.isCollectionsGroupExpanded = true;
+        this.savePersistedCollectionState();
+        this.setConversationCollection(conv, newCol.id, event);
+      },
+      error: (err) => {
+        this.modal.alert(err.error?.message || 'Failed to create collection', 'Error');
+      },
+    });
+  }
+
+  dismissTemporaryNotice(): void {
+    this.isTemporaryNoticeDismissed = true;
+  }
+
+  enableTemporaryChat(): void {
+    if (this.isTemporaryMode) return;
+
+    // 1. Capture current persistent conversation if available
+    if (this.activeConversation && !this.activeConversation.id.startsWith('temp-')) {
+      this.persistActiveDraft();
+      this.previousPersistentConversation = this.activeConversation;
+    }
+
+    // 2. Set temporary mode state
+    this.isTemporaryMode = true;
+    this.isTemporaryNoticeDismissed = false;
+
+    // 3. Create fresh frontend-only temporary session (no MongoDB record)
+    const tempId = 'temp-session-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+    this.temporaryConversation = {
+      id: tempId,
+      title: 'Temporary Chat',
+      userId: this.authService.currentUser()?.id || '',
+      collectionId: null,
+      attachedResourceIds: [],
+      pinned: false,
+      archived: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    // 4. Reset composer and memory messages
+    this.activeConversation = this.temporaryConversation;
+    this.inputText = '';
+    this.attachedResources = [];
+    this.chatState.setMessages(tempId, []);
+    this.dismissError();
+    this.focusInput();
+  }
+
+  exitTemporaryChat(): void {
+    if (!this.isTemporaryMode) return;
+
+    this.isTemporaryMode = false;
+    this.isTemporaryNoticeDismissed = false;
+
+    if (this.temporaryConversation) {
+      this.chatState.deleteConversationState(this.temporaryConversation.id);
+      this.temporaryConversation = null;
+    }
+
+    // Return to previous persistent conversation if still available in list
+    if (
+      this.previousPersistentConversation &&
+      this.conversations.some((c) => c.id === this.previousPersistentConversation!.id)
+    ) {
+      const prev = this.conversations.find((c) => c.id === this.previousPersistentConversation!.id)!;
+      this.previousPersistentConversation = null;
+      this.selectConversation(prev);
+    } else {
+      this.previousPersistentConversation = null;
+      const activeChats = this.displayedConversations.filter((c) => !c.archived);
+      if (activeChats.length > 0) {
+        this.selectConversation(activeChats[0]);
+      } else {
+        this.createNewConversation();
+      }
+    }
+  }
+
+  toggleTemporaryMode(): void {
+    if (this.isTemporaryMode) {
+      this.exitTemporaryChat();
+    } else {
+      this.enableTemporaryChat();
+    }
+  }
+
+  getPinnedChats(): IConversation[] {
     const pool = this.searchQuery ? this.filteredConversations : this.displayedConversations;
-    return pool.filter((c) => c.collectionId === colId);
+    return pool.filter((c) => !c.archived && c.pinned && !c.collectionId);
   }
 
   getRecentUncollectedChats(): IConversation[] {
     const pool = this.searchQuery ? this.filteredConversations : this.displayedConversations;
-    return pool.filter((c) => !c.collectionId);
+    return pool.filter((c) => !c.archived && !c.pinned && !c.collectionId);
+  }
+
+  getConversationsForCollection(colId: string): IConversation[] {
+    const pool = this.searchQuery ? this.filteredConversations : this.displayedConversations;
+    return pool.filter((c) => !c.archived && c.collectionId === colId);
+  }
+
+  getArchivedChats(): IConversation[] {
+    const pool = this.searchQuery ? this.filteredConversations : this.displayedConversations;
+    return pool.filter((c) => !!c.archived);
   }
 
   async openCreateCollectionModal(): Promise<void> {
@@ -1561,7 +2227,38 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.draggedConversation = null;
     this.dragOverCollectionId = null;
     this.isDragOverRecentChats = false;
+    this.isDragOverCollectionsHeader = false;
     this.stopAutoScroll();
+  }
+
+  onDragOverCollectionsHeader(event: DragEvent): void {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+    this.isDragOverCollectionsHeader = true;
+
+    // Automatically expand the Collections section accordion if closed
+    if (!this.isCollectionsGroupExpanded) {
+      this.isCollectionsGroupExpanded = true;
+      this.savePersistedCollectionState();
+    }
+  }
+
+  onDragLeaveCollectionsHeader(event: DragEvent): void {
+    this.isDragOverCollectionsHeader = false;
+  }
+
+  onDropOnCollectionsHeader(event: DragEvent): void {
+    event.preventDefault();
+    this.isDragOverCollectionsHeader = false;
+    this.stopAutoScroll();
+
+    // Ensure collections section is open
+    if (!this.isCollectionsGroupExpanded) {
+      this.isCollectionsGroupExpanded = true;
+      this.savePersistedCollectionState();
+    }
   }
 
   onDragOverScrollContainer(event: DragEvent): void {
@@ -1638,6 +2335,20 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
     // Optimistically update
     conv.collectionId = colId;
+
+    // Automatically expand main collections group & target collection on drop if collapsed
+    let stateChanged = false;
+    if (!this.isCollectionsGroupExpanded) {
+      this.isCollectionsGroupExpanded = true;
+      stateChanged = true;
+    }
+    if (!this.expandedCollectionIds.has(colId)) {
+      this.expandedCollectionIds.add(colId);
+      stateChanged = true;
+    }
+    if (stateChanged) {
+      this.savePersistedCollectionState();
+    }
 
     if (this.walkthroughService.isDemoMode()) {
       this.walkthroughService.moveDemoConversation(conv.id, colId);
@@ -1801,6 +2512,9 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       if (!this.searchQuery) {
         this.filteredConversations = convs;
       }
+      if (this.isTemporaryMode) {
+        return;
+      }
       const routeId = this.route.snapshot.paramMap.get('id');
       if (routeId) {
         const found = convs.find((c) => c.id === routeId);
@@ -1809,8 +2523,11 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
         } else {
           this.restoreDraftForConversation(routeId);
         }
-      } else if (convs.length > 0 && !this.activeConversation) {
-        this.selectConversation(convs[0]);
+      } else if (!this.isArchivedView && convs.length > 0 && !this.activeConversation) {
+        const activeConvs = convs.filter((c) => !c.archived);
+        if (activeConvs.length > 0) {
+          this.selectConversation(activeConvs[0]);
+        }
       } else if (!this.activeConversation) {
         this.restoreDraftForConversation(TEMPORARY_NEW_CHAT_ID);
       }
@@ -1828,7 +2545,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     }
 
     this.searchDebounceTimer = setTimeout(() => {
-      this.api.searchConversations(query).subscribe({
+      this.api.searchConversations(query, this.isArchivedView ? true : undefined).subscribe({
         next: (results) => {
           this.filteredConversations = results;
         },
@@ -1855,10 +2572,23 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       this.persistActiveDraft();
     }
 
+    // If selecting a persistent chat while in temporary mode, exit temporary mode cleanly
+    if (this.isTemporaryMode && conv.id !== this.temporaryConversation?.id) {
+      this.isTemporaryMode = false;
+      this.isTemporaryNoticeDismissed = false;
+      if (this.temporaryConversation) {
+        this.chatState.deleteConversationState(this.temporaryConversation.id);
+        this.temporaryConversation = null;
+      }
+      this.previousPersistentConversation = null;
+    }
+
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
       this.isConvCollapsed = true;
     }
 
+    this.pendingCollectionId = null;
+    this.isCreatingNewConversation = false;
     this.activeConversation = conv;
 
     // Auto-expand parent collection if this conversation belongs to one
@@ -1873,34 +2603,91 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     // Immediately restore draft for target chat
     this.restoreDraftForConversation(conv.id);
 
-    // Check if messages already in chatState cache
-    if (!this.chatState.getCachedMessages(conv.id)) {
-      this.api.getMessages(conv.id).subscribe((msgs) => {
-        this.chatState.setMessages(conv.id, msgs);
-        if (this.activeConversation?.id === conv.id) {
-          this.shouldScroll = true;
-        }
+    // Check if messages already in chatState cache (only for real persistent chats)
+    if (!conv.id.startsWith('temp-') && !this.chatState.getCachedMessages(conv.id)) {
+      this.api.getMessages(conv.id).subscribe({
+        next: (msgs) => {
+          this.chatState.setMessages(conv.id, msgs);
+          if (this.activeConversation?.id === conv.id) {
+            this.shouldScroll = true;
+          }
+        },
+        error: () => {
+          this.chatState.setMessages(conv.id, []);
+        },
       });
     } else {
       this.shouldScroll = true;
     }
+
+    this.scrollToConversation(conv.id);
+  }
+
+  scrollToConversation(convId?: string): void {
+    if (typeof window === 'undefined') return;
+    setTimeout(() => {
+      if (convId) {
+        const itemEl = document.getElementById('conv-item-' + convId);
+        if (itemEl) {
+          itemEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          return;
+        }
+      }
+      if (this.convScrollContainer?.nativeElement) {
+        this.convScrollContainer.nativeElement.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 60);
   }
 
   createNewConversation(collectionId?: string | null): void {
     this.persistActiveDraft();
 
-    this.api.createConversation({ title: 'New Conversation', collectionId: collectionId || undefined }).subscribe((newConv) => {
-      this.conversations.unshift(newConv);
-      if (collectionId) {
-        this.expandedCollectionIds.add(collectionId);
+    if (this.isTemporaryMode) {
+      // Create fresh temporary session without MongoDB call
+      if (this.temporaryConversation) {
+        this.chatState.deleteConversationState(this.temporaryConversation.id);
       }
-      this.clearSearch();
-      this.selectConversation(newConv);
-    });
+      const tempId = 'temp-session-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+      this.temporaryConversation = {
+        id: tempId,
+        title: 'Temporary Chat',
+        userId: this.authService.currentUser()?.id || '',
+        collectionId: null,
+        attachedResourceIds: [],
+        pinned: false,
+        archived: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      this.activeConversation = this.temporaryConversation;
+      this.inputText = '';
+      this.attachedResources = [];
+      this.chatState.setMessages(tempId, []);
+      this.dismissError();
+      this.focusInput();
+      this.scrollToConversation(tempId);
+      return;
+    }
+
+    // Deferred creation for persistent chat: NO MongoDB call until first message send
+    this.pendingCollectionId = collectionId || null;
+    this.isCreatingNewConversation = false;
+    this.activeConversation = null;
+    this.inputText = '';
+    this.attachedResources = [];
+    this.dismissError();
+    this.restoreDraftForConversation(TEMPORARY_NEW_CHAT_ID);
+    this.focusInput();
+    if (collectionId) {
+      this.isCollectionsGroupExpanded = true;
+      this.expandedCollectionIds.add(collectionId);
+      this.savePersistedCollectionState();
+    }
   }
 
   async deleteConversation(id: string, event: MouseEvent): Promise<void> {
     event.stopPropagation();
+    this.closeActionMenus();
     const confirmed = await this.modal.confirmDanger(
       'Are you sure you want to permanently delete this chat and its history?',
       'Delete Chat',
@@ -1914,7 +2701,13 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       this.conversations = this.conversations.filter((c) => c.id !== id);
       this.filteredConversations = this.filteredConversations.filter((c) => c.id !== id);
       if (this.activeConversation?.id === id) {
-        this.activeConversation = this.conversations[0] || null;
+        if (this.isArchivedView) {
+          const remaining = this.getArchivedChats();
+          this.activeConversation = remaining.length > 0 ? remaining[0] : null;
+        } else {
+          const remaining = this.displayedConversations.filter((c) => !c.archived);
+          this.activeConversation = remaining.length > 0 ? remaining[0] : null;
+        }
         if (this.activeConversation) {
           this.selectConversation(this.activeConversation);
         } else {
@@ -2041,15 +2834,35 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     }
 
     if (!this.activeConversation) {
-      this.api.createConversation({ title: this.inputText.slice(0, 30) || 'New Chat' }).subscribe({
+      if (this.isTemporaryMode) {
+        this.enableTemporaryChat();
+        this.executeSendMessage();
+        return;
+      }
+
+      if (this.isCreatingNewConversation) return;
+      this.isCreatingNewConversation = true;
+
+      const targetColId = this.pendingCollectionId || undefined;
+      const initialTitle = this.inputText.trim().slice(0, 30) || 'New Conversation';
+
+      this.api.createConversation({ title: initialTitle, collectionId: targetColId }).subscribe({
         next: (newConv) => {
+          this.isCreatingNewConversation = false;
+          this.pendingCollectionId = null;
           this.chatDraftService.migrateDraft(TEMPORARY_NEW_CHAT_ID, newConv.id);
           this.conversations.unshift(newConv);
+          if (targetColId) {
+            this.expandedCollectionIds.add(targetColId);
+            this.savePersistedCollectionState();
+          }
           this.clearSearch();
           this.activeConversation = newConv;
           this.executeSendMessage();
+          this.scrollToConversation(newConv.id);
         },
         error: () => {
+          this.isCreatingNewConversation = false;
           this.localError = 'Failed to create new conversation. Please check your connection.';
         },
       });
@@ -2079,18 +2892,20 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
     this.chatState
       .sendMessageStream(convId, content, resourceIds, (updatedConv) => {
-        const convIdx = this.conversations.findIndex((c) => c.id === updatedConv.id);
-        if (convIdx !== -1) {
-          this.conversations[convIdx] = updatedConv;
+        if (!this.isTemporaryMode) {
+          const convIdx = this.conversations.findIndex((c) => c.id === updatedConv.id);
+          if (convIdx !== -1) {
+            this.conversations[convIdx] = updatedConv;
+          }
+          const filteredIdx = this.filteredConversations.findIndex((c) => c.id === updatedConv.id);
+          if (filteredIdx !== -1) {
+            this.filteredConversations[filteredIdx] = updatedConv;
+          }
+          if (this.activeConversation?.id === updatedConv.id) {
+            this.activeConversation = updatedConv;
+          }
         }
-        const filteredIdx = this.filteredConversations.findIndex((c) => c.id === updatedConv.id);
-        if (filteredIdx !== -1) {
-          this.filteredConversations[filteredIdx] = updatedConv;
-        }
-        if (this.activeConversation?.id === updatedConv.id) {
-          this.activeConversation = updatedConv;
-        }
-      })
+      }, this.isTemporaryMode)
       .then(() => {
         if (this.activeConversation?.id === convId) {
           this.shouldScroll = true;
@@ -2186,9 +3001,20 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     }
   }
 
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.closeActionMenus();
+  }
+
+  @HostListener('window:keydown.escape')
+  onEscapeKeyDown(): void {
+    this.closeActionMenus();
+  }
+
   @HostListener('click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
+
     const copyBtn = target.closest('.copy-code-btn') as HTMLButtonElement | null;
     if (!copyBtn) return;
 

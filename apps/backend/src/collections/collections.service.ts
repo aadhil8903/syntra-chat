@@ -145,12 +145,16 @@ export class CollectionsService {
         throw new ForbiddenException('Target collection not found or not owned by user');
       }
 
-      conv.collectionId = new Types.ObjectId(targetCollectionId);
+      await this.conversationModel.findOneAndUpdate(
+        { _id: new Types.ObjectId(conversationId), userId: new Types.ObjectId(userId) },
+        { $set: { collectionId: new Types.ObjectId(targetCollectionId) } },
+      );
     } else {
-      (conv as any).collectionId = undefined;
+      await this.conversationModel.findOneAndUpdate(
+        { _id: new Types.ObjectId(conversationId), userId: new Types.ObjectId(userId) },
+        { $unset: { collectionId: 1 } },
+      );
     }
-
-    await conv.save();
   }
 
   async getSharedMemory(userId: string, collectionId: string): Promise<string> {
