@@ -565,7 +565,7 @@ export interface IDynamicStarterCard {
                         <!-- Left: Compact File Type Badge + Filename -->
                         <div class="flex items-center gap-2 min-w-0">
                           <span class="flex-shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400">
-                            PDF
+                            {{ (msg.downloadableFile.fileName.split('.').pop() || 'FILE').toUpperCase() }}
                           </span>
                           <span class="text-xs font-medium text-zinc-900 group-hover/file-card:text-black dark:text-zinc-100 dark:group-hover/file-card:text-white truncate max-w-[220px]" [title]="msg.downloadableFile.fileName">
                             {{ msg.downloadableFile.fileName }}

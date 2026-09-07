@@ -1,6 +1,7 @@
 import {
   Injectable,
   Inject,
+  Optional,
   BadRequestException,
   NotFoundException,
   ForbiddenException,
@@ -9,6 +10,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { DocumentEntity, DocumentEntityDocument } from './schemas/document.schema';
+import { DatasetEntity, DatasetEntityDocument } from '../datasets/schemas/dataset.schema';
 import {
   IDocument,
   DocumentStatus,
@@ -46,6 +48,9 @@ export class DocumentsService {
     private readonly accessRequestsService: AccessRequestsService,
     private readonly aclResolver: AclResolverService,
     private readonly foldersService: FoldersService,
+    @Optional()
+    @InjectModel(DatasetEntity.name)
+    private readonly datasetModel?: Model<DatasetEntityDocument>,
   ) {}
 
   private mapFileType(extension: string): SupportedDocumentFormat {
@@ -430,11 +435,14 @@ export class DocumentsService {
   async canUserDownloadDocument(
     userId: string,
     documentId: string,
-  ): Promise<{ canDownload: boolean; reason?: string; document?: DocumentEntityDocument }> {
+  ): Promise<{ canDownload: boolean; reason?: string; document?: any }> {
     if (!Types.ObjectId.isValid(documentId)) {
       return { canDownload: false, reason: 'DOCUMENT_NOT_FOUND' };
     }
-    const doc = await this.documentModel.findById(documentId).exec();
+    let doc: any = await this.documentModel.findById(documentId).exec();
+    if (!doc && this.datasetModel) {
+      doc = await this.datasetModel.findById(documentId).exec();
+    }
     if (!doc) {
       return { canDownload: false, reason: 'DOCUMENT_NOT_FOUND' };
     }
@@ -571,9 +579,29 @@ export class DocumentsService {
     reason?: string;
   }> {
     const accessibleDocs = await this.findAllAccessible(userId);
-    const allPdfs = accessibleDocs.filter(
+    let allPdfs: IDocument[] = accessibleDocs.filter(
       (d) => d.fileType === SupportedDocumentFormat.PDF || (d.originalName || '').toLowerCase().endsWith('.pdf'),
     );
+    if (this.datasetModel) {
+      try {
+        const allDatasets = await this.datasetModel.find({}).exec();
+        for (const ds of allDatasets) {
+          if (!allPdfs.some((p) => p.id === ds._id.toString() || p.originalName.toLowerCase() === ds.originalName.toLowerCase())) {
+            allPdfs.push({
+              id: ds._id.toString(),
+              originalName: ds.originalName,
+              fileType: ds.fileType as any,
+              fileSize: ds.fileSize,
+              mimeType: ds.mimeType,
+              folder: ds.folder,
+              hasAccess: true,
+            } as any);
+          }
+        }
+      } catch (e) {
+        this.logger.warn(`Could not load datasets for resolvePdfRequest: ${e}`);
+      }
+    }
     const accessiblePdfs = allPdfs.filter((d) => d.hasAccess);
 
     if (allPdfs.length === 0) {
@@ -582,13 +610,31 @@ export class DocumentsService {
 
     const lowerQuery = query.toLowerCase().trim();
 
+    // 0. Direct Active Scope resolution
+    if (activeScope && activeScope.type !== 'folder') {
+      const scopeDoc = accessibleDocs.find((d) => d.id === activeScope.id || (activeScope.name && d.originalName.toLowerCase() === activeScope.name.toLowerCase()));
+      if (scopeDoc) {
+        const isDlQuery = /\b(download|get|give me|send me|fetch|file|pdf|this|it|that)\b/i.test(lowerQuery);
+        if (isDlQuery) {
+          const authCheck = await this.canUserDownloadDocument(userId, scopeDoc.id);
+          return {
+            matchType: 'exact',
+            found: true,
+            document: scopeDoc,
+            canDownload: authCheck.canDownload,
+            reason: authCheck.reason,
+          };
+        }
+      }
+    }
+
     // 1. Direct @mention or explicit filename extraction
     const mentionMatch = query.match(/@([a-zA-Z0-9_\-\.\s]+?\.(?:pdf|docx|xlsx|csv|txt)|[a-zA-Z0-9_\-]+)/i);
     if (mentionMatch && mentionMatch[1]) {
       const cleanMention = mentionMatch[1].trim().toLowerCase();
       const mentionedDoc = allPdfs.find((d) => {
         const orig = d.originalName.toLowerCase();
-        const noExt = orig.replace(/\.pdf$/i, '');
+        const noExt = orig.replace(/\.[a-zA-Z0-9]+$/i, '');
         return orig === cleanMention || orig === `${cleanMention}.pdf` || noExt === cleanMention || d.id === cleanMention;
       });
       if (mentionedDoc) {
@@ -603,15 +649,15 @@ export class DocumentsService {
       }
     }
 
-    // 2. Contextual Reference: "the file", "the pdf", "this file", "download it", "give me the file"
-    const isReferential = /\b(the file|the pdf|the document|this file|this pdf|this document|download it|download this|get it|get this)\b/i.test(lowerQuery);
+    // 2. Contextual Reference: "that file", "the file", "the pdf", "download it", "give me that", etc.
+    const isReferential = /\b(that file|that pdf|that document|that dataset|the file|the pdf|the document|the dataset|this file|this pdf|this document|this dataset|download it|download this|download that|get it|get this|get that|give me that|give me this|give me the file|give me that file|i wanna download|i want to download|can i download)\b/i.test(lowerQuery);
     if (isReferential && history && history.length > 0) {
       // Look backward from most recent messages for any mentioned accessible document
       for (let i = history.length - 1; i >= 0; i--) {
         const msgContent = history[i].content.toLowerCase();
         for (const doc of accessiblePdfs) {
           const docName = doc.originalName.toLowerCase();
-          const docNoExt = docName.replace(/\.pdf$/i, '');
+          const docNoExt = docName.replace(/\.[a-zA-Z0-9]+$/i, '');
           if (msgContent.includes(docName) || (docNoExt.length >= 4 && msgContent.includes(docNoExt))) {
             const authCheck = await this.canUserDownloadDocument(userId, doc.id);
             return {
@@ -629,11 +675,12 @@ export class DocumentsService {
     // 3. Clean query for semantic and token matching
     let cleanQuery = lowerQuery
       .replace(/@[a-zA-Z0-9_\-\.]+/g, '')
-      .replace(/^(give me the|give me|can i get the|can i get|can i download the|can i download|download the|download|find the pdf for the|find the pdf for|find the pdf|find the|find|get me the pdf from the|get me the pdf from|get me the pdf|get me the|get me|where is the|please send me the|show me the pdf for|show me the pdf|show me the|fetch the|open the|i need the|i need|send me the|send me|locate the)\s+/i, '')
+      .replace(/^(give me that file|give me the file|give me that|give me this|give me the|give me|can i get the|can i get|can i download the|can i download that|can i download this|can i download|download that file|download the file|download that|download the|download|find the pdf for the|find the pdf for|find the pdf|find the file|find the|find|get me the pdf from the|get me the pdf from|get me the pdf|get me the file|get me the|get me|where is the|please send me the|show me the pdf for|show me the pdf|show me the|fetch the|open the|i need the|i need|send me the|send me|locate the)\s*/i, '')
       .replace(/\s+(?:from|in)\s+(?:the\s+)?([a-zA-Z0-9_\-\s]+?)\s+folder$/i, '')
-      .replace(/\s+(i wanna download this|i want to download this|i want to download|can i download|download this|please download|for me)\s*$/i, '')
+      .replace(/\s*(i wanna download this|i wanna download that|i wanna download|i want to download this|i want to download that|i want to download|can i download|download this|download that|please download|for me)\s*$/i, '')
       .replace(/\s+(pdf|file|document)$/i, '')
-      .replace(/\.pdf$/i, '')
+      .replace(/^[.\s_\-]+|[.\s_\-]+$/g, '')
+      .replace(/\.[a-zA-Z0-9]+$/i, '')
       .trim();
 
     // Check if query specifies a folder context

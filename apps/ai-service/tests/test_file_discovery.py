@@ -152,3 +152,105 @@ def test_file_request_alternative_suggestion():
         assert "Q3 Sales Report - Final.pdf" in res.get("final_answer", "")
         assert "Is that the file you're looking for?" in res.get("final_answer", "")
         assert res.get("downloadable_file") is None
+
+
+def test_file_request_referential_history_give_me_that_file():
+    mock_db = MagicMock()
+    mock_folders_col = MagicMock()
+    mock_folders_col.find.return_value = []
+    mock_db.__getitem__.side_effect = lambda key: mock_folders_col if key == "folders" else MagicMock()
+
+    with patch("agents.graph.get_database", return_value=mock_db):
+        state = {
+            "user_id": "u1",
+            "message": "give me that file.. I wanna download",
+            "resolved_documents": [
+                {
+                    "_id": "doc_annual_2025",
+                    "id": "doc_annual_2025",
+                    "originalName": "23_annual_report_fy2025.pdf",
+                    "fileType": "pdf",
+                    "fileSize": 4500000,
+                    "folder": "Finance",
+                    "downloadPolicy": "allowed",
+                }
+            ],
+            "history": [
+                {"role": "user", "content": "Tell me about @23_annual_report_fy2025.pdf"},
+                {"role": "assistant", "content": "The 23_annual_report_fy2025.pdf covers our financial results."},
+            ],
+        }
+        res = asyncio.run(file_request_node(state))
+        assert res.get("intent") == AgentIntent.FILE_REQUEST
+        assert res.get("final_answer") == "Here is the file."
+        dl = res.get("downloadable_file")
+        assert dl is not None
+        assert dl["documentId"] == "doc_annual_2025"
+        assert dl["fileName"] == "23_annual_report_fy2025.pdf"
+
+
+def test_file_request_active_scope_download():
+    mock_db = MagicMock()
+    mock_folders_col = MagicMock()
+    mock_folders_col.find.return_value = []
+    mock_db.__getitem__.side_effect = lambda key: mock_folders_col if key == "folders" else MagicMock()
+
+    with patch("agents.graph.get_database", return_value=mock_db):
+        state = {
+            "user_id": "u1",
+            "message": "download this file",
+            "active_scope": {
+                "id": "doc_annual_2025",
+                "name": "23_annual_report_fy2025.pdf",
+                "type": "file",
+            },
+            "resolved_documents": [
+                {
+                    "_id": "doc_annual_2025",
+                    "id": "doc_annual_2025",
+                    "originalName": "23_annual_report_fy2025.pdf",
+                    "fileType": "pdf",
+                    "fileSize": 4500000,
+                    "folder": "Finance",
+                    "downloadPolicy": "allowed",
+                }
+            ],
+        }
+        res = asyncio.run(file_request_node(state))
+        assert res.get("intent") == AgentIntent.FILE_REQUEST
+        assert res.get("final_answer") == "Here is the file."
+        assert res.get("downloadable_file") is not None
+        assert res.get("downloadable_file")["documentId"] == "doc_annual_2025"
+
+
+def test_file_request_referential_history_restricted():
+    mock_db = MagicMock()
+    mock_folders_col = MagicMock()
+    mock_folders_col.find.return_value = []
+    mock_db.__getitem__.side_effect = lambda key: mock_folders_col if key == "folders" else MagicMock()
+
+    with patch("agents.graph.get_database", return_value=mock_db):
+        state = {
+            "user_id": "u1",
+            "message": "give me that file.. I wanna download",
+            "resolved_documents": [
+                {
+                    "_id": "doc_annual_2025",
+                    "id": "doc_annual_2025",
+                    "originalName": "23_annual_report_fy2025.pdf",
+                    "fileType": "pdf",
+                    "fileSize": 4500000,
+                    "folder": "Finance",
+                    "downloadPolicy": "restricted",
+                }
+            ],
+            "history": [
+                {"role": "user", "content": "Tell me about @23_annual_report_fy2025.pdf"},
+                {"role": "assistant", "content": "The 23_annual_report_fy2025.pdf covers our financial results."},
+            ],
+        }
+        res = asyncio.run(file_request_node(state))
+        assert res.get("intent") == AgentIntent.FILE_REQUEST
+        assert "restricted from downloading" in res.get("final_answer")
+        assert res.get("downloadable_file") is None
+

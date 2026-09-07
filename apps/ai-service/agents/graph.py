@@ -602,7 +602,7 @@ INSTRUCTIONS:
 - Speak plainly, directly, and do not use emojis."""
 
     messages = [SystemMessage(content=system_prompt)]
-    for h in history[-30:]:
+    for h in history[-10:]:
         if h["role"] == "user":
             messages.append(HumanMessage(content=h["content"]))
         elif h["role"] == "assistant":
@@ -689,31 +689,32 @@ The user explicitly selected: {dataset_names[0]}.
 - NEVER ask the user to choose files again.
 """
 
-    summary_prompt = f"""You are Syntra Chat, an expert analytical colleague.
+    analysis_system_prompt = f"""{ENTERPRISE_AI_PERSONA}
 {target_focus_str}
-Answer the user's question directly, concisely, and factually based strictly on the computed data below.
-Rules:
-- DO NOT use emojis.
-- DO NOT use meta-commentary or filler phrases.
-- DO NOT state that you cannot create or display visual graphs/charts. (Interactive charts are rendered alongside your response).
-- DO NOT output raw JSON blocks. State the figures, top leaders, percentages, and comparison findings directly in clean prose or bullet points.
+WORKSPACE SCOPE:
+{workspace_manifest}
 
-Computed Analysis Data:
+COMPUTED ANALYSIS DATA:
 {str(raw_result)[:2500]}
 
-Calculations details:
+CALCULATION DETAILS:
 {stdout}
-"""
+
+INSTRUCTIONS:
+- Answer the user's question directly, concisely, and factually based strictly on the computed data above.
+- Do NOT output raw JSON blocks. State the figures, top leaders, percentages, and comparison findings directly in clean prose or bullet points.
+- Do NOT use emojis.
+- Do NOT use meta-commentary or filler phrases."""
 
     messages = [
-        SystemMessage(content=f"{ENTERPRISE_AI_PERSONA}\n\n{workspace_manifest}"),
+        SystemMessage(content=analysis_system_prompt),
     ]
-    for h in history[-30:]:
+    for h in history[-10:]:
         if h["role"] == "user":
             messages.append(HumanMessage(content=h["content"]))
         elif h["role"] == "assistant":
             messages.append(AIMessage(content=h["content"]))
-    messages.append(HumanMessage(content=message + "\n\n" + summary_prompt))
+    messages.append(HumanMessage(content=message))
 
     summary_answer = await llm.generate_response(messages, temperature=0.15)
     # Strip any accidental ```json ``` code blocks from the narrative
@@ -863,6 +864,7 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
     message = state.get("message", "")
     active_scope = state.get("active_scope")
     resolved_docs = state.get("resolved_documents", [])
+    resolved_datasets = state.get("resolved_datasets", [])
     history = state.get("history", [])
 
     db = get_database()
@@ -882,20 +884,80 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
             return folder_policies[folder_name]
         return "allowed"
 
-    # Filter accessible PDFs
-    accessible_pdfs = [
-        d for d in resolved_docs
-        if str(d.get("fileType", "")).lower() == "pdf" or str(d.get("originalName", "")).lower().endswith(".pdf")
-    ]
+    def get_mime_type(file_name: str, file_type: str) -> str:
+        ext = (file_name.split(".")[-1] if "." in file_name else file_type).lower()
+        if ext == "pdf":
+            return "application/pdf"
+        elif ext in ["xlsx", "xls"]:
+            return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        elif ext == "csv":
+            return "text/csv"
+        elif ext in ["docx", "doc"]:
+            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        elif ext == "txt":
+            return "text/plain"
+        return "application/octet-stream"
+
+    # Gather all accessible files
+    accessible_files = []
+    for d in (resolved_docs + resolved_datasets):
+        d_id = str(d.get("_id") or d.get("id", ""))
+        if not any(str(f.get("_id") or f.get("id", "")) == d_id for f in accessible_files):
+            accessible_files.append(d)
 
     lower_message = message.lower().strip()
     is_scoped = state.get("is_scoped", False) or len(state.get("resource_ids", [])) > 0
 
-    # 0. Direct Scoped PDF resolution (Explicit @mention / resource_id in this turn)
-    if is_scoped and len(accessible_pdfs) == 1:
-        d = accessible_pdfs[0]
+    # 0. Direct Scoped / Active Scope File resolution
+    if active_scope and active_scope.get("type") in ["document", "dataset", "file"]:
+        scope_id = str(active_scope.get("id", ""))
+        scope_name = str(active_scope.get("name", "")).lower().strip()
+        matched_scoped_doc = None
+        for d in accessible_files:
+            d_id = str(d.get("_id") or d.get("id", ""))
+            orig = str(d.get("originalName", "")).lower()
+            if (scope_id and d_id == scope_id) or (scope_name and (orig == scope_name or scope_name in orig)):
+                matched_scoped_doc = d
+                break
+        if not matched_scoped_doc and (scope_id or scope_name):
+            try:
+                obj_id = ObjectId(scope_id) if ObjectId.is_valid(scope_id) else scope_id
+                db_doc = db["documents"].find_one({"$or": [{"_id": obj_id}, {"_id": str(scope_id)}, {"originalName": active_scope.get("name")}]})
+                if not db_doc:
+                    db_doc = db["datasets"].find_one({"$or": [{"_id": obj_id}, {"_id": str(scope_id)}, {"originalName": active_scope.get("name")}]})
+                if db_doc:
+                    matched_scoped_doc = db_doc
+            except Exception as e:
+                logger.warning(f"Error checking db for active scope doc: {e}")
+
+        if matched_scoped_doc:
+            eff = get_effective_policy(matched_scoped_doc)
+            doc_id = str(matched_scoped_doc.get("_id") or matched_scoped_doc.get("id", ""))
+            mime = get_mime_type(matched_scoped_doc.get("originalName", ""), matched_scoped_doc.get("fileType", ""))
+            if eff == "allowed":
+                return {
+                    "final_answer": "Here is the file.",
+                    "downloadable_file": {
+                        "documentId": doc_id,
+                        "fileName": matched_scoped_doc.get("originalName"),
+                        "fileSize": matched_scoped_doc.get("fileSize", 0),
+                        "mimeType": mime,
+                        "folder": matched_scoped_doc.get("folder"),
+                    },
+                    "intent": AgentIntent.FILE_REQUEST,
+                }
+            else:
+                return {
+                    "final_answer": f"{matched_scoped_doc.get('originalName')} is available, but this file is restricted from downloading. This file can't be downloaded.",
+                    "downloadable_file": None,
+                    "intent": AgentIntent.FILE_REQUEST,
+                }
+
+    if is_scoped and len(accessible_files) == 1:
+        d = accessible_files[0]
         eff = get_effective_policy(d)
         doc_id = str(d.get("_id") or d.get("id", ""))
+        mime = get_mime_type(d.get("originalName", ""), d.get("fileType", ""))
         if eff == "allowed":
             return {
                 "final_answer": "Here is the file.",
@@ -903,7 +965,7 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
                     "documentId": doc_id,
                     "fileName": d.get("originalName"),
                     "fileSize": d.get("fileSize", 0),
-                    "mimeType": d.get("mimeType", "application/pdf"),
+                    "mimeType": mime,
                     "folder": d.get("folder"),
                 },
                 "intent": AgentIntent.FILE_REQUEST,
@@ -919,12 +981,20 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
     mention_match = re.search(r"@([a-zA-Z0-9_\-\.\s]+?\.(?:pdf|docx|xlsx|csv|txt)|[a-zA-Z0-9_\-]+)", message, re.IGNORECASE)
     if mention_match:
         clean_mention = mention_match.group(1).strip().lower()
-        for d in accessible_pdfs:
+        clean_mention_no_ext = re.sub(r"\.[a-zA-Z0-9]+$", "", clean_mention)
+        for d in accessible_files:
             orig = str(d.get("originalName", "")).lower()
-            no_ext = re.sub(r"\.pdf$", "", orig, flags=re.IGNORECASE)
+            no_ext = re.sub(r"\.[a-zA-Z0-9]+$", "", orig)
             doc_id = str(d.get("_id") or d.get("id", ""))
-            if orig == clean_mention or orig == f"{clean_mention}.pdf" or no_ext == clean_mention or doc_id == clean_mention:
+            if (
+                orig == clean_mention
+                or no_ext == clean_mention
+                or no_ext == clean_mention_no_ext
+                or clean_mention in orig
+                or doc_id == clean_mention
+            ):
                 eff = get_effective_policy(d)
+                mime = get_mime_type(d.get("originalName", ""), d.get("fileType", ""))
                 if eff == "allowed":
                     return {
                         "final_answer": "Here is the file.",
@@ -932,7 +1002,7 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
                             "documentId": doc_id,
                             "fileName": d.get("originalName"),
                             "fileSize": d.get("fileSize", 0),
-                            "mimeType": d.get("mimeType", "application/pdf"),
+                            "mimeType": mime,
                             "folder": d.get("folder"),
                         },
                         "intent": AgentIntent.FILE_REQUEST,
@@ -944,17 +1014,18 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
                         "intent": AgentIntent.FILE_REQUEST,
                     }
 
-    # 2. Contextual reference ("the file", "the pdf", "download it") from conversation history
-    is_referential = bool(re.search(r"\b(the file|the pdf|the document|this file|this pdf|this document|download it|download this|get it|get this)\b", lower_message))
+    # 2. Contextual reference ("that file", "the file", "the pdf", "download it", "give me that", etc.) from conversation history
+    is_referential = bool(re.search(r"\b(that file|that pdf|that document|that dataset|the file|the pdf|the document|the dataset|this file|this pdf|this document|this dataset|download it|download this|download that|get it|get this|get that|give me that|give me this|give me the file|give me that file|i wanna download|i want to download|can i download)\b", lower_message))
     if is_referential and history:
         for msg in reversed(history):
             content_str = str(msg.get("content", "")).lower() if isinstance(msg, dict) else str(getattr(msg, "content", "")).lower()
-            for d in accessible_pdfs:
+            for d in accessible_files:
                 orig = str(d.get("originalName", "")).lower()
-                no_ext = re.sub(r"\.pdf$", "", orig, flags=re.IGNORECASE)
+                no_ext = re.sub(r"\.[a-zA-Z0-9]+$", "", orig)
                 if orig in content_str or (len(no_ext) >= 4 and no_ext in content_str):
                     eff = get_effective_policy(d)
                     doc_id = str(d.get("_id") or d.get("id", ""))
+                    mime = get_mime_type(d.get("originalName", ""), d.get("fileType", ""))
                     if eff == "allowed":
                         return {
                             "final_answer": "Here is the file.",
@@ -962,7 +1033,7 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
                                 "documentId": doc_id,
                                 "fileName": d.get("originalName"),
                                 "fileSize": d.get("fileSize", 0),
-                                "mimeType": d.get("mimeType", "application/pdf"),
+                                "mimeType": mime,
                                 "folder": d.get("folder"),
                             },
                             "intent": AgentIntent.FILE_REQUEST,
@@ -977,15 +1048,16 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
     # 3. Clean query for matching
     clean_query = re.sub(r"@[a-zA-Z0-9_\-\.]+", "", lower_message)
     clean_query = re.sub(
-        r"^(give me the|give me|can i get the|can i get|can i download the|can i download|download the|download|find the pdf for the|find the pdf for|find the pdf|find the|find|get me the pdf from the|get me the pdf from|get me the pdf|get me the|get me|where is the|please send me the|show me the pdf for|show me the pdf|show me the|fetch the|open the|i need the|i need|send me the|send me|locate the)\s+",
+        r"^(give me that file|give me the file|give me that|give me this|give me the|give me|can i get the|can i get|can i download the|can i download that|can i download this|can i download|download that file|download the file|download that|download the|download|find the pdf for the|find the pdf for|find the pdf|find the file|find the|find|get me the pdf from the|get me the pdf from|get me the pdf|get me the file|get me the|get me|where is the|please send me the|show me the pdf for|show me the pdf|show me the|fetch the|open the|i need the|i need|send me the|send me|locate the)\s*",
         "",
         clean_query,
         flags=re.IGNORECASE,
     )
     clean_query = re.sub(r"\s+(?:from|in)\s+(?:the\s+)?([a-zA-Z0-9_\-\s]+?)\s+folder$", "", clean_query, flags=re.IGNORECASE)
-    clean_query = re.sub(r"\s+(i wanna download this|i want to download this|i want to download|can i download|download this|please download|for me)\s*$", "", clean_query, flags=re.IGNORECASE)
+    clean_query = re.sub(r"\s*(i wanna download this|i wanna download that|i wanna download|i want to download this|i want to download that|i want to download|can i download|download this|download that|please download|for me)\s*$", "", clean_query, flags=re.IGNORECASE)
     clean_query = re.sub(r"\s+(pdf|file|document)$", "", clean_query, flags=re.IGNORECASE)
-    clean_query = re.sub(r"\.pdf$", "", clean_query).strip()
+    clean_query = re.sub(r"^[.\s_\-]+|[.\s_\-]+$", "", clean_query).strip()
+    clean_query = re.sub(r"\.[a-zA-Z0-9]+$", "", clean_query).strip()
 
     folder_hint = ""
     folder_match = re.search(r"(?:from|in)\s+(?:the\s+)?([a-zA-Z0-9_\-\s]+?)\s+folder", message, re.IGNORECASE)
@@ -996,41 +1068,42 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
 
     # 4. Exact match search
     exact_candidates = []
-    for d in accessible_pdfs:
+    for d in accessible_files:
         orig = d.get("originalName", "")
-        name_no_ext = re.sub(r"\.pdf$", "", orig, flags=re.IGNORECASE).strip().lower()
+        name_no_ext = re.sub(r"\.[a-zA-Z0-9]+$", "", orig).strip().lower()
         full_name = orig.lower()
         name_no_sep = re.sub(r"[_\-\s]+", " ", name_no_ext)
         clean_no_sep = re.sub(r"[_\-\s]+", " ", clean_query)
-        if name_no_ext == clean_query or full_name == clean_query or full_name == f"{clean_query}.pdf" or name_no_sep == clean_no_sep:
+        if clean_query and (name_no_ext == clean_query or full_name == clean_query or name_no_sep == clean_no_sep):
             if folder_hint:
                 if (d.get("folder") or "").lower() == folder_hint:
                     exact_candidates.append(d)
             else:
                 exact_candidates.append(d)
 
-    if not exact_candidates and folder_hint:
-        for d in accessible_pdfs:
+    if not exact_candidates and folder_hint and clean_query:
+        for d in accessible_files:
             orig = d.get("originalName", "")
-            name_no_ext = re.sub(r"\.pdf$", "", orig, flags=re.IGNORECASE).strip().lower()
+            name_no_ext = re.sub(r"\.[a-zA-Z0-9]+$", "", orig).strip().lower()
             full_name = orig.lower()
             name_no_sep = re.sub(r"[_\-\s]+", " ", name_no_ext)
             clean_no_sep = re.sub(r"[_\-\s]+", " ", clean_query)
-            if name_no_ext == clean_query or full_name == clean_query or full_name == f"{clean_query}.pdf" or name_no_sep == clean_no_sep:
+            if name_no_ext == clean_query or full_name == clean_query or name_no_sep == clean_no_sep:
                 exact_candidates.append(d)
 
     if len(exact_candidates) == 1:
         doc = exact_candidates[0]
         eff = get_effective_policy(doc)
         doc_id = str(doc.get("_id") or doc.get("id"))
+        mime = get_mime_type(doc.get("originalName", ""), doc.get("fileType", ""))
         if eff == "allowed":
             return {
-                "final_answer": "Sure, I found the PDF.",
+                "final_answer": "Sure, I found the PDF." if str(doc.get("originalName", "")).lower().endswith(".pdf") else "Sure, I found the file.",
                 "downloadable_file": {
                     "documentId": doc_id,
                     "fileName": doc.get("originalName"),
                     "fileSize": doc.get("fileSize", 0),
-                    "mimeType": doc.get("mimeType", "application/pdf"),
+                    "mimeType": mime,
                     "folder": doc.get("folder"),
                 },
                 "intent": AgentIntent.FILE_REQUEST,
@@ -1053,7 +1126,7 @@ async def file_request_node(state: AgentState) -> Dict[str, Any]:
     query_tokens = [t for t in re.split(r"[\s_\-]+", clean_query) if len(t) > 2]
     scored: List[Tuple[int, Dict[str, Any]]] = []
 
-    for d in accessible_pdfs:
+    for d in accessible_files:
         doc_name = d.get("originalName", "").lower()
         doc_no_ext = re.sub(r"\.pdf$", "", doc_name, flags=re.IGNORECASE)
         doc_words = re.sub(r"[_\-]+", " ", doc_no_ext)

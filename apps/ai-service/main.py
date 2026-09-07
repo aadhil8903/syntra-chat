@@ -19,6 +19,9 @@ app = FastAPI(
     version="1.0.0",
 )
 
+import time
+from fastapi import Request
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -27,6 +30,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    path = request.url.path
+    if path != "/health":
+        logger.info(f"--> Incoming HTTP Request: {request.method} {path}")
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+    if path != "/health":
+        logger.info(f"<-- Finished HTTP Request: {request.method} {path} status={response.status_code} ({duration:.2f}s)")
+    return response
 
 # Register Routers
 app.include_router(health.router)

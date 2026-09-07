@@ -77,11 +77,11 @@ function isClearlyUnrelatedQuestion(content: string): boolean {
  */
 export function isPdfDiscoveryRequest(content: string): boolean {
   const lower = content.toLowerCase().trim();
-  if (/\b(download|get me the|give me the|send me the|fetch the|locate the)\b/i.test(lower)) {
+  if (/\b(download|get me the|give me the|give me that|send me the|fetch the|locate the)\b/i.test(lower)) {
     return true;
   }
   const hasRequest = /\b(give me|can i get|can i have|can i download|i want|i need|i wanna|download|find|get|where is|send me|show me|fetch|open|locate)\b/i.test(lower);
-  const hasFile = /\b(pdf|file|document|handbook|guide|report|policy|agreement|manual)\b/i.test(lower) || /\.pdf\b/i.test(lower) || /@[a-zA-Z0-9_\-\.]+/i.test(lower) || /\b(it|this)\b/i.test(lower);
+  const hasFile = /\b(pdf|file|document|handbook|guide|report|policy|agreement|manual)\b/i.test(lower) || /\.pdf\b/i.test(lower) || /@[a-zA-Z0-9_\-\.]+/i.test(lower) || /\b(it|this|that)\b/i.test(lower);
   return hasRequest && hasFile;
 }
 
