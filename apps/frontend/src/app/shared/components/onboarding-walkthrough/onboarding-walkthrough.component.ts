@@ -97,40 +97,40 @@ interface ICardPosition {
         <!-- Contextual Compact Tour Card -->
         <div
           #tourCard
-          class="absolute z-10 w-84 sm:w-[390px] max-w-[calc(100vw-2rem)] bg-[#111114] border border-[#27272a] rounded-2xl overflow-hidden flex flex-col p-4 sm:p-5 space-y-3.5 shadow-2xl shadow-black/50 transition-all duration-300 ease-out focus:outline-none"
+          class="absolute z-10 w-84 sm:w-[390px] max-w-[calc(100vw-2rem)] bg-white dark:bg-[#111114] border border-[#dcdde1] dark:border-[#27272a] rounded-2xl overflow-hidden flex flex-col p-4 sm:p-5 space-y-3.5 shadow-2xl shadow-black/20 dark:shadow-black/50 transition-all duration-300 ease-out focus:outline-none"
           [style.top.px]="cardPosition().top"
           [style.left.px]="cardPosition().left"
           tabindex="0"
         >
           <!-- Card Header: Title & Step counter -->
           <div class="flex items-start justify-between gap-3">
-            <h3 class="text-sm sm:text-base font-bold text-white tracking-tight leading-snug">
+            <h3 class="text-sm sm:text-base font-bold text-zinc-900 dark:text-white tracking-tight leading-snug">
               {{ currentStep().title }}
             </h3>
-            <span class="text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-[#18181b] border border-[#27272a] text-[#a1a1aa] flex-shrink-0">
+            <span class="text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] text-zinc-600 dark:text-[#a1a1aa] flex-shrink-0">
               {{ walkthrough.currentStepIndex() + 1 }}/{{ walkthrough.totalSteps() }}
             </span>
           </div>
 
           <!-- Card Body: Description & Optional Tip -->
-          <div class="space-y-2.5 text-xs text-zinc-300 leading-relaxed">
-            <p class="text-[12px] sm:text-[13px] text-zinc-300 leading-normal">
+          <div class="space-y-2.5 text-xs leading-relaxed">
+            <p class="text-[12px] sm:text-[13px] text-zinc-600 dark:text-zinc-300 leading-normal">
               {{ currentStep().description }}
             </p>
 
             @if (currentStep().tip) {
-              <div class="p-3 rounded-xl bg-[#0c0c0e] border border-[#27272a]/80 text-[11px] sm:text-[12px] text-zinc-400 leading-relaxed">
-                <span class="font-semibold text-white">Tip:</span> {{ currentStep().tip }}
+              <div class="p-3 rounded-xl bg-zinc-50 dark:bg-[#0c0c0e] border border-[#e7e9ed] dark:border-[#27272a]/80 text-[11px] sm:text-[12px] text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                <span class="font-semibold text-zinc-900 dark:text-white">Tip:</span> {{ currentStep().tip }}
               </div>
             }
           </div>
 
           <!-- Card Footer Actions: Skip, Back, Next / Finish -->
-          <div class="pt-3 border-t border-[#27272a] flex items-center justify-between">
+          <div class="pt-3 border-t border-[#e7e9ed] dark:border-[#27272a] flex items-center justify-between">
             <button
               type="button"
               (click)="skip()"
-              class="text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white font-medium transition-colors px-2.5 py-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              class="text-xs font-medium text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/10 transition-colors px-2.5 py-1 rounded-lg"
               aria-label="Skip walkthrough tour"
             >
               Skip
@@ -141,7 +141,7 @@ interface ICardPosition {
                 <button
                   type="button"
                   (click)="previous()"
-                  class="px-3 py-1.5 text-xs font-medium text-zinc-300 hover:text-white bg-[#18181b] hover:bg-[#27272a] rounded-xl border border-[#27272a] transition-colors"
+                  class="px-3 py-1.5 text-xs font-medium text-zinc-700 hover:text-black dark:text-zinc-300 dark:hover:text-white bg-zinc-100 hover:bg-zinc-200 dark:bg-[#18181b] dark:hover:bg-[#27272a] rounded-xl border border-[#dcdde1] dark:border-[#27272a] transition-colors"
                   aria-label="Previous step"
                 >
                   Back
@@ -152,7 +152,7 @@ interface ICardPosition {
                 <button
                   type="button"
                   (click)="next()"
-                  class="px-4 py-1.5 text-xs font-semibold text-black bg-white hover:bg-zinc-200 rounded-xl transition-colors shadow-xs"
+                  class="px-4 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 bg-zinc-900 dark:text-black dark:bg-white dark:hover:bg-zinc-200 rounded-xl transition-colors shadow-xs"
                   aria-label="Next step"
                 >
                   Next &rarr;
@@ -161,7 +161,7 @@ interface ICardPosition {
                 <button
                   type="button"
                   (click)="finish()"
-                  class="px-4 py-1.5 text-xs font-semibold text-black bg-white hover:bg-zinc-200 rounded-xl transition-colors shadow-xs"
+                  class="px-4 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 bg-zinc-900 dark:text-black dark:bg-white dark:hover:bg-zinc-200 rounded-xl transition-colors shadow-xs"
                   aria-label="Finish walkthrough tour"
                 >
                   Finish
