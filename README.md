@@ -5,7 +5,7 @@
 # Syntra Chat
 
 **A permission-aware enterprise AI knowledge platform.**
-Chat with your organization's internal documents and data — grounded, cited, and scoped to what you're allowed to see.
+Chat with your organization's internal documents and data - grounded, cited, and scoped to what you're allowed to see.
 
 [![Frontend](https://img.shields.io/badge/Frontend-Angular-DD0031?logo=angular&logoColor=white)](#tech-stack)
 [![Backend](https://img.shields.io/badge/Backend-NestJS-E0234E?logo=nestjs&logoColor=white)](#tech-stack)
@@ -56,7 +56,7 @@ Enterprise knowledge is scattered across drives, folders, and spreadsheets, and 
 
 ### Access Control
 - Role-based access control (RBAC) with reusable folder-access templates
-- Folder- and document-level permissions, including subfolder cascade and exclusion rules
+- Folder and document-level permissions, including subfolder cascade and exclusion rules
 - Download permission controls per file/folder
 - Access-request workflow with full audit history
 - Locked (not hidden) folders - restricted users can see a folder exists and request access
