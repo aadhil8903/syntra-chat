@@ -1,7 +1,7 @@
 # Syntra Chat: Master Architecture, Operations & Security Reference
 
 > **Complete End-to-End Engineering Manual & System Specification**  
-> *Author:* Syntra Chat Architecture & Engineering Core Team  
+> *Author:* Aadil  
 > *Version:* 4.0 (Enterprise Production Standard — Spec Rounds 1–14 Complete)  
 > *Target Audience:* Developers, DevOps Engineers, Security Auditors, and System Architects
 
