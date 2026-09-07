@@ -1,4 +1,6 @@
-<div align="center"> <img src="./logo.png" alt="Syntra Chat Logo" width="120" />
+<div align="center">
+
+<img src="./logo.png" alt="Syntra Chat Logo" width="120" />
 
 # Syntra Chat
 
@@ -10,7 +12,6 @@ Chat with your organization's internal documents and data — grounded, cited, a
 [![AI Service](https://img.shields.io/badge/AI%20Service-FastAPI-009688?logo=fastapi&logoColor=white)](#tech-stack)
 [![Workflow](https://img.shields.io/badge/Workflow-LangGraph%20%2F%20LangChain-1C3C3C)](#tech-stack)
 [![LLM](https://img.shields.io/badge/LLM-Gemini-4285F4?logo=googlegemini&logoColor=white)](#tech-stack)
-[![Vector DB](https://img.shields.io/badge/Vector%20DB-Qdrant-DC244C)](#tech-stack)
 [![Database](https://img.shields.io/badge/Database-MongoDB%20Atlas-47A248?logo=mongodb&logoColor=white)](#tech-stack)
 [![Status](https://img.shields.io/badge/Status-In%20Development-yellow)](#status)
 
@@ -25,7 +26,6 @@ Chat with your organization's internal documents and data — grounded, cited, a
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [Status](#status)
-- [License](#license)
 
 ---
 
@@ -81,8 +81,7 @@ Enterprise knowledge is scattered across drives, folders, and spreadsheets, and 
 | AI Workflow      | LangGraph / LangChain    |
 | LLM              | Google Gemini            |
 | Embeddings       | BAAI/bge-base-en-v1.5    |
-| Vector Database  | Qdrant                   |
-| Database         | MongoDB Atlas            |
+| Database         | MongoDB Atlas (incl. vector search) |
 
 ---
 
@@ -95,12 +94,10 @@ Enterprise knowledge is scattered across drives, folders, and spreadsheets, and 
 +------------+      +-----+------+      |  LangGraph/LangChain |
                            |             |  Gemini + BGE Embed  |
                            v             +----------+-----------+
-                    +--------------+                |
-                    | MongoDB Atlas |                v
-                    |  (app data)   |        +---------------+
-                    +--------------+         |    Qdrant      |
-                                              | (vector store) |
-                                              +---------------+
+                    +--------------------+          |
+                    |   MongoDB Atlas     | <--------+
+                    | (app data + vectors)|
+                    +--------------------+
 ```
 
 ---
@@ -108,6 +105,3 @@ Enterprise knowledge is scattered across drives, folders, and spreadsheets, and 
 ## Status
 
 Syntra Chat is currently in **active development and internal testing**, and has not yet been deployed to production users.
-
----
-
