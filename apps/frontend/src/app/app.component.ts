@@ -4,7 +4,6 @@ import { RouterOutlet } from '@angular/router';
 import { NavbarComponent } from './shared/components/navbar/navbar.component';
 import { SidebarComponent } from './shared/components/sidebar/sidebar.component';
 import { OnboardingWalkthroughComponent } from './shared/components/onboarding-walkthrough/onboarding-walkthrough.component';
-import { CollectionsWalkthroughComponent } from './shared/components/collections-walkthrough/collections-walkthrough.component';
 import { ModalDialogComponent } from './shared/components/modal-dialog/modal-dialog.component';
 import { AuthService } from './core/services/auth.service';
 import { WalkthroughService } from './core/services/walkthrough.service';
@@ -19,7 +18,6 @@ import { ThemeService } from './core/services/theme.service';
     NavbarComponent,
     SidebarComponent,
     OnboardingWalkthroughComponent,
-    CollectionsWalkthroughComponent,
     ModalDialogComponent,
   ],
   template: `
@@ -34,8 +32,6 @@ import { ThemeService } from './core/services/theme.service';
         </div>
         <!-- Contextual Onboarding Tour Overlay -->
         <app-onboarding-walkthrough></app-onboarding-walkthrough>
-        <!-- Independent Collections Tour Overlay -->
-        <app-collections-walkthrough></app-collections-walkthrough>
         <!-- In-App Custom Modal Dialogs -->
         <app-modal-dialog></app-modal-dialog>
       </div>

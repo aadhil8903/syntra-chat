@@ -28,6 +28,7 @@ describe('OnboardingWalkthroughComponent', () => {
       currentStepIndex: currentStepIndexSignal,
       totalSteps: totalStepsSignal,
       currentStep: currentStepSignal,
+      demoDragAnimation: signal(null),
       next: jest.fn(),
       previous: jest.fn(),
       skip: jest.fn(),

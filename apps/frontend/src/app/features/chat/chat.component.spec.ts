@@ -6,7 +6,7 @@ import { ChatStateService } from '../../core/services/chat-state.service';
 import { ChatDraftService, TEMPORARY_NEW_CHAT_ID } from '../../core/services/chat-draft.service';
 import { ModalDialogService } from '../../core/services/modal-dialog.service';
 import { PdfReportService } from '../../core/services/pdf-report.service';
-import { CollectionsWalkthroughService } from '../../core/services/collections-walkthrough.service';
+import { WalkthroughService } from '../../core/services/walkthrough.service';
 import { VoiceRecognitionService } from '../../core/services/voice-recognition.service';
 import { provideRouter } from '@angular/router';
 import { of, Subject, EMPTY } from 'rxjs';
@@ -143,7 +143,7 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
         { provide: ChatDraftService, useValue: chatDraftServiceMock },
         { provide: ModalDialogService, useValue: modalMock },
         { provide: PdfReportService, useValue: { exportFullConversation: jest.fn() } },
-        { provide: CollectionsWalkthroughService, useValue: collectionsWalkthroughMock },
+        { provide: WalkthroughService, useValue: collectionsWalkthroughMock },
         { provide: VoiceRecognitionService, useValue: { isListening: false, transcript$: voiceTranscript$.asObservable(), error$: voiceError$.asObservable(), toggleListening: jest.fn(), stopListening: jest.fn() } },
       ],
       schemas: [NO_ERRORS_SCHEMA],
@@ -282,10 +282,10 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
   });
 
   describe('Spec Round 28 — Drag-and-Drop Refinements & Demo Walkthrough', () => {
-    let collectionsWalkthroughService: CollectionsWalkthroughService;
+    let walkthroughService: WalkthroughService;
 
     beforeEach(() => {
-      collectionsWalkthroughService = TestBed.inject(CollectionsWalkthroughService);
+      walkthroughService = TestBed.inject(WalkthroughService);
     });
 
     it('10. should handle auto-scroll calculation during drag over scroll container', () => {
@@ -339,8 +339,8 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
       component.collections = [];
       component.conversations = [];
 
-      collectionsWalkthroughService.start(0);
-      expect(collectionsWalkthroughService.isDemoMode()).toBe(true);
+      walkthroughService.start(0);
+      expect(walkthroughService.isDemoMode()).toBe(true);
 
       // Should display ephemeral demo items in template getters
       expect(component.displayedCollections.length).toBeGreaterThan(0);
@@ -359,8 +359,8 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
       expect(demoConv.collectionId).toBe('demo-col-titan');
 
       // Finishing walkthrough clears demo data completely
-      collectionsWalkthroughService.finish();
-      expect(collectionsWalkthroughService.isDemoMode()).toBe(false);
+      walkthroughService.finish();
+      expect(walkthroughService.isDemoMode()).toBe(false);
       expect(component.displayedCollections.length).toBe(0);
       expect(component.displayedConversations.length).toBe(0);
     });

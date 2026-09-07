@@ -30,7 +30,7 @@ import {
   IChartSeries,
   ChartType,
 } from '@enter-chat/shared-types';
-import { CollectionsWalkthroughService } from '../../core/services/collections-walkthrough.service';
+import { WalkthroughService } from '../../core/services/walkthrough.service';
 import { VoiceRecognitionService } from '../../core/services/voice-recognition.service';
 import { TableViewerComponent } from '../../shared/components/table-viewer/table-viewer.component';
 import { ChartViewerComponent } from '../../shared/components/chart-viewer/chart-viewer.component';
@@ -820,7 +820,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private pdfReportService = inject(PdfReportService);
-  private readonly collectionsWalkthrough = inject(CollectionsWalkthroughService);
+  private readonly walkthroughService = inject(WalkthroughService);
   voiceService = inject(VoiceRecognitionService);
   private voiceSub?: Subscription;
   private voiceErrorSub?: Subscription;
@@ -1195,15 +1195,15 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   get displayedCollections(): ICollection[] {
-    if (this.collectionsWalkthrough.isDemoMode() && this.collections.length === 0) {
-      return this.collectionsWalkthrough.demoCollections();
+    if (this.walkthroughService.isDemoMode() && this.collections.length === 0) {
+      return this.walkthroughService.demoCollections();
     }
     return this.collections;
   }
 
   get displayedConversations(): IConversation[] {
-    if (this.collectionsWalkthrough.isDemoMode() && this.conversations.length === 0) {
-      return this.collectionsWalkthrough.demoConversations();
+    if (this.walkthroughService.isDemoMode() && this.conversations.length === 0) {
+      return this.walkthroughService.demoConversations();
     }
     return this.conversations;
   }
@@ -1354,11 +1354,6 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
         }
       }
     });
-
-    // Check and trigger collections walkthrough if first time viewing collections
-    setTimeout(() => {
-      this.collectionsWalkthrough.checkAndTrigger();
-    }, 600);
   }
 
   // ---------------- Collection Collapse State Persistence ----------------
@@ -1644,8 +1639,8 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     // Optimistically update
     conv.collectionId = colId;
 
-    if (this.collectionsWalkthrough.isDemoMode()) {
-      this.collectionsWalkthrough.moveDemoConversation(conv.id, colId);
+    if (this.walkthroughService.isDemoMode()) {
+      this.walkthroughService.moveDemoConversation(conv.id, colId);
       this.showUndoToast(`Moved "${conv.title}" to ${colName}`, conv.id, prevCollectionId);
     } else {
       this.api.moveConversationToCollection(conv.id, colId).subscribe({
@@ -1688,8 +1683,8 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
     conv.collectionId = null;
 
-    if (this.collectionsWalkthrough.isDemoMode()) {
-      this.collectionsWalkthrough.moveDemoConversation(conv.id, null);
+    if (this.walkthroughService.isDemoMode()) {
+      this.walkthroughService.moveDemoConversation(conv.id, null);
       this.showUndoToast(`Moved "${conv.title}" to Recent Chats`, conv.id, prevCollectionId);
     } else {
       this.api.moveConversationToCollection(conv.id, null).subscribe({
@@ -1711,8 +1706,8 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     const prevCollectionId = conv.collectionId || null;
     conv.collectionId = null;
 
-    if (this.collectionsWalkthrough.isDemoMode()) {
-      this.collectionsWalkthrough.moveDemoConversation(conv.id, null);
+    if (this.walkthroughService.isDemoMode()) {
+      this.walkthroughService.moveDemoConversation(conv.id, null);
       this.showUndoToast(`Moved "${conv.title}" to Recent Chats`, conv.id, prevCollectionId);
     } else {
       this.api.moveConversationToCollection(conv.id, null).subscribe({
@@ -1749,8 +1744,8 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     clearTimeout(this.undoToast.timer);
     this.undoToast = null;
 
-    if (this.collectionsWalkthrough.isDemoMode()) {
-      this.collectionsWalkthrough.moveDemoConversation(conversationId, previousCollectionId);
+    if (this.walkthroughService.isDemoMode()) {
+      this.walkthroughService.moveDemoConversation(conversationId, previousCollectionId);
       return;
     }
 

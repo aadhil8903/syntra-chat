@@ -2,6 +2,7 @@ import { Injectable, signal, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from './auth.service';
 import { ApiService } from './api.service';
+import { ICollection, IConversation } from '@enter-chat/shared-types';
 
 export interface IWalkthroughStepDef {
   id: string;
@@ -11,6 +12,58 @@ export interface IWalkthroughStepDef {
   targetSelector: string;
   route?: string;
   adminOnly?: boolean;
+}
+
+export const INITIAL_DEMO_COLLECTIONS: ICollection[] = [
+  {
+    id: 'demo-col-titan',
+    name: 'Project Titan',
+    userId: 'demo-user',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'demo-col-marketing',
+    name: 'Q4 Marketing',
+    userId: 'demo-user',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+export const INITIAL_DEMO_CONVERSATIONS: IConversation[] = [
+  {
+    id: 'demo-conv-1',
+    title: 'Sprint Planning & Milestones',
+    collectionId: null,
+    attachedResourceIds: [],
+    userId: 'demo-user',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'demo-conv-2',
+    title: 'Customer Feedback Analysis',
+    collectionId: null,
+    attachedResourceIds: [],
+    userId: 'demo-user',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'demo-conv-3',
+    title: 'Titan Architecture Review',
+    collectionId: 'demo-col-titan',
+    attachedResourceIds: [],
+    userId: 'demo-user',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+export interface IDemoDragAnimationState {
+  sourceTitle: string;
+  targetName: string;
 }
 
 @Injectable({
@@ -48,6 +101,24 @@ export class WalkthroughService {
         'Use natural language to ask questions about your authorized documents and datasets. Syntra Chat can help summarize, compare, calculate, and explain information without requiring you to search through files manually.',
       tip: 'Try asking for a summary, comparison, or specific value from a document.',
       targetSelector: '[data-tour="nav-chat"]',
+      route: '/chat',
+    },
+    {
+      id: 'collections',
+      title: 'Organize Chats with Collections',
+      description:
+        'Group related conversations into dedicated project folders (e.g. Project Titan, Q4 Marketing). Instead of letting important discussions get lost in Recent Chats, Collections keep your workspace structured and organized.',
+      tip: 'Click the + icon in the Collections header to create a new collection, or click the folder arrow to expand and collapse project threads.',
+      targetSelector: '[data-tour="collections-section"]',
+      route: '/chat',
+    },
+    {
+      id: 'collections-memory',
+      title: 'Drag & Drop Filing & Shared Memory',
+      description:
+        'Grab any chat from Recent Chats and drag it directly onto a Collection to file it. Chats inside the same Collection automatically share contextual memory of verified data, uploaded files, and key decisions across threads.',
+      tip: 'Watch the animated demo: drag chats between collections or drag them back out to Recent Chats at any time.',
+      targetSelector: '[data-tour="collections-section"]',
       route: '/chat',
     },
     {
@@ -110,9 +181,16 @@ export class WalkthroughService {
   });
 
   private isRunningSignal = signal<boolean>(false);
+  private isDemoModeSignal = signal<boolean>(false);
   private currentStepIndexSignal = signal<number>(0);
 
+  // In-memory Ephemeral Demo Data for Collections Animation
+  private demoCollectionsSignal = signal<ICollection[]>(JSON.parse(JSON.stringify(INITIAL_DEMO_COLLECTIONS)));
+  private demoConversationsSignal = signal<IConversation[]>(JSON.parse(JSON.stringify(INITIAL_DEMO_CONVERSATIONS)));
+  private demoDragAnimationSignal = signal<IDemoDragAnimationState | null>(null);
+
   readonly isRunning = computed(() => this.isRunningSignal());
+  readonly isDemoMode = computed(() => this.isDemoModeSignal());
   readonly currentStepIndex = computed(() => this.currentStepIndexSignal());
   readonly currentStep = computed(() => {
     const steps = this.activeSteps();
@@ -120,6 +198,12 @@ export class WalkthroughService {
     return steps[idx] || steps[0];
   });
   readonly totalSteps = computed(() => this.activeSteps().length);
+
+  readonly demoCollections = computed(() => this.demoCollectionsSignal());
+  readonly demoConversations = computed(() => this.demoConversationsSignal());
+  readonly demoDragAnimation = computed(() => this.demoDragAnimationSignal());
+
+  private animTimer: any = null;
 
   private getStorageKey(userId?: string): string {
     return `syntra_chat_walkthrough_completed_${userId || this.authService.currentUser()?.id || 'guest'}`;
@@ -183,6 +267,7 @@ export class WalkthroughService {
   }
 
   reset(): void {
+    this.stopAnimationAndDemo();
     const user = this.authService.currentUser();
     if (user) {
       localStorage.removeItem(this.getStorageKey(user.id));
@@ -193,6 +278,7 @@ export class WalkthroughService {
   }
 
   private completeWalkthrough(): void {
+    this.stopAnimationAndDemo();
     this.isRunningSignal.set(false);
     const user = this.authService.currentUser();
     if (user) {
@@ -222,5 +308,37 @@ export class WalkthroughService {
         this.router.navigateByUrl(step.route);
       }
     }
+
+    if (step && step.id === 'collections-memory') {
+      this.resetDemoData();
+      this.isDemoModeSignal.set(true);
+      this.demoDragAnimationSignal.set({
+        sourceTitle: 'Sprint Planning & Milestones',
+        targetName: 'Project Titan',
+      });
+    } else {
+      this.stopAnimationAndDemo();
+    }
+  }
+
+  resetDemoData(): void {
+    this.demoCollectionsSignal.set(JSON.parse(JSON.stringify(INITIAL_DEMO_COLLECTIONS)));
+    this.demoConversationsSignal.set(JSON.parse(JSON.stringify(INITIAL_DEMO_CONVERSATIONS)));
+  }
+
+  moveDemoConversation(convId: string, targetColId: string | null): void {
+    const convs = this.demoConversationsSignal().map((c) => {
+      if (c.id === convId) {
+        return { ...c, collectionId: targetColId };
+      }
+      return c;
+    });
+    this.demoConversationsSignal.set(convs);
+  }
+
+  private stopAnimationAndDemo(): void {
+    this.demoDragAnimationSignal.set(null);
+    this.isDemoModeSignal.set(false);
+    this.resetDemoData();
   }
 }
