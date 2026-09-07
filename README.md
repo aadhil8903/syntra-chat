@@ -31,7 +31,7 @@ Chat with your organization's internal documents and data — grounded, cited, a
 
 ## Why Syntra Chat
 
-Enterprise knowledge is scattered across drives, folders, and spreadsheets, and most search tools either surface everything (a permissions nightmare) or nothing useful (too literal). Syntra Chat sits in between: it understands natural language, respects your organization's access controls down to the folder level, and answers with receipts — every claim is traceable back to a source document.
+Enterprise knowledge is scattered across drives, folders, and spreadsheets, and most search tools either surface everything (a permissions nightmare) or nothing useful (too literal). Syntra Chat sits in between: it understands natural language, respects your organization's access controls down to the folder level, and answers with receipts - every claim is traceable back to a source document.
 
 ---
 
@@ -39,14 +39,14 @@ Enterprise knowledge is scattered across drives, folders, and spreadsheets, and 
 
 ### Chat & Discovery
 - Natural-language chat over company knowledge
-- Natural-language file and folder discovery — no manual browsing required
+- Natural-language file and folder discovery - no manual browsing required
 - `@mentions` to pull specific files or datasets directly into a conversation
 - Conversation-level active file/folder context, so follow-up questions stay scoped
 - Cross-document synthesis with source attribution for broader, unscoped questions
 
 ### Grounded Answers
 - Document RAG (retrieval-augmented generation) with inline citations
-- Dataset analysis powered by Python — ask questions of Excel/CSV data directly
+- Dataset analysis powered by Python - ask questions of Excel/CSV data directly
 - Chart and graph generation on request
 
 ### Organization
@@ -59,7 +59,7 @@ Enterprise knowledge is scattered across drives, folders, and spreadsheets, and 
 - Folder- and document-level permissions, including subfolder cascade and exclusion rules
 - Download permission controls per file/folder
 - Access-request workflow with full audit history
-- Locked (not hidden) folders — restricted users can see a folder exists and request access
+- Locked (not hidden) folders - restricted users can see a folder exists and request access
 
 ### Administration
 - Admin panel with user, role, and department management
