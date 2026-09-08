@@ -331,25 +331,24 @@ The frontend is an Angular 19 single-page application built entirely on **Standa
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as User Browser
-    participant FE as Frontend Client
-    participant BE as Backend API Gateway
-    participant DB as MongoDB Cluster
+    actor User as User
+    participant FE as Frontend
+    participant BE as Backend
+    participant DB as MongoDB
 
-    User->>FE: 1. Submit Credentials (Email / Password)
+    User->>FE: 1. Submit Credentials
     FE->>BE: 2. POST /auth/login
-    BE->>DB: 3. Find User Document by Email
+    BE->>DB: 3. Query User Document
     DB-->>BE: 4. User Record & Password Hash
-    BE->>BE: 5. Verify Hash (Argon2 / bcrypt)
+    BE->>BE: 5. Verify Password Hash
+    
     alt Invalid Credentials
         BE-->>FE: 6a. 401 Unauthorized
-        FE-->>User: 7a. Show error alert
+        FE-->>User: 7a. Show Error Alert
     else Valid Credentials
-        BE->>BE: 6b. Sign Access Token (15m) & Refresh Token (7d)
-        BE->>DB: 7b. Update lastLogin timestamp
-        BE-->>FE: 8b. 200 OK with JWT Tokens & User Object
-        FE->>FE: 9b. Store in localStorage & Set Auth Signal
-        FE-->>User: 10b. Navigate to Dashboard / Chat
+        BE->>BE: 6b. Sign Access & Refresh JWTs
+        BE-->>FE: 7b. 200 OK (Tokens & User Object)
+        FE-->>User: 8b. Set Auth Signal & Navigate
     end
 ```
 
@@ -540,19 +539,16 @@ Syntra Chat implements **Lazy Conversation Persistence**:
 
 ```mermaid
 flowchart TD
-    Init([Click 'New Chat']) --> Draft[Unsaved Client Draft]
+    Init["1. Click 'New Chat'<br/>(Ephemeral In-Memory Draft)"] --> Action{"User Action"}
     
-    Draft -->|Type text / attach mentions| Draft
-    Draft -->|Navigate away before send| Discarded([Draft Discarded - Zero DB writes])
+    Action -->|Discard or navigate away| Discard["Draft Discarded<br/>(Zero Database Writes)"]
+    Action -->|Send first message| Create["Persist to Database<br/>(Create MongoDB ObjectId)"]
     
-    Draft -->|Send 1st Message| Persist[Create Conversation in MongoDB]
-    Persist --> Active[Active Persistent Chat]
+    Create --> Active["Active Persistent Chat"]
     
-    Active -->|Send next messages| Active
-    Active -->|Toggle Pin| Pinned[Pinned Chat]
-    Active -->|Toggle Archive| Archived[Archived Chat]
-    Active -->|Move to Collection| Grouped[Collection Grouped Chat]
-    Active -->|Delete| Deleted([Permanently Deleted])
+    Active --> Msg["Send Follow-Up Messages"]
+    Active --> Org["Organize (Pin / Archive / Add to Collection)"]
+    Active --> Del["Delete Chat & Messages"]
 ```
 
 ---
@@ -736,20 +732,18 @@ Document ingestion is handled by `apps/ai-service/rag/ingestion.py`:
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as User Client
-    participant Gateway as Backend Gateway
-    participant AI as LangGraph AI Engine
-    participant DB as MongoDB & Embeddings
+    actor User as User
+    participant BE as Backend
+    participant AI as AI Engine
+    participant DB as MongoDB
 
-    User->>Gateway: 1. Send Query with Active Scope
-    Gateway->>AI: 2. Invoke POST /chat with User Context
-    AI->>DB: 3. Resolve RBAC Permitted Document IDs
-    DB-->>AI: 4. Accessible Document Records
-    AI->>DB: 5. Embed Query & Search Vector Chunks
-    DB-->>AI: 6. Matching Chunks & Cosine Scores
-    AI->>AI: 7. Prompt Assembly & LLM Generation
-    AI-->>Gateway: 8. Stream Answer + Citations
-    Gateway-->>User: 9. Live SSE Stream with Markdown & Footnotes
+    User->>BE: 1. Send Query with Scope
+    BE->>AI: 2. POST /chat with Context
+    AI->>DB: 3. Fetch Permitted Chunks
+    DB-->>AI: 4. Return Vector Chunks
+    AI->>AI: 5. Match Vectors & Assemble Prompt
+    AI-->>BE: 6. Stream Answer + Citations
+    BE-->>User: 7. Live SSE Stream to Client
 ```
 
 ---
