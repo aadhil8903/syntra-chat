@@ -105,7 +105,7 @@ Enterprise knowledge is scattered across drives, folders, and spreadsheets, and 
 
 For software engineers, system architects, and technical contributors looking for in-depth implementation details:
 
-👉 **[📖 Read the Master Architecture Document (`architecture.md`)](./architecture.md)**
+ **[📖 Read the Architecture Document (`architecture.md`)](./architecture.md)**
 
 Key highlights in the architecture document:
 - **System Topography & Monorepo Design**: High-legibility service topology diagrams, data flows, and shared package contracts.
