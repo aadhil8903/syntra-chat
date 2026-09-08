@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../apps/frontend/public/logo-icon.png" alt="Syntra Chat Logo" width="80" height="80" style="border-radius: 16px;" />
+  <img src="apps/frontend/public/logo-icon.png" alt="Syntra Chat Logo" width="80" height="80" style="border-radius: 16px;" />
 </p>
 
 # Syntra Chat — System Architecture
