@@ -2,10 +2,11 @@
   <img src="apps/frontend/public/logo-icon.png" alt="Syntra Chat Logo" width="80" height="80" style="border-radius: 16px;" />
 </p>
 
-# Syntra Chat — System Architecture
+# Syntra Chat - System Architecture
 
 > **Authoritative Technical Architecture, Infrastructure & Implementation Reference**  
-> *Version:* 5.0 (Monorepo Standard — Full Codebase Audit)  
+> *Author:* Aadil  
+> *Version:* 5.1 (Monorepo Standard - High-Legibility Visuals & Deep Audit)  
 > *Target Audience:* Core Engineers, Systems Architects, Security Auditors, and Autonomous AI Agents
 
 ---
@@ -13,7 +14,7 @@
 ## Table of Contents
 
 1. [Executive Architecture Summary](#1-executive-architecture-summary)
-2. [Repository / Monorepo Architecture](#2-repository--monorepo-architecture)
+2. [Repository / Monorepo Architecture](#2-repository-monorepo-architecture)
 3. [Technology Stack](#3-technology-stack)
 4. [Service Architecture](#4-service-architecture)
 5. [Frontend Architecture](#5-frontend-architecture)
@@ -38,10 +39,10 @@
 24. [Dataset Architecture](#24-dataset-architecture)
 25. [Document Ingestion Architecture](#25-document-ingestion-architecture)
 26. [Embedding Architecture](#26-embedding-architecture)
-27. [Vector / Index Architecture](#27-vector--index-architecture)
+27. [Vector / Index Architecture](#27-vector-index-architecture)
 28. [RAG Architecture](#28-rag-architecture)
 29. [AI Service Architecture](#29-ai-service-architecture)
-30. [AI Graph / Orchestration](#30-ai-graph--orchestration)
+30. [AI Graph / Orchestration](#30-ai-graph-orchestration)
 31. [AI Context Construction](#31-ai-context-construction)
 32. [AI Token Optimization](#32-ai-token-optimization)
 33. [LLM Architecture](#33-llm-architecture)
@@ -67,7 +68,7 @@
 53. [Observability](#53-observability)
 54. [Performance Considerations](#54-performance-considerations)
 55. [Current Limitations](#55-current-limitations)
-56. [Planned / Future Architecture](#56-planned--future-architecture)
+56. [Planned / Future Architecture](#56-planned-future-architecture)
 57. [Glossary](#57-glossary)
 58. [Code Reference Index](#58-code-reference-index)
 
@@ -88,41 +89,41 @@
 
 ```mermaid
 flowchart TD
-    subgraph ClientBrowser [Browser Client]
+    subgraph ClientTier [Client Tier]
         UI[Angular 19 Frontend SPA]
     end
 
-    subgraph BackendGateway [NestJS Backend API Gateway - Port 3000]
-        Auth[Auth / JWT / Passport]
+    subgraph BackendTier [Backend API Gateway - Port 3000]
+        Auth[Auth & JWT Service]
         ACL[ACL & Ownership Resolver]
-        Gate[AI Gateway / SSE Streamer]
+        Gate[AI Gateway SSE Streamer]
         GFS[GridFS Cloud Streamer]
         Mail[Nodemailer CID Dispatcher]
     end
 
-    subgraph AIMicroservice [Python AI Microservice - Port 8000]
+    subgraph AITier [Python AI Microservice - Port 8000]
         FastAPI[FastAPI Router]
         Graph[LangGraph State Machine]
         Parser[Multi-Format Ingestion Parser]
         BGE[Local BGE-v1.5 Embedder]
-        Sim[NumPy Cosine Vector Matcher]
+        Sim[NumPy Cosine Matcher]
         Sandbox[AST Sandboxed Pandas Engine]
         LLMAdapter[Gemini / Local Adapter]
     end
 
-    subgraph DataStorage [MongoDB Storage Cluster]
-        MongoDocs[(App Collections)]
+    subgraph StorageTier [MongoDB Database Cluster]
+        MongoDocs[(Application Collections)]
         VectorChunks[(document_chunks - 768d Vectors)]
         GridFSBucket[(GridFS Binary Buckets)]
     end
 
-    subgraph ExternalProviders [External Cloud Services]
+    subgraph ExternalTier [External Cloud Providers]
         LLM[Google Gemini API / Ollama]
-        SMTP[Gmail / Enterprise SMTP]
+        SMTP[Enterprise SMTP Relay]
     end
 
     UI -->|HTTP REST / JWT| Auth
-    UI -->|SSE / Messages| Gate
+    UI -->|SSE Stream / Messages| Gate
     Auth --> ACL
     ACL --> MongoDocs
     GFS --> GridFSBucket
@@ -257,8 +258,8 @@ The repository is structured as an npm workspaces monorepo containing three core
 # 4. Service Architecture
 
 ```mermaid
-flowchart LR
-    subgraph IngestionFlow [Ingestion Pipeline]
+flowchart TD
+    subgraph IngestionFlow [1. Document Ingestion Flow]
         Doc[User File Upload] -->|POST /documents| NestDoc[NestJS DocumentsController]
         NestDoc -->|Upload Buffer| GFS[GridFS Bucket]
         NestDoc -->|POST /rag/ingest| FastIngest[FastAPI Ingest Router]
@@ -269,18 +270,18 @@ flowchart LR
         BGEModel --> ChunkStore[(MongoDB document_chunks)]
     end
 
-    subgraph ChatFlow [Chat & Inference Pipeline]
+    subgraph QueryFlow [2. Chat & Inference Flow]
         UserMsg[User Query] -->|POST /messages/stream| NestMsg[NestJS MessagesController]
         NestMsg -->|Verify ACL & Scope| ACLCheck[ACL Resolver]
         ACLCheck -->|POST /chat| FastChat[FastAPI Chat Router]
         FastChat --> LGraph[LangGraph StateGraph]
         LGraph --> Retr[NumPy Vector Search]
-        Retr <--> ChunkStore
+        Retr -.->|Read Vectors| ChunkStore
         LGraph --> Sand[AST Sandboxed Pandas]
         LGraph --> LLMCall[Gemini 1.5/3.0 / Local LLM]
         LLMCall --> FormatResp[Citations + Tables + Charts]
         FormatResp --> NestMsg
-        NestMsg -->|SSE Chunks / Final JSON| UserMsg
+        NestMsg -->|SSE Chunks / Stream| UserReturn[User Client UI]
     end
 ```
 
@@ -331,28 +332,24 @@ The frontend is an Angular 19 single-page application built entirely on **Standa
 sequenceDiagram
     autonumber
     actor User as User Browser
-    participant FE as Angular AuthService
-    participant BE as NestJS AuthController
-    participant Svc as AuthService / UsersService
-    participant DB as MongoDB (users collection)
+    participant FE as Frontend Client
+    participant BE as Backend API Gateway
+    participant DB as MongoDB Cluster
 
-    User->>FE: Enter Email & Password
-    FE->>BE: POST /auth/login { email, password }
-    BE->>Svc: validateUser(email, password)
-    Svc->>DB: findOne({ email: normalizedEmail })
-    DB-->>Svc: User Record (with password hash)
-    Svc->>Svc: argon2.verify(hash, password) / bcrypt.compare()
+    User->>FE: 1. Submit Credentials (Email / Password)
+    FE->>BE: 2. POST /auth/login
+    BE->>DB: 3. Find User Document by Email
+    DB-->>BE: 4. User Record & Password Hash
+    BE->>BE: 5. Verify Hash (Argon2 / bcrypt)
     alt Invalid Credentials
-        Svc-->>BE: UnauthorizedException
-        BE-->>FE: 401 Unauthorized
-        FE-->>User: Display error notification
+        BE-->>FE: 6a. 401 Unauthorized
+        FE-->>User: 7a. Show error alert
     else Valid Credentials
-        Svc->>Svc: Generate accessToken (15m) & refreshToken (7d)
-        Svc->>DB: Update lastLogin timestamp
-        Svc-->>BE: { accessToken, refreshToken, user }
-        BE-->>FE: 200 OK with Token Payload
-        FE->>FE: Save tokens to localStorage & set currentUser Signal
-        FE-->>User: Route to /dashboard or /chat
+        BE->>BE: 6b. Sign Access Token (15m) & Refresh Token (7d)
+        BE->>DB: 7b. Update lastLogin timestamp
+        BE-->>FE: 8b. 200 OK with JWT Tokens & User Object
+        FE->>FE: 9b. Store in localStorage & Set Auth Signal
+        FE-->>User: 10b. Navigate to Dashboard / Chat
     end
 ```
 
@@ -499,21 +496,36 @@ Syntra Chat implements a layered **Defense-in-Depth Authorization Framework**:
 # 11. Database Relationships
 
 ```mermaid
-erDiagram
-    USER ||--o{ CONVERSATION : owns
-    USER ||--o{ DOCUMENT : uploads
-    USER ||--o{ DATASET : uploads
-    USER ||--o{ COLLECTION : creates
-    USER ||--o{ ACCESSREQUEST : submits
+flowchart TD
+    User[USER]
+    Role[ROLE]
+    AccessReq[ACCESS REQUEST]
+    Folder[FOLDER]
+    Doc[DOCUMENT]
+    Dataset[DATASET]
+    DocChunk[DOCUMENT CHUNK]
+    GFS[GRIDFS FILE]
+    Collection[COLLECTION]
+    Conv[CONVERSATION]
+    Msg[MESSAGE]
 
-    COLLECTION ||--o{ CONVERSATION : groups
-    CONVERSATION ||--o{ MESSAGE : contains
-
-    FOLDER ||--o{ DOCUMENT : organizes
-    FOLDER ||--o{ DATASET : organizes
-
-    DOCUMENT ||--o{ DOCUMENT_CHUNK : chunks
-    DOCUMENT ||--|| GRIDFS_FILE : stores_binary
+    User -->|assigned| Role
+    User -->|submits| AccessReq
+    AccessReq -.->|requests access to| Doc
+    AccessReq -.->|requests access to| Dataset
+    
+    User -->|uploads / owns| Doc
+    User -->|uploads / owns| Dataset
+    Folder -->|organizes| Doc
+    Folder -->|organizes| Dataset
+    
+    Doc -->|binary stored in| GFS
+    Doc -->|split into 768d vectors| DocChunk
+    
+    User -->|creates| Collection
+    User -->|initiates| Conv
+    Collection -->|groups| Conv
+    Conv -->|contains| Msg
 ```
 
 ---
@@ -527,16 +539,20 @@ Syntra Chat implements **Lazy Conversation Persistence**:
 4. Subsequent messages append to the persisted conversation thread.
 
 ```mermaid
-stateDiagram-v2
-    [*] --> UnsavedClientDraft: Click "New Chat"
-    UnsavedClientDraft --> UnsavedClientDraft: Type prompt / attach mentions
-    UnsavedClientDraft --> Discarded: Navigate away before sending
-    UnsavedClientDraft --> PersistedActive: Send 1st Message
-    PersistedActive --> PersistedActive: Send subsequent messages
-    PersistedActive --> Pinned: Toggle Pin
-    PersistedActive --> Archived: Toggle Archive
-    PersistedActive --> GroupedInCollection: Move to Collection
-    PersistedActive --> [*]: Delete Chat
+flowchart TD
+    Init([Click 'New Chat']) --> Draft[Unsaved Client Draft]
+    
+    Draft -->|Type text / attach mentions| Draft
+    Draft -->|Navigate away before send| Discarded([Draft Discarded - Zero DB writes])
+    
+    Draft -->|Send 1st Message| Persist[Create Conversation in MongoDB]
+    Persist --> Active[Active Persistent Chat]
+    
+    Active -->|Send next messages| Active
+    Active -->|Toggle Pin| Pinned[Pinned Chat]
+    Active -->|Toggle Archive| Archived[Archived Chat]
+    Active -->|Move to Collection| Grouped[Collection Grouped Chat]
+    Active -->|Delete| Deleted([Permanently Deleted])
 ```
 
 ---
@@ -655,13 +671,15 @@ Syntra Chat uses a **Three-Tier Precedence Resolution** for file downloads:
 
 ```mermaid
 flowchart TD
-    Start[User Requests File Download] --> CheckOverride{File downloadPermission?}
-    CheckOverride -->|'allowed'| Allow[Download Permitted]
-    CheckOverride -->|'not_allowed'| Deny[Download Blocked - 403]
-    CheckOverride -->|'use_folder_setting'| CheckFolder{Folder defaultDownloadPermission?}
-    CheckFolder -->|'allowed'| Allow
-    CheckFolder -->|'not_allowed'| Deny
-    CheckFolder -->|No Folder / Unset| Deny
+    Start([User Requests File Download]) --> Step1[Check File Override: downloadPermission]
+    
+    Step1 -->|'allowed'| Allow([Download Permitted - 200 Stream])
+    Step1 -->|'not_allowed'| Deny([Download Blocked - 403 Forbidden])
+    Step1 -->|'use_folder_setting'| Step2[Check Parent Folder: defaultDownloadPermission]
+    
+    Step2 -->|'allowed'| Allow
+    Step2 -->|'not_allowed'| Deny
+    Step2 -->|No Folder / Unset| Deny
 ```
 
 ---
@@ -718,28 +736,20 @@ Document ingestion is handled by `apps/ai-service/rag/ingestion.py`:
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User
-    participant Graph as LangGraph Orchestrator
-    participant Context as resolve_context_node
-    participant DB as MongoDB
-    participant Retr as search_documents_vector
-    participant Embed as BGE-v1.5 Model
-    participant LLM as Gemini 1.5/3.0 LLM
+    actor User as User Client
+    participant Gateway as Backend Gateway
+    participant AI as LangGraph AI Engine
+    participant DB as MongoDB & Embeddings
 
-    User->>Graph: "What are our travel reimbursement limits?"
-    Graph->>Context: Resolve accessible document IDs for user
-    Context->>DB: Query documents matching User RBAC & Folders
-    DB-->>Context: [doc_1, doc_2]
-    Graph->>Retr: search_documents_vector(query, [doc_1, doc_2])
-    Retr->>Embed: embed_query(query)
-    Embed-->>Retr: 768d Query Vector
-    Retr->>DB: Fetch chunks for [doc_1, doc_2]
-    DB-->>Retr: Document Chunks with Vectors
-    Retr->>Retr: Compute Cosine Similarities & Rank Top Chunks
-    Retr-->>Graph: Top Citations & Text Snippets
-    Graph->>LLM: Prompt with System Persona + Context Snippets + Query
-    LLM-->>Graph: Grounded Natural Language Answer
-    Graph-->>User: Answer + Citations Footnotes
+    User->>Gateway: 1. Send Query with Active Scope
+    Gateway->>AI: 2. Invoke POST /chat with User Context
+    AI->>DB: 3. Resolve RBAC Permitted Document IDs
+    DB-->>AI: 4. Accessible Document Records
+    AI->>DB: 5. Embed Query & Search Vector Chunks
+    DB-->>AI: 6. Matching Chunks & Cosine Scores
+    AI->>AI: 7. Prompt Assembly & LLM Generation
+    AI-->>Gateway: 8. Stream Answer + Citations
+    Gateway-->>User: 9. Live SSE Stream with Markdown & Footnotes
 ```
 
 ---
@@ -821,48 +831,48 @@ Context is assembled dynamically based on the routed node:
 ### Primary NestJS REST API Endpoints
 
 #### Authentication (`/auth`)
-- `POST /auth/login` — Authenticate user and issue JWT tokens.
-- `POST /auth/refresh` — Issue new access token using refresh token.
-- `POST /auth/change-password` — Update user password (clears `isTemporaryPassword`).
+- `POST /auth/login` - Authenticate user and issue JWT tokens.
+- `POST /auth/refresh` - Issue new access token using refresh token.
+- `POST /auth/change-password` - Update user password (clears `isTemporaryPassword`).
 
 #### Conversations (`/conversations`)
-- `GET /conversations` — List user conversations (supports `?archived=true`).
-- `POST /conversations` — Create a new conversation.
-- `PATCH /conversations/:id` — Update title, pinned status, archive status, or collection.
-- `DELETE /conversations/:id` — Permanently delete conversation and messages.
-- `GET /conversations/search?q=...` — Search conversations by title.
+- `GET /conversations` - List user conversations (supports `?archived=true`).
+- `POST /conversations` - Create a new conversation.
+- `PATCH /conversations/:id` - Update title, pinned status, archive status, or collection.
+- `DELETE /conversations/:id` - Permanently delete conversation and messages.
+- `GET /conversations/search?q=...` - Search conversations by title.
 
 #### Messages (`/messages`)
-- `GET /messages/conversation/:id` — Fetch message history for conversation.
-- `POST /messages/stream` — Dispatch user query, stream AI response chunks via SSE.
+- `GET /messages/conversation/:id` - Fetch message history for conversation.
+- `POST /messages/stream` - Dispatch user query, stream AI response chunks via SSE.
 
 #### Documents & Files (`/documents`)
-- `GET /documents` — List accessible documents for user.
-- `POST /documents` — Upload new file (multipart/form-data).
-- `POST /documents/:id/replace` — Replace file content.
-- `PATCH /documents/:id/move` — Move document to folder.
-- `PATCH /documents/:id/download-permission` — Update download permission.
-- `DELETE /documents/:id` — Delete document, GridFS file, and vector chunks.
-- `GET /documents/:id/download` — Stream binary file download (enforces ACL).
+- `GET /documents` - List accessible documents for user.
+- `POST /documents` - Upload new file (multipart/form-data).
+- `POST /documents/:id/replace` - Replace file content.
+- `PATCH /documents/:id/move` - Move document to folder.
+- `PATCH /documents/:id/download-permission` - Update download permission.
+- `DELETE /documents/:id` - Delete document, GridFS file, and vector chunks.
+- `GET /documents/:id/download` - Stream binary file download (enforces ACL).
 
 #### Datasets (`/datasets`)
-- `GET /datasets` — List accessible datasets.
-- `POST /datasets` — Upload tabular dataset.
-- `GET /datasets/:id/preview` — Get first 50 rows of dataset.
+- `GET /datasets` - List accessible datasets.
+- `POST /datasets` - Upload tabular dataset.
+- `GET /datasets/:id/preview` - Get first 50 rows of dataset.
 
 #### Collections (`/collections`)
-- `GET /collections` — List user collections.
-- `POST /collections` — Create new collection.
-- `PATCH /collections/:id` — Update collection name or description.
-- `DELETE /collections/:id` — Delete collection (unassigns child chats).
+- `GET /collections` - List user collections.
+- `POST /collections` - Create new collection.
+- `PATCH /collections/:id` - Update collection name or description.
+- `DELETE /collections/:id` - Delete collection (unassigns child chats).
 
 #### Admin (`/admin`, `/users`, `/roles`, `/folders`)
-- `GET /users` — List all enterprise users (Admin only).
-- `POST /users` — Provision new enterprise user & dispatch welcome email.
-- `PATCH /users/:id` — Update user role, departments, or folder access.
-- `GET /access-requests` — List pending access requests.
-- `POST /access-requests/:id/approve` — Approve resource access request.
-- `POST /access-requests/:id/reject` — Reject resource access request.
+- `GET /users` - List all enterprise users (Admin only).
+- `POST /users` - Provision new enterprise user & dispatch welcome email.
+- `PATCH /users/:id` - Update user role, departments, or folder access.
+- `GET /access-requests` - List pending access requests.
+- `POST /access-requests/:id/approve` - Approve resource access request.
+- `POST /access-requests/:id/reject` - Reject resource access request.
 
 ---
 
@@ -960,26 +970,15 @@ The Admin dashboard (`apps/frontend/src/app/features/admin/`) enables enterprise
 
 ```mermaid
 flowchart TD
-    subgraph RenderCloud [Production Deployment on Render]
-        subgraph StaticSite [Frontend Service]
-            FEApp[Angular 19 Dist Build - syntra-chat.onrender.com]
-        end
-        subgraph WebServiceBE [Backend API Service]
-            BEApp[NestJS Node.js App - Port 3000]
-        end
-        subgraph WebServiceAI [AI Microservice]
-            AIApp[FastAPI + PyTorch App - Port 8000]
-        end
-    end
+    FE["Frontend SPA (Angular 19)<br/>syntra-chat.onrender.com"]
+    BE["Backend API Gateway (NestJS 10)<br/>Port 3000"]
+    AI["AI Microservice (FastAPI + Python 3.11)<br/>Port 8000"]
+    DB[("MongoDB Atlas Database Cluster")]
 
-    subgraph AtlasCloud [MongoDB Atlas]
-        DB[(Primary Cluster)]
-    end
-
-    FEApp -->|HTTPS REST| BEApp
-    BEApp -->|Internal HTTP| AIApp
-    BEApp -->|Mongoose Pool| DB
-    AIApp -->|PyMongo Pool| DB
+    FE -->|HTTPS REST / JWT| BE
+    BE -->|Internal HTTP / SSE| AI
+    BE -->|Mongoose Pool| DB
+    AI -->|PyMongo Pool| DB
 ```
 
 ---
@@ -1065,14 +1064,13 @@ flowchart LR
 
 ### File Ingestion State Machine
 ```mermaid
-stateDiagram-v2
-    [*] --> Pending: File Uploaded
-    Pending --> Processing: Parser Assigned
-    Processing --> Indexed: Vectors Generated & Stored
-    Processing --> Failed: Parse / Embed Error
-    Indexed --> Replaced: File Overwrite
-    Replaced --> Processing
-    Indexed --> [*]: Document Deleted
+flowchart TD
+    InitState([File Uploaded]) --> Pending[Status: pending]
+    Pending --> Processing[Status: processing - Parser & Chunker Assigned]
+    Processing -->|Success| Indexed[Status: indexed - 768d Vectors in MongoDB]
+    Processing -->|Error| Failed[Status: failed - Parse / Embed Error Logged]
+    Indexed -->|File Replacement| Processing
+    Indexed -->|Deletion| Deleted([Document & Vectors Removed])
 ```
 
 ---

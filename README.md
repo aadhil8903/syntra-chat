@@ -13,6 +13,7 @@ Chat with your organization's internal documents and data - grounded, cited, and
 [![Workflow](https://img.shields.io/badge/Workflow-LangGraph%20%2F%20LangChain-1C3C3C)](#tech-stack)
 [![LLM](https://img.shields.io/badge/LLM-Gemini-4285F4?logo=googlegemini&logoColor=white)](#tech-stack)
 [![Database](https://img.shields.io/badge/Database-MongoDB%20Atlas-47A248?logo=mongodb&logoColor=white)](#tech-stack)
+[![Architecture](https://img.shields.io/badge/Docs-Architecture%20Guide-0969da?logo=readme&logoColor=white)](./architecture.md)
 [![Status](https://img.shields.io/badge/Status-In%20Development-yellow)](#status)
 
 </div>
@@ -24,7 +25,7 @@ Chat with your organization's internal documents and data - grounded, cited, and
 - [Why Syntra Chat](#why-syntra-chat)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
-- [Architecture](#architecture)
+- [Architecture & Developer Guide](#architecture)
 - [Status](#status)
 
 ---
@@ -99,6 +100,20 @@ Enterprise knowledge is scattered across drives, folders, and spreadsheets, and 
                     | (app data + vectors)|
                     +--------------------+
 ```
+
+### 📄 Developer Architecture & Technical Reference
+
+For software engineers, system architects, and technical contributors looking for in-depth implementation details:
+
+👉 **[📖 Read the Master Architecture Document (`architecture.md`)](./architecture.md)**
+
+Key highlights in the architecture document:
+- **System Topography & Monorepo Design**: High-legibility service topology diagrams, data flows, and shared package contracts.
+- **Security & Authorization**: Defense-in-depth RBAC, folder ACL resolution, ownership verification, and download permission precedence.
+- **RAG & Vector Retrieval**: Local `BAAI/bge-base-en-v1.5` embeddings (768-dim), in-memory NumPy cosine similarity, and document chunking.
+- **AI Agent Orchestration**: LangGraph deterministic state graph, AST sandboxed Python execution, and dynamic ChartSpec generation.
+- **Database Schemas & State Machines**: Complete MongoDB collection specs, lazy conversation persistence, and file ingestion lifecycles.
+- **API Catalog & Invariants**: Comprehensive REST API endpoints and core architectural invariants.
 
 ---
 
