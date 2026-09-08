@@ -54,11 +54,9 @@ import { IUser } from '@enter-chat/shared-types';
             </div>
             <div class="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
               <span class="text-zinc-500 dark:text-zinc-400 font-medium w-48">User Role</span>
-              <div class="sm:text-right">
-                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wide uppercase bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
-                  {{ u.role }}
-                </span>
-              </div>
+              <span class="text-zinc-700 dark:text-zinc-300 font-mono text-xs sm:text-right">
+                {{ u.role }}
+              </span>
             </div>
             <div class="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
               <span class="text-zinc-500 dark:text-zinc-400 font-medium w-48">Departments</span>
@@ -394,7 +392,7 @@ import { IUser } from '@enter-chat/shared-types';
         <section class="space-y-4 pt-2">
           <div class="flex items-center gap-2">
             <h2 class="text-xs font-semibold tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Master Admin Password</h2>
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-mono uppercase font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">Admin Only</span>
+            <span class="text-[10px] font-mono uppercase text-zinc-500 dark:text-zinc-400">Admin Only</span>
           </div>
           <p class="text-xs text-zinc-500 dark:text-zinc-400 -mt-2">Separate high-privilege secret required to create or promote users to Administrator.</p>
 
@@ -529,10 +527,8 @@ import { IUser } from '@enter-chat/shared-types';
             <div class="space-y-0.5">
               <div class="flex items-center gap-2">
                 <span class="font-medium text-zinc-900 dark:text-white text-sm">MongoDB Atlas Cluster</span>
-                <span class="inline-flex items-center gap-1 text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold border border-zinc-200 dark:border-zinc-700">
-                  <svg class="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                  </svg>
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-mono text-zinc-700 dark:text-zinc-300 font-medium">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                   Connected
                 </span>
               </div>
@@ -546,7 +542,7 @@ import { IUser } from '@enter-chat/shared-types';
             <div class="space-y-0.5">
               <div class="flex items-center gap-2">
                 <span class="font-medium text-zinc-900 dark:text-white text-sm">Gemini Flash (Google)</span>
-                <span class="inline-flex items-center gap-1 text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold border border-zinc-200 dark:border-zinc-700">
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-mono text-zinc-700 dark:text-zinc-300 font-medium">
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                   Active
                 </span>
@@ -561,7 +557,7 @@ import { IUser } from '@enter-chat/shared-types';
             <div class="space-y-0.5">
               <div class="flex items-center gap-2">
                 <span class="font-medium text-zinc-900 dark:text-white text-sm">BGE Base (768 Dim)</span>
-                <span class="inline-flex items-center text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                <span class="inline-flex items-center text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
                   Local
                 </span>
               </div>

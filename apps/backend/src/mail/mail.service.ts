@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import * as fs from 'fs';
+import * as path from 'path';
 
 /**
  * Safely parses a string/boolean/number value into a boolean with a fallback.
@@ -148,18 +150,13 @@ export class MailService implements OnModuleInit {
   getFrontendUrl(): string {
     const configured = this.configService.get<string>('FRONTEND_URL') || process.env.FRONTEND_URL;
     if (configured && configured.trim()) {
-      return configured.trim().replace(/\/+$/, '');
+      const cleanUrl = configured.trim().replace(/\/+$/, '');
+      if (!cleanUrl.includes('localhost') && !cleanUrl.includes('127.0.0.1')) {
+        return cleanUrl;
+      }
     }
 
-    const isProduction =
-      this.configService.get<string>('NODE_ENV') === 'production' ||
-      process.env.NODE_ENV === 'production';
-
-    if (isProduction) {
-      return 'https://syntra-chat.onrender.com';
-    }
-
-    return 'http://localhost:4200';
+    return 'https://syntra-chat.onrender.com';
   }
 
   /**
@@ -171,6 +168,32 @@ export class MailService implements OnModuleInit {
       return baseUrl;
     }
     return `${baseUrl}/dashboard`;
+  }
+
+  /**
+   * Discovers the application logo file and returns a CID attachment definition.
+   */
+  private getLogoAttachment(): nodemailer.SendMailOptions['attachments'] {
+    const candidatePaths = [
+      path.resolve(process.cwd(), 'apps/frontend/public/logo-icon.png'),
+      path.resolve(process.cwd(), 'apps/frontend/public/logo.png'),
+      path.resolve(process.cwd(), 'logo.png'),
+      path.resolve(__dirname, '../../../../apps/frontend/public/logo-icon.png'),
+      path.resolve(__dirname, '../../../../logo.png'),
+    ];
+
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        return [
+          {
+            filename: 'logo.png',
+            path: p,
+            cid: 'syntra-logo',
+          },
+        ];
+      }
+    }
+    return [];
   }
 
   /**
@@ -221,7 +244,7 @@ export class MailService implements OnModuleInit {
 
     const textContent = `Hello ${displayName},
 
-Welcome to Syntra Chat, your private enterprise knowledge and analytics platform. An administrator has provisioned an account for you.
+Welcome to Syntra Chat. Your account is ready. You now have access to the workspace resources shared with you.
 
 Here are your initial sign-in credentials:
 --------------------------------------------------
@@ -255,10 +278,10 @@ The Syntra Chat Platform Team`;
             <td style="padding-bottom: 24px; border-bottom: 1px solid #27272a;">
               <table role="presentation" border="0" cellspacing="0" cellpadding="0">
                 <tr>
-                  <td style="width: 36px; height: 36px; background-color: #18181b; border: 1px solid #e11d48; border-radius: 8px; text-align: center; vertical-align: middle;">
-                    <div style="display: inline-block; width: 14px; height: 14px; background-color: #e11d48; border: 2px solid #ffffff; transform: rotate(45deg);"></div>
+                  <td style="width: 36px; height: 36px; vertical-align: middle;">
+                    <img src="cid:syntra-logo" alt="Syntra Chat" width="36" height="36" style="display: block; width: 36px; height: 36px; border-radius: 8px; object-fit: contain;" />
                   </td>
-                  <td style="padding-left: 12px;">
+                  <td style="padding-left: 12px; vertical-align: middle;">
                     <span style="font-size: 18px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">Syntra Chat</span>
                   </td>
                 </tr>
@@ -272,7 +295,7 @@ The Syntra Chat Platform Team`;
               <h1 style="font-size: 20px; font-weight: 600; color: #ffffff; margin: 0 0 12px 0;">Welcome to Syntra Chat</h1>
               <p style="font-size: 14px; line-height: 22px; color: #a1a1aa; margin: 0 0 24px 0;">
                 Hello <strong style="color: #ffffff;">${displayName}</strong>,<br>
-                An administrator has provisioned an enterprise account for you to access workspace documents, datasets, and AI analytics.
+                Your account is ready. You now have access to the workspace resources shared with you.
               </p>
             </td>
           </tr>
@@ -350,14 +373,22 @@ The Syntra Chat Platform Team`;
     try {
       this.logger.log(`[MAIL TRACE] About to call transporter.sendMail() to ${this.maskEmail(toEmail)}`);
 
+      const attachments = this.getLogoAttachment();
+
+      const mailOptions: nodemailer.SendMailOptions = {
+        from: fromAddress,
+        to: toEmail,
+        subject,
+        text: textContent,
+        html: htmlContent,
+      };
+
+      if (attachments && attachments.length > 0) {
+        mailOptions.attachments = attachments;
+      }
+
       const info = await this.executeWithTimeout(
-        this.transporter.sendMail({
-          from: fromAddress,
-          to: toEmail,
-          subject,
-          text: textContent,
-          html: htmlContent,
-        }),
+        this.transporter.sendMail(mailOptions),
         10000,
         'SMTP dispatch',
       );

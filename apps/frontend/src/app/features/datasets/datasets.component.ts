@@ -314,7 +314,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                       <div class="min-w-0">
                         <div class="font-medium text-white text-sm truncate">{{ ds.originalName }}</div>
                         <div class="flex items-center gap-2 mt-1">
-                          <span class="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-[#141417] text-white border border-[#27272a]">
+                          <span class="text-xs font-mono uppercase text-zinc-400">
                             {{ ds.fileType }}
                           </span>
                           <span class="text-xs text-[#71717a] font-mono">{{ ds.totalRows }} rows</span>
@@ -343,8 +343,8 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                   <!-- Folder Tag Display -->
                   <div class="flex items-center justify-between pt-1 border-t border-[#27272a]">
                     <span class="text-[11px] text-[#71717a]">Folder:</span>
-                    <span class="text-[11px] text-zinc-300 font-mono bg-[#0c0c0e] px-2 py-0.5 rounded border border-[#27272a]">
-                      {{ ds.folder ? '📁 ' + ds.folder : 'Root / None' }}
+                    <span class="text-[11px] text-zinc-300 font-mono">
+                      {{ ds.folder || 'Root / None' }}
                     </span>
                   </div>
                 </div>
@@ -366,7 +366,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                     <span>{{ selectedDataset.sheetNames.length }} Sheet(s)</span>
                     @if (selectedDataset.folder) {
                       <span>•</span>
-                      <span class="text-zinc-300">📁 {{ selectedDataset.folder }}</span>
+                      <span class="text-zinc-300 font-mono">{{ selectedDataset.folder }}</span>
                     }
                   </div>
                 </div>

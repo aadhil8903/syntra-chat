@@ -4,7 +4,7 @@
     <div>
       <div class="flex items-center gap-3">
         <h1 class="text-2xl font-bold text-zinc-900 dark:text-white tracking-tight">Enterprise Administration</h1>
-        <span class="px-2.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-xs font-mono text-zinc-700 dark:text-zinc-400">
+        <span class="text-xs font-mono text-zinc-500 dark:text-zinc-400">
           {{ users.length }} Users &bull; {{ roles.length }} Roles
         </span>
       </div>
@@ -36,7 +36,7 @@
         <span>Create Role</span>
       </button>
 
-      <span *ngIf="pendingRequests.length > 0" class="px-3 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-xs font-mono text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+      <span *ngIf="pendingRequests.length > 0" class="text-xs font-mono text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
         <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
         {{ pendingRequests.length }} Pending Request{{ pendingRequests.length === 1 ? '' : 's' }}
       </span>
@@ -138,7 +138,7 @@
                     <div>
                       <div class="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">
                         {{ user.firstName }} {{ user.lastName }}
-                        <span *ngIf="user.role === 'admin'" class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-mono bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200">
+                        <span *ngIf="user.role === 'admin'" class="ml-1.5 text-[10px] font-mono font-semibold text-zinc-500 dark:text-zinc-400">
                           ADMIN
                         </span>
                       </div>
@@ -150,10 +150,7 @@
                 <!-- Role -->
                 <td class="py-3.5 px-4">
                   <div *ngIf="editingUserId !== user.id">
-                    <span
-                      class="px-2.5 py-1 rounded-md text-[11px] font-mono font-medium border"
-                      [ngClass]="user.role === 'admin' ? 'bg-zinc-900 text-white border-zinc-700 font-semibold' : 'bg-zinc-900 text-zinc-300 border-zinc-800'"
-                    >
+                    <span class="text-xs font-mono font-medium text-zinc-800 dark:text-zinc-300">
                       {{ user.role }}
                     </span>
                   </div>
@@ -204,13 +201,10 @@
 
                 <!-- Departments -->
                 <td class="py-3.5 px-4">
-                  <div *ngIf="editingUserId !== user.id" class="flex flex-wrap gap-1">
-                    @for (dep of user.departments; track dep) {
-                      <span class="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded-md text-[10px] border border-zinc-300 dark:border-zinc-800 font-mono">
-                        {{ dep }}
-                      </span>
-                    }
-                    @if (!user.departments.length) {
+                  <div *ngIf="editingUserId !== user.id" class="text-xs">
+                    @if (user.departments && user.departments.length > 0) {
+                      <span class="text-zinc-700 dark:text-zinc-300 font-mono text-xs">{{ user.departments.join(', ') }}</span>
+                    } @else {
                       <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">Unrestricted</span>
                     }
                   </div>
@@ -227,17 +221,11 @@
                 <!-- Allowed Folders -->
                 <td class="py-3.5 px-4">
                   <!-- View Mode -->
-                  <div *ngIf="editingUserId !== user.id" class="flex flex-wrap gap-1">
+                  <div *ngIf="editingUserId !== user.id" class="text-xs">
                     @if (user.role === 'admin') {
-                      <span class="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded-md text-[10px] border border-zinc-300 dark:border-zinc-800 font-mono">
-                        All (Admin)
-                      </span>
+                      <span class="text-zinc-500 font-mono text-xs">All (Admin)</span>
                     } @else if (user.allowedFolders && user.allowedFolders.length > 0) {
-                      @for (f of user.allowedFolders; track f) {
-                        <span class="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded-md text-[10px] border border-zinc-300 dark:border-zinc-800 flex items-center gap-1 font-mono">
-                          📁 {{ f }}
-                        </span>
-                      }
+                      <span class="text-zinc-700 dark:text-zinc-300 font-mono text-xs">{{ user.allowedFolders.join(', ') }}</span>
                     } @else {
                       <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">No restricted folders</span>
                     }
@@ -290,14 +278,10 @@
                 <!-- Status -->
                 <td class="py-3.5 px-4">
                   <div *ngIf="editingUserId !== user.id">
-                    <span
-                      class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-mono border bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 font-medium"
-                    >
+                    <span class="inline-flex items-center gap-1.5 text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300">
                       <span
                         class="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                        [ngClass]="user.status === 'suspended'
-                          ? 'bg-rose-500 shadow-[0_0_5px_rgba(244,63,94,0.7)]'
-                          : 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]'"
+                        [ngClass]="user.status === 'suspended' ? 'bg-rose-500' : 'bg-emerald-500'"
                       ></span>
                       {{ user.status || 'active' }}
                     </span>
@@ -373,7 +357,7 @@
               <div class="truncate">
                 <div class="font-semibold text-zinc-900 dark:text-zinc-100 text-sm truncate flex items-center gap-1.5">
                   <span>{{ user.firstName }} {{ user.lastName }}</span>
-                  <span *ngIf="user.role === 'admin'" class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-zinc-900 border border-zinc-700 text-zinc-200">
+                  <span *ngIf="user.role === 'admin'" class="text-[10px] font-mono font-semibold text-zinc-500 dark:text-zinc-400">
                     ADMIN
                   </span>
                 </div>
@@ -381,16 +365,12 @@
               </div>
             </div>
 
-            <span
-              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono border bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 font-medium flex-shrink-0"
-            >
+            <span class="inline-flex items-center gap-1.5 text-xs font-mono font-medium flex-shrink-0">
               <span
                 class="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                [ngClass]="user.status === 'suspended'
-                  ? 'bg-rose-500 shadow-[0_0_5px_rgba(244,63,94,0.7)]'
-                  : 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]'"
+                [ngClass]="user.status === 'suspended' ? 'bg-rose-500' : 'bg-emerald-500'"
               ></span>
-              {{ user.status || 'active' }}
+              <span class="text-zinc-700 dark:text-zinc-300">{{ user.status || 'active' }}</span>
             </span>
           </div>
 
@@ -398,10 +378,7 @@
           <div>
             <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-1">Security Role</span>
             <div *ngIf="editingUserId !== user.id">
-              <span
-                class="px-2.5 py-1 rounded-md text-[11px] font-mono font-medium border inline-block"
-                [ngClass]="user.role === 'admin' ? 'bg-zinc-900 text-white border-zinc-700 font-semibold' : 'bg-zinc-900 text-zinc-300 border-zinc-800'"
-              >
+              <span class="text-xs font-mono font-medium text-zinc-800 dark:text-zinc-300">
                 {{ user.role }}
               </span>
             </div>
@@ -453,13 +430,10 @@
           <!-- Departments -->
           <div>
             <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-1">Departments</span>
-            <div *ngIf="editingUserId !== user.id" class="flex flex-wrap gap-1">
-              @for (dep of user.departments; track dep) {
-                <span class="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded-md text-[10px] border border-zinc-300 dark:border-zinc-800 font-mono">
-                  {{ dep }}
-                </span>
-              }
-              @if (!user.departments.length) {
+            <div *ngIf="editingUserId !== user.id" class="text-xs">
+              @if (user.departments && user.departments.length > 0) {
+                <span class="text-zinc-700 dark:text-zinc-300 font-mono text-xs">{{ user.departments.join(', ') }}</span>
+              } @else {
                 <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">Unrestricted</span>
               }
             </div>
@@ -476,17 +450,11 @@
           <!-- Allowed Folders -->
           <div>
             <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-1">Allowed Folders</span>
-            <div *ngIf="editingUserId !== user.id" class="flex flex-wrap gap-1">
+            <div *ngIf="editingUserId !== user.id" class="text-xs">
               @if (user.role === 'admin') {
-                <span class="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded-md text-[10px] border border-zinc-300 dark:border-zinc-800 font-mono">
-                  All (Admin)
-                </span>
+                <span class="text-zinc-500 font-mono text-xs">All (Admin)</span>
               } @else if (user.allowedFolders && user.allowedFolders.length > 0) {
-                @for (f of user.allowedFolders; track f) {
-                  <span class="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded-md text-[10px] border border-zinc-300 dark:border-zinc-800 flex items-center gap-1 font-mono">
-                    📁 {{ f }}
-                  </span>
-                }
+                <span class="text-zinc-700 dark:text-zinc-300 font-mono text-xs">{{ user.allowedFolders.join(', ') }}</span>
               } @else {
                 <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">No restricted folders</span>
               }
@@ -631,13 +599,10 @@
 
                 <!-- Allowed Folders -->
                 <td class="py-3.5 px-4">
-                  <div *ngIf="editingRoleId !== (role._id || role.id)" class="flex flex-wrap gap-1">
-                    @for (folder of (role.allowedFolders || []); track folder) {
-                      <span class="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded-md text-[10px] border border-zinc-300 dark:border-zinc-800 font-mono">
-                        {{ folder }}
-                      </span>
-                    }
-                    @if (!role.allowedFolders || !role.allowedFolders.length) {
+                  <div *ngIf="editingRoleId !== (role._id || role.id)" class="text-xs">
+                    @if (role.allowedFolders && role.allowedFolders.length) {
+                      <span class="text-zinc-700 dark:text-zinc-300 font-mono text-xs">{{ role.allowedFolders.join(', ') }}</span>
+                    } @else {
                       <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">All Workspaces</span>
                     }
                   </div>
@@ -697,10 +662,7 @@
 
                 <!-- Type -->
                 <td class="py-3.5 px-4">
-                  <span
-                    class="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold uppercase border"
-                    [ngClass]="role.isSystem ? 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-800' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border-zinc-300 dark:border-zinc-700'"
-                  >
+                  <span class="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 uppercase font-medium">
                     {{ role.isSystem ? 'System' : 'Custom' }}
                   </span>
                 </td>
@@ -771,10 +733,7 @@
               </div>
             </div>
 
-            <span
-              class="px-2.5 py-1 rounded-md text-[10px] font-mono font-semibold uppercase border flex-shrink-0"
-              [ngClass]="role.isSystem ? 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-800' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border-zinc-300 dark:border-zinc-700'"
-            >
+            <span class="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 uppercase font-medium flex-shrink-0">
               {{ role.isSystem ? 'System' : 'Custom' }}
             </span>
           </div>
@@ -798,13 +757,10 @@
           <!-- Restricted / Allowed Folders -->
           <div>
             <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-1">Restricted Folders</span>
-            <div *ngIf="editingRoleId !== (role._id || role.id)" class="flex flex-wrap gap-1">
-              @for (folder of (role.allowedFolders || []); track folder) {
-                <span class="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded-md text-[10px] border border-zinc-300 dark:border-zinc-800 font-mono">
-                  📁 {{ folder }}
-                </span>
-              }
-              @if (!role.allowedFolders || !role.allowedFolders.length) {
+            <div *ngIf="editingRoleId !== (role._id || role.id)" class="text-xs">
+              @if (role.allowedFolders && role.allowedFolders.length) {
+                <span class="text-zinc-700 dark:text-zinc-300 font-mono text-xs">{{ role.allowedFolders.join(', ') }}</span>
+              } @else {
                 <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">All Workspaces</span>
               }
             </div>
@@ -969,10 +925,17 @@
                     <div *ngIf="req.userEmail" class="text-[11px] text-zinc-500 font-mono">{{ req.userEmail }}</div>
                   </td>
                   <td class="py-3.5 px-4 font-medium text-zinc-800 dark:text-zinc-200">
-                    <span class="px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono text-[10px] mr-1.5 uppercase border border-zinc-200 dark:border-zinc-700 font-medium">
-                      {{ req.resourceType }}
-                    </span>
-                    <span class="font-mono text-xs text-zinc-800 dark:text-zinc-200">{{ req.resourceName || req.folderPath || req.resourceId }}</span>
+                    <div class="flex items-center gap-2">
+                      <span class="text-[10px] font-mono uppercase text-zinc-500 dark:text-zinc-400 font-medium flex-shrink-0 tracking-wider">
+                        {{ req.resourceType }}
+                      </span>
+                      <span class="font-medium text-xs text-zinc-900 dark:text-zinc-100 truncate max-w-[200px]" [title]="req.resourceName || req.folderPath || req.resourceId">
+                        {{ req.resourceName || req.folderPath || req.resourceId }}
+                      </span>
+                    </div>
+                    <div *ngIf="req.folderPath && req.resourceName" class="text-[11px] text-zinc-500 font-mono mt-0.5 truncate max-w-[200px]">
+                      Folder: {{ req.folderPath }}
+                    </div>
                   </td>
                   <td class="py-3.5 px-4 text-zinc-700 dark:text-zinc-300 max-w-xs truncate">{{ req.reason || 'No justification provided' }}</td>
                   <td class="py-3.5 px-4 text-zinc-600 dark:text-zinc-400 font-mono text-[11px] whitespace-nowrap">{{ req.createdAt | date:'medium' }}</td>
@@ -1018,7 +981,7 @@
                 <div class="font-semibold text-white text-sm">{{ req.userName || req.userEmail || req.userId }}</div>
                 <div *ngIf="req.userEmail" class="text-[11px] text-zinc-500 font-mono">{{ req.userEmail }}</div>
               </div>
-              <span class="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 font-mono text-[10px] uppercase border border-zinc-700">
+              <span class="text-[10px] font-mono uppercase text-zinc-500 dark:text-zinc-400 font-medium tracking-wider">
                 {{ req.resourceType }}
               </span>
             </div>
@@ -1205,8 +1168,8 @@
 
                   <!-- Target Resource -->
                   <td class="py-2.5 px-3">
-                    <div class="flex items-center gap-1.5">
-                      <span class="px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono text-[10px] uppercase border border-zinc-200 dark:border-zinc-700 font-medium flex-shrink-0">
+                    <div class="flex items-center gap-2">
+                      <span class="text-[10px] font-mono uppercase text-zinc-500 dark:text-zinc-400 font-medium flex-shrink-0 tracking-wider">
                         {{ req.resourceType }}
                       </span>
                       <span class="font-medium text-xs text-zinc-900 dark:text-zinc-200 truncate max-w-[180px]" [title]="req.resourceName || req.folderPath || req.resourceId">
@@ -1223,20 +1186,22 @@
                     {{ req.createdAt | date:'medium' }}
                   </td>
 
-                  <!-- Status Badge -->
+                  <!-- Status -->
                   <td class="py-2.5 px-3">
                     @if (req.status === 'approved') {
-                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-800 font-semibold">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]"></span>
+                      <span class="inline-flex items-center gap-1.5 text-[11px] font-mono text-zinc-700 dark:text-zinc-300 font-medium">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                         Approved
                       </span>
                     } @else if (req.status === 'rejected') {
-                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800 font-semibold">
-                        <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_5px_rgba(244,63,94,0.7)]"></span> Rejected
+                      <span class="inline-flex items-center gap-1.5 text-[11px] font-mono text-zinc-600 dark:text-zinc-400 font-medium">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                        Rejected
                       </span>
                     } @else {
-                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 font-semibold">
-                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Pending
+                      <span class="inline-flex items-center gap-1.5 text-[11px] font-mono text-zinc-700 dark:text-zinc-300 font-medium">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                        Pending
                       </span>
                     }
                   </td>
@@ -1350,18 +1315,22 @@
                 <div *ngIf="req.userEmail" class="text-[11px] text-zinc-500 font-mono">{{ req.userEmail }}</div>
               </div>
               <span
-                class="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold uppercase border"
-                [ngClass]="req.status === 'approved' ? 'bg-zinc-900 text-zinc-200 border-zinc-800' : 'bg-zinc-900 text-zinc-400 border-zinc-800'"
+                class="inline-flex items-center gap-1.5 text-[11px] font-mono capitalize font-medium"
+                [ngClass]="req.status === 'approved' ? 'text-zinc-200' : 'text-zinc-400'"
               >
+                <span class="w-1.5 h-1.5 rounded-full" [ngClass]="req.status === 'approved' ? 'bg-emerald-500' : (req.status === 'rejected' ? 'bg-rose-500' : 'bg-amber-500 animate-pulse')"></span>
                 {{ req.status }}
               </span>
             </div>
 
             <div>
               <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-1">Target Resource</span>
-              <div class="flex items-center gap-1.5 flex-wrap font-mono text-xs text-white">
-                <span class="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 text-[10px] uppercase">{{ req.resourceType }}</span>
-                <span class="break-all">{{ req.resourceName || req.folderPath || req.resourceId }}</span>
+              <div class="flex items-center gap-2 flex-wrap text-xs text-white">
+                <span class="text-[10px] font-mono uppercase text-zinc-500 dark:text-zinc-400 font-medium tracking-wider">{{ req.resourceType }}</span>
+                <span class="break-all font-mono text-zinc-900 dark:text-zinc-100">{{ req.resourceName || req.folderPath || req.resourceId }}</span>
+              </div>
+              <div *ngIf="req.folderPath && req.resourceName" class="text-[11px] text-zinc-500 font-mono mt-0.5">
+                Folder: {{ req.folderPath }}
               </div>
             </div>
 
@@ -1502,7 +1471,7 @@
         <button (click)="showCreateModal = false" class="text-zinc-500 hover:text-white text-xl leading-none">&times;</button>
       </div>
 
-      <div *ngIf="createUserError" class="p-3 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs">
+      <div *ngIf="createUserError" class="p-3 rounded-xl bg-red-50/80 border border-red-200/90 text-red-700 dark:bg-red-950/25 dark:border-red-900/40 dark:text-red-300 text-xs">
         {{ createUserError }}
       </div>
 
@@ -1776,7 +1745,7 @@
         <button (click)="showCreateRoleModal = false" class="text-zinc-500 hover:text-white text-xl leading-none">&times;</button>
       </div>
 
-      <div *ngIf="createRoleError" class="p-3 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs">
+      <div *ngIf="createRoleError" class="p-3 rounded-xl bg-red-50/80 border border-red-200/90 text-red-700 dark:bg-red-950/25 dark:border-red-900/40 dark:text-red-300 text-xs">
         {{ createRoleError }}
       </div>
 

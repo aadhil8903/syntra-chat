@@ -267,7 +267,7 @@ export interface IQuickAction {
               @for (item of recentKnowledgeItems.slice(0, 3); track item.id) {
                 <div class="flex items-center justify-between p-2.5 rounded-xl bg-zinc-50 dark:bg-[#0c0c0e] border border-zinc-200 dark:border-[#27272a]">
                   <div class="flex items-center gap-2.5 truncate">
-                    <span class="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-[#18181b] text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-[#3f3f46]">
+                    <span class="text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400">
                       {{ item.fileType }}
                     </span>
                     <span class="text-xs text-zinc-800 dark:text-zinc-200 truncate">{{ item.originalName }}</span>

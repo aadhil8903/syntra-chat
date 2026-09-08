@@ -477,7 +477,7 @@ export interface IDynamicStarterCard {
                     </div>
                     <div class="flex items-center gap-1 flex-shrink-0">
                       @if (chatState.isGenerating(conv.id)) {
-                        <span class="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-zinc-100 border border-zinc-300 text-zinc-700 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-200 text-[9px] font-mono flex-shrink-0" title="Generating in background">
+                        <span class="flex items-center gap-1 text-[10px] font-mono text-zinc-600 dark:text-zinc-400 flex-shrink-0" title="Generating in background">
                           <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
                           <span class="hidden sm:inline">running</span>
                         </span>
@@ -550,7 +550,7 @@ export interface IDynamicStarterCard {
                 {{ isTemporaryMode ? 'Temporary Chat' : (isArchivedView && !activeConversation ? 'Archived Chats' : (activeConversation?.title || 'New Workplace Session')) }}
               </h2>
               @if (activeConversation?.archived) {
-                <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700">Archived</span>
+                <span class="text-[10px] font-mono text-zinc-500 dark:text-zinc-400">Archived</span>
               }
             </div>
           </div>
@@ -581,17 +581,23 @@ export interface IDynamicStarterCard {
                 aria-label="Toggle temporary chat mode"
               >
                 <span>Temporary Chat</span>
-                <span
-                  class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-mono uppercase font-semibold"
-                  [ngClass]="isTemporaryMode ? 'bg-white/20 text-white dark:bg-black/15 dark:text-zinc-900' : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'"
-                >
-                  {{ isTemporaryMode ? 'ON' : 'OFF' }}
-                </span>
+                @if (!isTemporaryMode) {
+                  <!-- Empty dashed chat bubble icon (OFF) -->
+                  <svg class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path stroke-dasharray="4 3" d="M12 21a9 9 0 10-9-9c0 1.48.36 2.88 1 4.11L3 21l4.89-1c1.23.64 2.63 1 4.11 1z" />
+                  </svg>
+                } @else {
+                  <!-- Dashed chat bubble with checkmark icon (ON) -->
+                  <svg class="w-3.5 h-3.5 text-white dark:text-zinc-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path stroke-dasharray="4 3" d="M12 21a9 9 0 10-9-9c0 1.48.36 2.88 1 4.11L3 21l4.89-1c1.23.64 2.63 1 4.11 1z" />
+                    <path stroke-dasharray="none" stroke-width="2.5" d="M8.5 12l2.5 2.5 5-5" />
+                  </svg>
+                }
               </button>
             }
 
             @if (chatState.activeGenerationsCount() > 0) {
-              <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-100 border border-zinc-300 dark:bg-zinc-900 dark:border-zinc-700 text-[10px] font-mono text-zinc-700 dark:text-zinc-200">
+              <div class="flex items-center gap-1.5 text-[11px] font-mono text-zinc-600 dark:text-zinc-400">
                 <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
                 <span>{{ chatState.activeGenerationsCount() }}/2 Active Chats</span>
               </div>
@@ -695,17 +701,17 @@ export interface IDynamicStarterCard {
                 }
 
                 <div
-                  [ngClass]="msg.role === 'user' ? 'bg-[#eceef1] text-[#17191c] border border-[#dcdde1] dark:border-transparent dark:bg-[#212124] dark:text-white rounded-2xl rounded-tr-sm px-3 py-2 sm:px-4 sm:py-3 shadow-xs dark:shadow-[0_1px_3px_rgba(0,0,0,0.3)] max-w-[90%] sm:max-w-[85%]' : 'bg-transparent text-zinc-900 dark:text-white max-w-full'"
+                  [ngClass]="msg.role === 'user' ? 'bg-[#eceef1] text-[#17191c] border border-[#dcdde1] dark:border-transparent dark:bg-[#212124] dark:text-white rounded-2xl rounded-tr-sm px-3 py-2 sm:px-4 sm:py-3 shadow-xs dark:shadow-[0_1px_3px_rgba(0,0,0,0.35)] max-w-[90%] sm:max-w-[85%]' : 'bg-transparent text-zinc-900 dark:text-white max-w-full'"
                   class="text-sm leading-relaxed group relative min-w-0"
                 >
                   <!-- Rendered Rich Markdown Content -->
                   @if (msg.role === 'user') {
                     @if (msg.referencedResourceIds && msg.referencedResourceIds.length > 0) {
-                      <div class="flex flex-wrap gap-1.5 mb-2">
+                      <div class="flex flex-wrap items-center gap-1.5 mb-2.5">
                         @for (rId of msg.referencedResourceIds; track rId) {
-                          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-200/80 dark:bg-[#2b2b30] text-[11px] text-zinc-800 dark:text-zinc-300">
-                            <span class="font-bold text-zinc-900 dark:text-white">&#64;</span>
-                            <span>{{ getResourceDisplayName(rId) }}</span>
+                          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/95 dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#38383c] text-zinc-800 dark:text-zinc-200 text-xs font-mono shadow-2xs">
+                            <span class="text-rose-600 dark:text-rose-400 font-bold">&#64;</span>
+                            <span class="font-medium truncate max-w-[280px]">{{ getResourceDisplayName(rId) }}</span>
                           </span>
                         }
                       </div>
@@ -757,9 +763,9 @@ export interface IDynamicStarterCard {
                     }
                   </div>
 
-                  <!-- Downloadable File Card -->
+                  <!-- Direct Downloadable File Attachment Preview (if any) -->
                   @if (msg.downloadableFile) {
-                    <div class="mt-2 mb-1 inline-block">
+                    <div class="mt-3 flex items-center">
                       <div
                         (click)="downloadChatFile(msg.downloadableFile)"
                         class="group/file-card inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-[#f0f1f3] hover:bg-[#e4e6ea] dark:bg-[#212124] dark:hover:bg-[#28282c] border border-[#dcdde1] dark:border-transparent cursor-pointer transition-all shadow-xs dark:shadow-[0_1px_3px_rgba(0,0,0,0.35)] max-w-sm"
@@ -768,9 +774,9 @@ export interface IDynamicStarterCard {
                         tabindex="0"
                         [title]="'Click to download ' + msg.downloadableFile.fileName"
                       >
-                        <!-- Left: Compact File Type Badge + Filename -->
+                        <!-- Left: Compact File Type + Filename -->
                         <div class="flex items-center gap-2 min-w-0">
-                          <span class="flex-shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400">
+                          <span class="flex-shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/20">
                             {{ (msg.downloadableFile.fileName.split('.').pop() || 'FILE').toUpperCase() }}
                           </span>
                           <span class="text-xs font-medium text-zinc-900 group-hover/file-card:text-black dark:text-zinc-100 dark:group-hover/file-card:text-white truncate max-w-[220px]" [title]="msg.downloadableFile.fileName">

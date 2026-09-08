@@ -727,6 +727,30 @@ describe('DocumentsComponent (Responsive Navigation & Modal UX)', () => {
       expect(component.editingDownloadPolicyDoc).toBe(mockDoc);
       expect(component.downloadPolicyMenuPosition.top).toBe(334); // 330 + 4
       expect(component.downloadPolicyMenuPosition.left).toBe(400);
+      expect(component.downloadPolicyOpenUpward).toBe(false);
+    });
+
+    it('44b. Detects low viewport space and opens download popover upward', () => {
+      const mockDoc = mockDocuments[0] as any;
+      mockAuthService.isAdmin.mockReturnValue(true);
+
+      // Simulate button positioned near bottom of 768px window
+      const dummyButton = document.createElement('button');
+      jest.spyOn(dummyButton, 'getBoundingClientRect').mockReturnValue({
+        top: 680,
+        bottom: 710,
+        left: 400,
+        right: 490,
+        width: 90,
+        height: 30,
+      } as DOMRect);
+
+      const event = { currentTarget: dummyButton, stopPropagation: jest.fn() } as any;
+
+      component.openDownloadPolicyModal(mockDoc, event);
+
+      expect(component.editingDownloadPolicyDoc).toBe(mockDoc);
+      expect(component.downloadPolicyOpenUpward).toBe(true);
     });
 
     it('45. Selecting a policy via setDocDownloadPolicy saves and closes the popover', () => {
@@ -739,6 +763,118 @@ describe('DocumentsComponent (Responsive Navigation & Modal UX)', () => {
 
       expect(mockApiService.updateDocumentDownloadPolicy).toHaveBeenCalledWith(mockDoc.id, 'restricted');
       expect(component.editingDownloadPolicyDoc).toBeNull();
+    });
+
+    it('45b. Closes download policy dropdown when target row scrolls out of view or on escape/click', () => {
+      const mockDoc = mockDocuments[0] as any;
+      mockAuthService.isAdmin.mockReturnValue(true);
+      component.editingDownloadPolicyDoc = mockDoc;
+
+      component.onEscapeKey(new KeyboardEvent('keydown', { key: 'Escape' }));
+      expect(component.editingDownloadPolicyDoc).toBeNull();
+
+      component.editingDownloadPolicyDoc = mockDoc;
+      component.onDocumentClick();
+      expect(component.editingDownloadPolicyDoc).toBeNull();
+    });
+  });
+
+  describe('Move + Undo Notification System', () => {
+    it('46. Drag-and-drop moving a file pushes a move undo notification', () => {
+      const mockDoc = { ...mockDocuments[0], folder: 'Sales/2026/Q1' };
+      component.draggedDoc = mockDoc as any;
+      mockAuthService.isAdmin.mockReturnValue(true);
+
+      const event = { preventDefault: jest.fn() } as any;
+      component.onFolderDrop(event, 'HR');
+
+      expect(mockApiService.updateDocumentFolder).toHaveBeenCalledWith(mockDoc.id, 'HR');
+      expect(component.moveUndoNotifications.length).toBe(1);
+      const notif = component.moveUndoNotifications[0];
+      expect(notif.documentId).toBe(mockDoc.id);
+      expect(notif.documentName).toBe(mockDoc.originalName);
+      expect(notif.sourcePath).toBe('Sales/2026/Q1');
+      expect(notif.destinationPath).toBe('HR');
+    });
+
+    it('47. Modal move file pushes a move undo notification and closes modal', () => {
+      const mockDoc = { ...mockDocuments[1], folder: 'HR' };
+      component.openMoveModal(mockDoc as any);
+      component.selectMoveDestination('Marketing');
+
+      component.executeMove();
+
+      expect(mockApiService.updateDocumentFolder).toHaveBeenCalledWith(mockDoc.id, 'Marketing');
+      expect(component.showMoveModal).toBe(false);
+      expect(component.moveUndoNotifications.length).toBe(1);
+      const notif = component.moveUndoNotifications[0];
+      expect(notif.sourcePath).toBe('HR');
+      expect(notif.destinationPath).toBe('Marketing');
+    });
+
+    it('48. Clicking undo calls updateDocumentFolder with original sourcePath and removes notification', () => {
+      jest.useFakeTimers();
+      const mockDoc = { ...mockDocuments[0], folder: 'HR' };
+      component.documents = [mockDoc as any];
+      component.pushMoveUndoNotification(mockDoc.id, mockDoc.originalName, 'Sales', 'HR');
+
+      expect(component.moveUndoNotifications.length).toBe(1);
+      const notif = component.moveUndoNotifications[0];
+
+      component.undoMove(notif);
+
+      expect(mockApiService.updateDocumentFolder).toHaveBeenCalledWith(mockDoc.id, 'Sales');
+      expect(component.moveUndoNotifications.length).toBe(0);
+      expect(component.toastMessage).toContain('moved back to Sales');
+      jest.useRealTimers();
+    });
+
+    it('49. Undo handles error and displays error toast', () => {
+      mockApiService.updateDocumentFolder.mockReturnValueOnce(throwError(() => new Error('Server error')));
+      const mockDoc = { ...mockDocuments[0], folder: 'HR' };
+      component.documents = [mockDoc as any];
+      component.pushMoveUndoNotification(mockDoc.id, mockDoc.originalName, 'Sales', 'HR');
+
+      const notif = component.moveUndoNotifications[0];
+      component.undoMove(notif);
+
+      expect(component.toastMessage).toContain("Couldn't undo move");
+      expect(notif.isUndoing).toBe(false);
+    });
+
+    it('50. Concurrency / Stale safety: prevents undo if document moved again', () => {
+      const mockDoc = { ...mockDocuments[0], folder: 'Finance' }; // was moved to Finance after HR
+      component.documents = [mockDoc as any];
+      component.pushMoveUndoNotification(mockDoc.id, mockDoc.originalName, 'Sales', 'HR');
+
+      const notif = component.moveUndoNotifications[0];
+      component.undoMove(notif);
+
+      expect(component.toastMessage).toContain('The file has changed since the move');
+      expect(mockApiService.updateDocumentFolder).not.toHaveBeenCalledWith(mockDoc.id, 'Sales');
+    });
+
+    it('51. Auto-dismiss notification after timer expires', () => {
+      jest.useFakeTimers();
+      component.pushMoveUndoNotification('doc-1', 'test.pdf', 'HR', 'Sales');
+      expect(component.moveUndoNotifications.length).toBe(1);
+
+      jest.advanceTimersByTime(7500);
+
+      expect(component.moveUndoNotifications.length).toBe(0);
+      jest.useRealTimers();
+    });
+
+    it('52. Stack limits queue to max 4 items by discarding oldest', () => {
+      component.pushMoveUndoNotification('doc-1', '1.pdf', 'A', 'B');
+      component.pushMoveUndoNotification('doc-2', '2.pdf', 'A', 'B');
+      component.pushMoveUndoNotification('doc-3', '3.pdf', 'A', 'B');
+      component.pushMoveUndoNotification('doc-4', '4.pdf', 'A', 'B');
+      component.pushMoveUndoNotification('doc-5', '5.pdf', 'A', 'B');
+
+      expect(component.moveUndoNotifications.length).toBe(4);
+      expect(component.moveUndoNotifications[0].documentId).toBe('doc-2');
+      expect(component.moveUndoNotifications[3].documentId).toBe('doc-5');
     });
   });
 });

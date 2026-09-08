@@ -102,7 +102,7 @@ import { IMentionOption, MentionResourceType } from '@enter-chat/shared-types';
                 </div>
 
                 <div class="flex items-center gap-1.5 flex-shrink-0">
-                  <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded-lg bg-[#f0f1f3] border border-[#dcdde1] text-zinc-600 dark:bg-[#141417] dark:border-[#27272a] dark:text-[#a1a1aa]">
+                  <span class="text-[11px] font-mono uppercase text-zinc-500 dark:text-[#a1a1aa]">
                     {{ opt.type === MentionResourceType.FOLDER ? 'Folder' : opt.fileType }}
                   </span>
                 </div>

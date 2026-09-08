@@ -138,13 +138,13 @@ describe('MailService', () => {
       expect(service.getDashboardUrl()).toBe('https://syntra-chat.onrender.com/dashboard');
     });
 
-    it('should resolve local dashboard URL when running in development with localhost FRONTEND_URL', async () => {
+    it('should fallback to production onrender URL when FRONTEND_URL is localhost or missing', async () => {
       service = await createServiceWithEnv({
         FRONTEND_URL: 'http://localhost:4200',
         NODE_ENV: 'development',
       });
-      expect(service.getFrontendUrl()).toBe('http://localhost:4200');
-      expect(service.getDashboardUrl()).toBe('http://localhost:4200/dashboard');
+      expect(service.getFrontendUrl()).toBe('https://syntra-chat.onrender.com');
+      expect(service.getDashboardUrl()).toBe('https://syntra-chat.onrender.com/dashboard');
     });
   });
 
@@ -180,7 +180,7 @@ describe('MailService', () => {
       expect(callArgs.html).toContain('TempPass123!');
     });
 
-    it('should dispatch email successfully with local Gmail port 587 and localhost dashboard URL', async () => {
+    it('should dispatch email successfully with local Gmail port 587 and fallback onrender dashboard URL', async () => {
       service = await createServiceWithEnv({
         SMTP_HOST: 'smtp.gmail.com',
         SMTP_PORT: '587',
@@ -215,8 +215,8 @@ describe('MailService', () => {
       const callArgs = mockTransporter.sendMail.mock.calls[0][0];
       expect(callArgs.to).toBe('recipient@enterprise.com');
       expect(callArgs.from).toBe('Syntra Chat <localadmin@gmail.com>');
-      expect(callArgs.text).toContain('Login URL:          http://localhost:4200/dashboard');
-      expect(callArgs.html).toContain('href="http://localhost:4200/dashboard"');
+      expect(callArgs.text).toContain('Login URL:          https://syntra-chat.onrender.com/dashboard');
+      expect(callArgs.html).toContain('href="https://syntra-chat.onrender.com/dashboard"');
     });
 
     it('6. should handle failed email delivery gracefully without throwing and return false', async () => {
