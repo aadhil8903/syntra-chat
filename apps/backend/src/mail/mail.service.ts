@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -20,6 +21,7 @@ function parseBoolean(val: any, defaultVal: boolean): boolean {
 export class MailService implements OnModuleInit {
   private readonly logger = new Logger(MailService.name);
   private transporter: nodemailer.Transporter | null = null;
+  private resendClient: Resend | null = null;
 
   constructor(private readonly configService: ConfigService) {
     this.initMailClients();
@@ -32,8 +34,8 @@ export class MailService implements OnModuleInit {
   }
 
   /**
-   * Initializes the standard SMTP transporter using configured environment variables.
-   * Supports standard SMTP and Gmail SMTP with Google App Passwords.
+   * Initializes mail clients (SMTP and/or Resend API) using configured environment variables.
+   * Supports standard SMTP, Gmail SMTP with App Passwords, and Resend HTTPS API.
    */
   private initMailClients(): void {
     this.logger.log('[MAIL DEBUG] MailService initialized');
@@ -45,12 +47,16 @@ export class MailService implements OnModuleInit {
     const rawPort = this.configService.get<any>('SMTP_PORT') ?? process.env.SMTP_PORT;
     const rawSecure = this.configService.get<any>('SMTP_SECURE') ?? process.env.SMTP_SECURE;
     const rawFrom = this.configService.get<string>('SMTP_FROM') || process.env.SMTP_FROM || '';
+    const rawResendKey = this.configService.get<string>('RESEND_API_KEY') || process.env.RESEND_API_KEY || '';
+    const rawResendFrom = this.configService.get<string>('RESEND_FROM') || process.env.RESEND_FROM || '';
     const rawFrontendUrl = this.configService.get<string>('FRONTEND_URL') || process.env.FRONTEND_URL || '';
 
     let user = String(rawUser).replace(/^["']|["']$/g, '').trim();
     let pass = String(rawPass).replace(/^["']|["']$/g, '').trim();
     let host = String(rawHost).replace(/^["']|["']$/g, '').trim();
     let from = String(rawFrom).replace(/^["']|["']$/g, '').trim();
+    let resendKey = String(rawResendKey).replace(/^["']|["']$/g, '').trim();
+    let resendFrom = String(rawResendFrom).replace(/^["']|["']$/g, '').trim();
 
     if (!host && user.toLowerCase().endsWith('@gmail.com')) {
       host = 'smtp.gmail.com';
@@ -74,8 +80,11 @@ export class MailService implements OnModuleInit {
     this.logger.log(`[MAIL DEBUG] SMTP_USER=${this.maskEmail(user)}`);
     this.logger.log(`[MAIL DEBUG] SMTP_FROM=${from ? this.maskEmail(from) : '<not set>'}`);
     this.logger.log(`[MAIL DEBUG] SMTP_PASS=${pass ? '<configured>' : '<not configured>'}`);
+    this.logger.log(`[MAIL DEBUG] RESEND_API_KEY=${resendKey ? '<configured>' : '<not configured>'}`);
+    this.logger.log(`[MAIL DEBUG] RESEND_FROM=${resendFrom ? this.maskEmail(resendFrom) : '<not set>'}`);
     this.logger.log(`[MAIL DEBUG] FRONTEND_URL=${rawFrontendUrl || '<not set>'}`);
 
+    // 1. Initialize SMTP Transporter
     if (host && user && pass) {
       try {
         this.logger.log('[MAIL DEBUG] Creating SMTP transporter...');
@@ -104,7 +113,24 @@ export class MailService implements OnModuleInit {
       }
     } else {
       this.logger.warn(
-        `[MAIL DEBUG] SMTP not configured. Missing required variables (host=${host || 'MISSING'}, user=${user ? this.maskEmail(user) : 'MISSING'}, pass=${pass ? 'CONFIGURED' : 'MISSING'}). Welcome emails will be skipped.`,
+        `[MAIL DEBUG] Incomplete SMTP credentials. host=${host || 'MISSING'}, user=${user ? this.maskEmail(user) : 'MISSING'}, pass=${pass ? 'CONFIGURED' : 'MISSING'}.`,
+      );
+    }
+
+    // 2. Initialize Resend Client
+    if (resendKey) {
+      try {
+        this.resendClient = new Resend(resendKey);
+        this.logger.log('[MAIL DEBUG] Resend API client initialized successfully.');
+      } catch (err: any) {
+        this.logger.error(`[MAIL DEBUG] Failed to initialize Resend client: ${err.message}`);
+        this.resendClient = null;
+      }
+    }
+
+    if (!this.transporter && !this.resendClient) {
+      this.logger.warn(
+        '[MAIL DEBUG] Neither SMTP credentials (SMTP_HOST, SMTP_USER, SMTP_PASS) nor RESEND_API_KEY are configured. Welcome emails will be skipped and temporary credentials will be surfaced in the administrator modal.',
       );
     }
   }
@@ -218,22 +244,25 @@ export class MailService implements OnModuleInit {
     }
 
     const transporterExists = !!this.transporter;
-    this.logger.log(`[MAIL DEBUG] SMTP transporter exists=${transporterExists}`);
+    const resendExists = !!this.resendClient;
+    this.logger.log(`[MAIL DEBUG] Available providers: SMTP=${transporterExists}, Resend=${resendExists}`);
 
-    if (!this.transporter) {
+    if (!this.transporter && !this.resendClient) {
       this.logger.warn(
-        `[MAIL DEBUG] Email delivery skipped for ${this.maskEmail(toEmail)}: No active SMTP transporter. Returning emailSent=false.`,
+        `[MAIL DEBUG] Email delivery skipped for ${this.maskEmail(toEmail)}: No active email provider configured (set SMTP_HOST/USER/PASS or RESEND_API_KEY). Returning emailSent=false.`,
       );
       return false;
     }
 
     let fromAddress: string;
-    const configuredFrom = this.configService.get<string>('SMTP_FROM') || process.env.SMTP_FROM;
+    const configuredFrom = this.configService.get<string>('SMTP_FROM') || process.env.SMTP_FROM || this.configService.get<string>('RESEND_FROM') || process.env.RESEND_FROM;
     if (configuredFrom && configuredFrom.trim()) {
       fromAddress = configuredFrom.replace(/^["']|["']$/g, '').trim();
     } else if (this.configService.get<string>('SMTP_USER') || process.env.SMTP_USER) {
       const userEmail = (this.configService.get<string>('SMTP_USER') || process.env.SMTP_USER)!.replace(/^["']|["']$/g, '').trim();
       fromAddress = `Syntra Chat <${userEmail}>`;
+    } else if (this.resendClient) {
+      fromAddress = 'Syntra Chat <onboarding@resend.dev>';
     } else {
       fromAddress = 'Syntra Chat Security <no-reply@syntrachat.internal>';
     }
@@ -370,42 +399,77 @@ The Syntra Chat Platform Team`;
 </html>
 `;
 
-    try {
-      this.logger.log(`[MAIL TRACE] About to call transporter.sendMail() to ${this.maskEmail(toEmail)}`);
+    // 1. Attempt SMTP dispatch if configured
+    if (this.transporter) {
+      try {
+        this.logger.log(`[MAIL TRACE] Attempting SMTP dispatch to ${this.maskEmail(toEmail)} via ${fromAddress}`);
+        const attachments = this.getLogoAttachment();
 
-      const attachments = this.getLogoAttachment();
+        const mailOptions: nodemailer.SendMailOptions = {
+          from: fromAddress,
+          to: toEmail,
+          subject,
+          text: textContent,
+          html: htmlContent,
+        };
 
-      const mailOptions: nodemailer.SendMailOptions = {
-        from: fromAddress,
-        to: toEmail,
-        subject,
-        text: textContent,
-        html: htmlContent,
-      };
+        if (attachments && attachments.length > 0) {
+          mailOptions.attachments = attachments;
+        }
 
-      if (attachments && attachments.length > 0) {
-        mailOptions.attachments = attachments;
+        const info = await this.executeWithTimeout(
+          this.transporter.sendMail(mailOptions),
+          10000,
+          'SMTP dispatch',
+        );
+
+        this.logger.log(
+          `[MAIL TRACE] SMTP dispatch SUCCESS: messageId=${info?.messageId || 'N/A'}, response=${info?.response || 'OK'}`,
+        );
+        return true;
+      } catch (err: any) {
+        this.logger.error(
+          `[MAIL TRACE] SMTP dispatch FAILED: code=${err.code || 'UNKNOWN'}, command=${err.command || 'N/A'}, response=${err.response || 'N/A'}, message=${err.message}`,
+        );
+        if (!this.resendClient) {
+          return false;
+        }
+        this.logger.log('[MAIL TRACE] Falling back to Resend API dispatch...');
       }
-
-      const info = await this.executeWithTimeout(
-        this.transporter.sendMail(mailOptions),
-        10000,
-        'SMTP dispatch',
-      );
-
-      this.logger.log(
-        `[MAIL TRACE] transporter.sendMail() SUCCESS\nmessageId=${info?.messageId || 'N/A'}\nresponse=${info?.response || 'OK'}`,
-      );
-      this.logger.log('[MAIL TRACE] EMAIL ACCEPTED BY SMTP');
-      this.logger.log('[MAIL TRACE] sendWelcomeEmail() returning true');
-      return true;
-    } catch (err: any) {
-      this.logger.error(
-        `[MAIL TRACE] transporter.sendMail() FAILED\ncode=${err.code || 'UNKNOWN'}\ncommand=${err.command || 'N/A'}\nresponse=${err.response || 'N/A'}\nmessage=${err.message}`,
-      );
-      this.logger.log('[MAIL TRACE] sendWelcomeEmail() returning false');
-      return false;
     }
+
+    // 2. Attempt Resend API dispatch if configured
+    if (this.resendClient) {
+      try {
+        this.logger.log(`[MAIL TRACE] Attempting Resend API dispatch to ${this.maskEmail(toEmail)}`);
+        const { data, error } = await this.executeWithTimeout(
+          this.resendClient.emails.send({
+            from: fromAddress,
+            to: toEmail,
+            subject,
+            text: textContent,
+            html: htmlContent,
+          }),
+          10000,
+          'Resend dispatch',
+        );
+
+        if (!error && data?.id) {
+          this.logger.log(`[MAIL TRACE] Resend dispatch SUCCESS: id=${data.id}`);
+          return true;
+        }
+
+        if (error) {
+          this.logger.error(`[MAIL TRACE] Resend dispatch returned error: ${error.message} (name=${error.name})`);
+          return false;
+        }
+      } catch (err: any) {
+        this.logger.error(`[MAIL TRACE] Resend dispatch exception: ${err.message}`);
+        return false;
+      }
+    }
+
+    return false;
   }
 
   private async executeWithTimeout<T>(

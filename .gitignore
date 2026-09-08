@@ -4,8 +4,11 @@ dist/
 build/
 .angular/
 
-# Test coverage
+# Test coverage & E2E artifacts
 coverage/
+playwright-report/
+test-results/
+blob-report/
 
 # TypeScript build cache
 *.tsbuildinfo

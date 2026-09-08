@@ -2,13 +2,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { MailService } from './mail.service';
 import * as nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 jest.mock('nodemailer');
+jest.mock('resend');
 
 describe('MailService', () => {
   let service: MailService;
   let mockConfigService: { get: jest.Mock };
   let mockTransporter: any;
+  let mockResendClient: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -18,7 +21,14 @@ describe('MailService', () => {
       verify: jest.fn().mockResolvedValue(true),
     };
 
+    mockResendClient = {
+      emails: {
+        send: jest.fn().mockResolvedValue({ data: { id: 'resend-mock-id-123' }, error: null }),
+      },
+    };
+
     (nodemailer.createTransport as jest.Mock).mockReturnValue(mockTransporter);
+    (Resend as unknown as jest.Mock).mockImplementation(() => mockResendClient);
   });
 
   const createServiceWithEnv = async (env: Record<string, any>) => {
@@ -268,6 +278,60 @@ describe('MailService', () => {
       mockTransporter.verify.mockRejectedValue(new Error('Connection timeout'));
       const failedVerify = await service.verifyConnection();
       expect(failedVerify).toBe(false);
+    });
+
+    it('should initialize Resend client when RESEND_API_KEY is present', async () => {
+      service = await createServiceWithEnv({
+        RESEND_API_KEY: 're_test_key_123',
+        RESEND_FROM: 'Syntra Chat <onboarding@resend.dev>',
+      });
+
+      expect((service as any).resendClient).toBeDefined();
+    });
+
+    it('should dispatch welcome email via Resend when only RESEND_API_KEY is configured', async () => {
+      service = await createServiceWithEnv({
+        RESEND_API_KEY: 're_test_key_123',
+        RESEND_FROM: 'Syntra Chat <onboarding@resend.dev>',
+        FRONTEND_URL: 'https://syntra-chat.onrender.com',
+      });
+
+      const result = await service.sendWelcomeEmail(
+        'employee@enterprise.com',
+        'Aadil',
+        'ResendTemp123!',
+      );
+
+      expect(result).toBe(true);
+      expect(mockResendClient.emails.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: 'Syntra Chat <onboarding@resend.dev>',
+          to: 'employee@enterprise.com',
+          subject: 'Welcome to Syntra Chat — Your Account Credentials',
+        }),
+      );
+    });
+
+    it('should fallback to Resend if SMTP delivery fails', async () => {
+      service = await createServiceWithEnv({
+        SMTP_HOST: 'smtp.gmail.com',
+        SMTP_USER: 'admin@gmail.com',
+        SMTP_PASS: 'apppassword',
+        RESEND_API_KEY: 're_fallback_key',
+        RESEND_FROM: 'Syntra Chat <fallback@resend.dev>',
+      });
+
+      mockTransporter.sendMail.mockRejectedValue(new Error('SMTP connection timed out'));
+
+      const result = await service.sendWelcomeEmail(
+        'employee@enterprise.com',
+        'Aadil',
+        'FallbackTemp123!',
+      );
+
+      expect(result).toBe(true);
+      expect(mockTransporter.sendMail).toHaveBeenCalledTimes(1);
+      expect(mockResendClient.emails.send).toHaveBeenCalledTimes(1);
     });
   });
 });

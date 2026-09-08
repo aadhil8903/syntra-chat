@@ -469,10 +469,7 @@ export interface IDynamicStarterCard {
                     [ngClass]="activeConversation?.id === conv.id ? 'bg-[#f0f1f3] text-zinc-900 font-medium border border-[#dcdde1] dark:bg-[#18181b] dark:text-white dark:border-[#3f3f46]' : 'text-zinc-500 hover:text-zinc-900 hover:bg-[#f0f1f3] dark:text-[#71717a] dark:hover:text-white dark:hover:bg-[#141417]'"
                     class="group flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-all text-xs select-none relative"
                   >
-                    <div class="flex items-center gap-2 truncate flex-1 min-w-0">
-                      <svg class="w-3.5 h-3.5 flex-shrink-0 text-zinc-400 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
-                      </svg>
+                    <div class="flex items-center truncate flex-1 min-w-0">
                       <span class="truncate">{{ conv.title }}</span>
                     </div>
                     <div class="flex items-center gap-1 flex-shrink-0">
