@@ -398,7 +398,7 @@ export interface IDocSection {
                       </div>
                     </div>
 
-                    <!-- Drop Target: LangChain Collection -->
+                    <!-- Drop Target: Project Titan Collection -->
                     <div
                       id="anim1Target"
                       class="rounded-xl border border-transparent p-1 transition-all bg-transparent"
@@ -409,7 +409,7 @@ export interface IDocSection {
                           <svg class="w-3 h-3 rotate-90 text-zinc-800 dark:text-zinc-200 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                           </svg>
-                          <span class="font-medium text-xs text-zinc-900 dark:text-zinc-100">LangChain</span>
+                          <span class="font-medium text-xs text-zinc-900 dark:text-zinc-100">Project Titan</span>
                           <span id="anim1TargetCount" class="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono font-normal">(1)</span>
                         </div>
                       </div>
@@ -418,15 +418,15 @@ export interface IDocSection {
                       <div class="pl-3.5 pr-1 py-0.5 space-y-1 border-l border-zinc-200 dark:border-zinc-800/60 ml-2.5 mb-0.5 text-xs">
                         <div class="flex items-center gap-1.5 px-2 py-1 rounded text-zinc-600 dark:text-[#a1a1aa] text-xs truncate">
                           <span class="w-[2px] h-3 rounded-full bg-zinc-400 dark:bg-zinc-600 flex-shrink-0"></span>
-                          <span class="truncate">Reimbursement Policy</span>
+                          <span class="truncate">Titan Architecture Review</span>
                         </div>
-                        <!-- Dropped 2nd Row inside LangChain (Shown after drop) -->
+                        <!-- Dropped 2nd Row inside Project Titan (Shown after drop) -->
                         <div
                           id="anim1DroppedRow"
                           class="hidden items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-200/80 dark:bg-zinc-800/80 border border-zinc-300/80 dark:border-zinc-700/60 text-zinc-900 dark:text-zinc-100 text-xs truncate animate-fade-in font-medium"
                         >
                           <span class="w-[2px] h-3 rounded-full bg-rose-500 flex-shrink-0"></span>
-                          <span class="truncate font-medium">RAG Testing</span>
+                          <span class="truncate font-medium">Sprint Planning & Milestones</span>
                         </div>
                       </div>
                     </div>
@@ -439,9 +439,9 @@ export interface IDocSection {
                     </div>
                     
                     <div class="space-y-1">
-                      <!-- Slot for RAG Testing (Houses both placeholder and animated card) -->
+                      <!-- Slot for Sprint Planning & Milestones (Houses both placeholder and animated card) -->
                       <div id="anim1CardSlot" class="relative h-8">
-                        <!-- Ghost Placeholder for RAG Testing -->
+                        <!-- Ghost Placeholder for Sprint Planning & Milestones -->
                         <div
                           id="anim1SourcePlaceholder"
                           class="h-8 flex items-center justify-between px-2.5 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-100/40 dark:bg-zinc-900/20 text-xs text-zinc-400"
@@ -451,7 +451,7 @@ export interface IDocSection {
                             <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                             </svg>
-                            <span class="truncate">RAG Testing</span>
+                            <span class="truncate">Sprint Planning & Milestones</span>
                           </div>
                         </div>
 
@@ -465,19 +465,19 @@ export interface IDocSection {
                             <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                             </svg>
-                            <span class="truncate font-medium">RAG Testing</span>
+                            <span class="truncate font-medium">Sprint Planning & Milestones</span>
                           </div>
                         </div>
                       </div>
 
-                      <!-- Static Recent Chat: Qdrant Setup -->
+                      <!-- Static Recent Chat: Customer Feedback Analysis -->
                       <div class="h-8 flex items-center justify-between px-2.5 rounded-lg bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800/60 text-xs text-zinc-600 dark:text-[#a1a1aa]">
                         <div class="flex items-center gap-2 truncate">
                           <span class="w-[2px] h-3.5 rounded-full bg-zinc-400 dark:bg-zinc-600 flex-shrink-0"></span>
                           <svg class="w-3.5 h-3.5 flex-shrink-0 text-zinc-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                           </svg>
-                          <span class="truncate">Qdrant Setup</span>
+                          <span class="truncate">Customer Feedback Analysis</span>
                         </div>
                       </div>
                     </div>
@@ -531,7 +531,7 @@ export interface IDocSection {
                       </div>
                     </div>
 
-                    <!-- Source Collection: LangChain -->
+                    <!-- Source Collection: Project Titan -->
                     <div
                       id="anim2Source"
                       class="rounded-xl border border-transparent p-1 transition-all bg-transparent"
@@ -542,22 +542,22 @@ export interface IDocSection {
                           <svg class="w-3 h-3 rotate-90 text-zinc-800 dark:text-zinc-200 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                           </svg>
-                          <span class="font-medium text-xs text-zinc-900 dark:text-zinc-100">LangChain</span>
+                          <span class="font-medium text-xs text-zinc-900 dark:text-zinc-100">Project Titan</span>
                           <span id="anim2SourceCount" class="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono font-normal">(1)</span>
                         </div>
                       </div>
 
                       <!-- Nested Chats Accordion Body -->
                       <div class="pl-3.5 pr-1 py-0.5 space-y-1 border-l border-zinc-200 dark:border-zinc-800/60 ml-2.5 mb-0.5 text-xs">
-                        <!-- Slot for RAG Testing under LangChain -->
+                        <!-- Slot for Sprint Planning & Milestones under Project Titan -->
                         <div id="anim2CardSlot" class="relative h-7">
-                          <!-- Ghost Placeholder under LangChain -->
+                          <!-- Ghost Placeholder under Project Titan -->
                           <div
                             id="anim2SourcePlaceholder"
                             class="h-7 flex items-center gap-1.5 px-2 rounded border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-100/40 dark:bg-zinc-900/20 text-xs text-zinc-400 truncate opacity-40"
                           >
                             <span class="w-[2px] h-3 rounded-full bg-zinc-400 flex-shrink-0"></span>
-                            <span class="truncate">RAG Testing</span>
+                            <span class="truncate">Sprint Planning & Milestones</span>
                           </div>
 
                           <!-- Animated Floating Chat Item 2 (Nested start position) -->
@@ -566,13 +566,13 @@ export interface IDocSection {
                             class="absolute inset-0 h-7 px-2 rounded bg-white dark:bg-[#18181b] border border-zinc-300 dark:border-[#27272a] text-xs font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5 pointer-events-none will-change-transform z-10 shadow-xs truncate"
                           >
                             <span class="w-[2px] h-3 rounded-full bg-rose-500 flex-shrink-0"></span>
-                            <span class="truncate font-medium">RAG Testing</span>
+                            <span class="truncate font-medium">Sprint Planning & Milestones</span>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <!-- Destination Collection: Nest JS (Target) -->
+                    <!-- Destination Collection: Q4 Marketing (Target) -->
                     <div
                       id="anim2Target"
                       class="rounded-xl border border-transparent p-1 transition-all bg-transparent"
@@ -583,20 +583,20 @@ export interface IDocSection {
                           <svg class="w-3 h-3 text-zinc-400 dark:text-zinc-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                           </svg>
-                          <span class="font-medium text-xs text-zinc-900 dark:text-zinc-100">Nest JS</span>
+                          <span class="font-medium text-xs text-zinc-900 dark:text-zinc-100">Q4 Marketing</span>
                           <span id="anim2TargetCount" class="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono font-normal">(0)</span>
                         </div>
                       </div>
 
-                      <!-- Nested Chats Accordion Body for Nest JS -->
+                      <!-- Nested Chats Accordion Body for Q4 Marketing -->
                       <div class="pl-3.5 pr-1 py-0.5 space-y-1 border-l border-zinc-200 dark:border-zinc-800/60 ml-2.5 mb-0.5 text-xs">
-                        <!-- Dropped Row inside Nest JS (Shown after drop) -->
+                        <!-- Dropped Row inside Q4 Marketing (Shown after drop) -->
                         <div
                           id="anim2DroppedRow"
                           class="hidden items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-200/80 dark:bg-zinc-800/80 border border-zinc-300/80 dark:border-zinc-700/60 text-zinc-900 dark:text-zinc-100 text-xs truncate animate-fade-in font-medium"
                         >
                           <span class="w-[2px] h-3 rounded-full bg-rose-500 flex-shrink-0"></span>
-                          <span class="truncate font-medium">RAG Testing</span>
+                          <span class="truncate font-medium">Sprint Planning & Milestones</span>
                         </div>
                       </div>
                     </div>
@@ -613,7 +613,7 @@ export interface IDocSection {
                         <svg class="w-3.5 h-3.5 flex-shrink-0 text-zinc-400 dark:text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                         </svg>
-                        <span class="truncate">Qdrant Setup</span>
+                        <span class="truncate">Customer Feedback Analysis</span>
                       </div>
                     </div>
                   </div>
@@ -1321,7 +1321,7 @@ export class DocsComponent implements OnInit, AfterViewInit, OnDestroy {
     const restCursorX = stageRect.width * 0.78;
     const restCursorY = startGrabCursorY - 24;
 
-    // Vertical delta distance from LangChain slot center to Nest JS target center
+    // Vertical delta distance from Project Titan slot center to Q4 Marketing target center
     const totalDeltaY = (targetElRect.top + targetElRect.height / 2) - (slotRect.top + slotRect.height / 2);
 
     let cardTranslateY = 0;
@@ -1339,11 +1339,11 @@ export class DocsComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // TIMELINE PHASES (6.0s total):
     // 0.00 -> 0.08 (IDLE): Cursor rests at top right
-    // 0.08 -> 0.24 (MOVE_TO_CHAT): Cursor moves down to RAG Testing under LangChain
+    // 0.08 -> 0.24 (MOVE_TO_CHAT): Cursor moves down to Sprint Planning & Milestones under Project Titan
     // 0.24 -> 0.30 (CLICK_PRESS): Cursor presses down, chat lifts
-    // 0.30 -> 0.68 (DRAG_TO_TARGET): Cursor + chat drag smoothly downward toward Nest JS
-    // 0.68 -> 0.78 (DROP_RELEASE): Hover over Nest JS, release click
-    // 0.78 -> 0.92 (SETTLED): Chat settles under Nest JS, LangChain=(0), NestJS=(1)
+    // 0.30 -> 0.68 (DRAG_TO_TARGET): Cursor + chat drag smoothly downward toward Q4 Marketing
+    // 0.68 -> 0.78 (DROP_RELEASE): Hover over Q4 Marketing, release click
+    // 0.78 -> 0.92 (SETTLED): Chat settles under Q4 Marketing, Project Titan=(0), Q4 Marketing=(1)
     // 0.92 -> 1.00 (RESET): Smooth fade back to start
 
     if (p < 0.08) {
@@ -1380,7 +1380,7 @@ export class DocsComponent implements OnInit, AfterViewInit, OnDestroy {
       tCount = '(0)';
       isDropped = false;
     } else if (p < 0.68) {
-      // 4. DRAG DOWNWARD TO NEST JS
+      // 4. DRAG DOWNWARD TO Q4 MARKETING
       const t = (p - 0.30) / 0.38;
       const easeT = this.easeInOutCubic(t);
 
@@ -1453,7 +1453,7 @@ export class DocsComponent implements OnInit, AfterViewInit, OnDestroy {
       target.classList.add('border-transparent');
     }
 
-    // Dropped row under Nest JS
+    // Dropped row under Q4 Marketing
     if (droppedRow) {
       if (isDropped) {
         droppedRow.classList.remove('hidden');
