@@ -51,9 +51,9 @@ describe('WalkthroughService', () => {
     jest.clearAllMocks();
   });
 
-  it('should initialize with correct default non-admin step count (10 steps)', () => {
+  it('should initialize with correct default non-admin step count (11 steps)', () => {
     expect(service.isRunning()).toBe(false);
-    expect(service.totalSteps()).toBe(10);
+    expect(service.totalSteps()).toBe(11);
     const steps = service.activeSteps();
     expect(steps.map((s) => s.id)).toEqual([
       'dashboard',
@@ -61,6 +61,7 @@ describe('WalkthroughService', () => {
       'chat',
       'collections',
       'collections-memory',
+      'archived',
       'mentions',
       'data-analysis',
       'citations',
@@ -69,9 +70,9 @@ describe('WalkthroughService', () => {
     ]);
   });
 
-  it('should include admin step when user has admin role (11 steps)', () => {
+  it('should include admin step when user has admin role (12 steps)', () => {
     authServiceMock.isAdmin.mockReturnValue(true);
-    expect(service.totalSteps()).toBe(11);
+    expect(service.totalSteps()).toBe(12);
     const stepIds = service.activeSteps().map((s) => s.id);
     expect(stepIds).toContain('admin');
   });

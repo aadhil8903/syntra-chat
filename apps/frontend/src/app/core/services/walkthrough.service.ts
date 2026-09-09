@@ -122,6 +122,15 @@ export class WalkthroughService {
       route: '/chat',
     },
     {
+      id: 'archived',
+      title: 'Clean Workspace with Archived Chats',
+      description:
+        'Keep your active workspace focused and clutter-free by archiving past conversations. Archived chats preserve all message history, RAG grounding citations, and analytical insights so you can search or restore them at any time.',
+      tip: 'Click "Archived" in the sidebar to view past records, search historical threads, or unarchive sessions back to your active list.',
+      targetSelector: '[data-tour="nav-archived"]',
+      route: '/chat',
+    },
+    {
       id: 'mentions',
       title: 'Point the AI to a specific file',
       description:

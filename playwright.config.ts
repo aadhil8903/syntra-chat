@@ -1,4 +1,4 @@
-﻿import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 
 /**
  * Playwright E2E Configuration for Syntra Chat.
@@ -34,4 +34,10 @@ export default defineConfig({
       },
     },
   ],
+  webServer: {
+    command: 'npm run start:frontend',
+    url: 'http://localhost:4200',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120000,
+  },
 });
