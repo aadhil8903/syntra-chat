@@ -71,8 +71,17 @@ export class DocumentsController {
   }
 
   @Get()
-  async findAll(@CurrentUser('id') userId: string): Promise<IDocument[]> {
-    return this.documentsService.findAllAccessible(userId);
+  async findAll(
+    @CurrentUser('id') userId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ): Promise<IDocument[]> {
+    const pageNum = page ? parseInt(page, 10) : undefined;
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    return this.documentsService.findAllAccessible(
+      userId,
+      pageNum || limitNum ? { page: pageNum, limit: limitNum } : undefined,
+    );
   }
 
   @Get(':id')

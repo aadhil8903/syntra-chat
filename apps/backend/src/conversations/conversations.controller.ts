@@ -35,9 +35,17 @@ export class ConversationsController {
   async findAll(
     @CurrentUser('id') userId: string,
     @Query('archived') archived?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ): Promise<IConversation[]> {
     const isArchived = archived === 'true' ? true : archived === 'false' ? false : undefined;
-    return this.conversationsService.findAllByUser(userId, isArchived);
+    const pageNum = page ? parseInt(page, 10) : undefined;
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    return this.conversationsService.findAllByUser(
+      userId,
+      isArchived,
+      pageNum || limitNum ? { page: pageNum, limit: limitNum } : undefined,
+    );
   }
 
   @Get('search')

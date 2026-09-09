@@ -858,7 +858,10 @@ export class DocumentsService {
     return { matchType: 'none', found: false, canDownload: false };
   }
 
-  async findAllAccessible(userId: string): Promise<IDocument[]> {
+  async findAllAccessible(
+    userId: string,
+    pagination?: { page?: number; limit?: number },
+  ): Promise<IDocument[]> {
     const user = await this.usersService.findById(userId);
     const isAdmin = isUserAdmin(user);
     let approvedIds: string[] = [];
@@ -917,6 +920,13 @@ export class DocumentsService {
 
       results.push(docDto);
     }
+
+    if (pagination && pagination.limit && pagination.limit > 0) {
+      const page = Math.max(1, pagination.page || 1);
+      const skip = (page - 1) * pagination.limit;
+      return results.slice(skip, skip + pagination.limit);
+    }
+
     return results;
   }
 

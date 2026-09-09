@@ -19,6 +19,7 @@ import { MailModule } from './mail/mail.module';
 import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { CollectionsModule } from './collections/collections.module';
 import { HealthModule } from './health/health.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { HealthModule } from './health/health.module';
     HealthModule,
     DatabaseModule,
     SystemSettingsModule,
+    AuditModule,
     MailModule,
     CommonModule,
     PermissionsModule,

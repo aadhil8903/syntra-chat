@@ -19,6 +19,8 @@ describe('UsersService (Security & Admin Invariant)', () => {
       create: jest.fn(),
       updateById: jest.fn(),
       deleteById: jest.fn(),
+      softDeleteById: jest.fn().mockResolvedValue(true),
+      count: jest.fn().mockResolvedValue(2),
       updateRefreshTokenHash: jest.fn(),
     };
 
@@ -54,12 +56,13 @@ describe('UsersService (Security & Admin Invariant)', () => {
   it('should block deletion of the primary system administrator account (Single-Admin Invariant)', async () => {
     repo.findById.mockResolvedValue({
       _id: '507f1f77bcf86cd799439099',
-      email: 'aadhildevwork@gmail.com',
+      email: 'admin@corp.com',
       role: UserRole.ADMIN,
     });
+    repo.count.mockResolvedValue(1);
 
     await expect(service.deleteUser('507f1f77bcf86cd799439099')).rejects.toThrow(ConflictException);
-    expect(repo.deleteById).not.toHaveBeenCalled();
+    expect(repo.softDeleteById).not.toHaveBeenCalled();
   });
 
   it('should allow deletion of a standard user account', async () => {
@@ -68,10 +71,10 @@ describe('UsersService (Security & Admin Invariant)', () => {
       email: 'standard.user@test.com',
       role: UserRole.USER,
     });
-    repo.deleteById.mockResolvedValue(true);
+    repo.softDeleteById.mockResolvedValue(true);
 
-    await service.deleteUser('507f1f77bcf86cd799439011');
-    expect(repo.deleteById).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+    await service.deleteUser('507f1f77bcf86cd799439011', 'admin-id-123');
+    expect(repo.softDeleteById).toHaveBeenCalledWith('507f1f77bcf86cd799439011', 'admin-id-123');
   });
 
   it('should create normal user without requiring master password', async () => {
@@ -129,7 +132,7 @@ describe('UsersService (Security & Admin Invariant)', () => {
 
     expect(result.user.email).toBe('failedmail@test.com');
     expect(result.emailSent).toBe(false);
-    expect(result.message).toContain('Email delivery pending/unavailable');
+    expect(result.message).toContain('Email delivery was unavailable or skipped');
     expect(result.temporaryPassword).toBeDefined();
   });
 
@@ -381,7 +384,7 @@ describe('UsersService (Security & Admin Invariant)', () => {
 
       expect(result.user.email).toBe('smtpdown@enterprise.com');
       expect(result.emailSent).toBe(false);
-      expect(result.message).toContain('Email delivery pending/unavailable');
+      expect(result.message).toContain('Email delivery was unavailable or skipped');
       expect(result.temporaryPassword).toBeDefined();
     });
 

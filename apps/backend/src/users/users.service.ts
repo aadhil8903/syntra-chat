@@ -16,6 +16,8 @@ import * as crypto from 'crypto';
 import { UserDocument } from './schemas/user.schema';
 import { MailService } from '../mail/mail.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction } from '../audit/schemas/audit-log.schema';
 
 import { Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -30,6 +32,7 @@ export class UsersService {
     private readonly usersRepository: UsersRepository,
     private readonly mailService: MailService,
     private readonly systemSettingsService: SystemSettingsService,
+    @Optional() private readonly auditService?: AuditService,
     @Optional() private readonly configService?: ConfigService,
     @InjectConnection() @Optional() private readonly connection?: Connection,
   ) {}
@@ -96,15 +99,15 @@ export class UsersService {
     return this.toIUser(updated);
   }
 
-  async update(id: string, updateUserDto: any, actingAdminId = 'admin'): Promise<IUser> {
+  async update(id: string, updateUserDto: UpdateUserDto | any, actingAdminId = 'admin'): Promise<IUser> {
     const existing = await this.usersRepository.findById(id);
     if (!existing) {
       throw new NotFoundException('User not found');
     }
 
     // If requested role is Administrator and existing user was not already Administrator
-    const targetRole = updateUserDto.role ? updateUserDto.role.toString().toLowerCase().trim() : undefined;
-    const existingRole = existing.role ? existing.role.toString().toLowerCase().trim() : '';
+    const targetRole = typeof updateUserDto.role === 'string' ? updateUserDto.role.toLowerCase().trim() : undefined;
+    const existingRole = typeof existing.role === 'string' ? existing.role.toLowerCase().trim() : '';
     const isTargetAdmin = targetRole === 'admin';
     const wasAlreadyAdmin = existingRole === 'admin';
 
@@ -152,6 +155,28 @@ export class UsersService {
     if (updateUserDto.status === 'suspended') {
       await this.setRefreshTokenHash(id, null);
     }
+
+    if (this.auditService) {
+      const action = targetRole && targetRole !== existingRole
+        ? AuditAction.USER_ROLE_CHANGED
+        : updateUserDto.status && updateUserDto.status !== existing.status
+        ? AuditAction.USER_STATUS_CHANGED
+        : AuditAction.USER_UPDATED;
+
+      await this.auditService.logAction({
+        action,
+        actorId: actingAdminId,
+        targetId: id,
+        targetType: 'user',
+        details: {
+          updatedFields: Object.keys(updateData),
+          targetRole,
+          targetStatus: updateUserDto.status,
+          targetEmail: updated.email,
+        },
+      });
+    }
+
     return this.toIUser(updated);
   }
 
@@ -173,21 +198,24 @@ export class UsersService {
     const n = numbers[crypto.randomInt(0, numbers.length)];
     const s = symbols[crypto.randomInt(0, symbols.length)];
 
-    // Pick 6 more random alphanumeric characters
-    let inner = '';
-    for (let i = 0; i < 6; i++) {
-      inner += allAlphanumeric[crypto.randomInt(0, allAlphanumeric.length)];
+    // Fill remaining 8 chars to reach length 12
+    const remaining: string[] = [];
+    for (let i = 0; i < 8; i++) {
+      remaining.push(allAlphanumeric[crypto.randomInt(0, allAlphanumeric.length)]);
     }
 
-    // Shuffle middle characters (including the symbol in the middle)
-    const middleChars = (u + l + n + s + inner).split('');
+    // Shuffle non-punctuation components
+    const middleChars = [u, l, n, ...remaining];
     for (let i = middleChars.length - 1; i > 0; i--) {
       const j = crypto.randomInt(0, i + 1);
       [middleChars[i], middleChars[j]] = [middleChars[j], middleChars[i]];
     }
 
-    // Ensure password begins with an uppercase letter and ends with a digit
-    // This prevents mobile word-selection from truncating trailing punctuation like !
+    // Insert punctuation safely into middle positions (index 2-9)
+    const punctuationPos = crypto.randomInt(2, middleChars.length - 2);
+    middleChars.splice(punctuationPos, 0, s);
+
+    // Guaranteed alphanumeric start & end for copy-paste safety
     const prefix = uppercase[crypto.randomInt(0, uppercase.length)];
     const suffix = numbers[crypto.randomInt(0, numbers.length)];
 
@@ -302,19 +330,41 @@ export class UsersService {
       status: 'active',
       mustChangePassword: true,
       onboardingCompleted: false,
+      isDeleted: false,
       settings: {},
     });
 
     this.logger.log(`[MAIL TRACE] User created successfully (id=${user._id || user.id})`);
     this.logger.log(`[MAIL TRACE] About to call sendWelcomeEmail() for ${user.email}`);
 
-    const emailSent = await this.mailService.sendWelcomeEmail(
-      user.email,
-      user.firstName,
-      temporaryPassword,
-    );
+    let emailSent = false;
+    try {
+      emailSent = await this.mailService.sendWelcomeEmail(
+        user.email,
+        user.firstName,
+        temporaryPassword,
+      );
+    } catch (mailErr) {
+      this.logger.warn(`[MAIL_SEND_ERROR] sendWelcomeEmail failed: ${mailErr}`);
+      emailSent = false;
+    }
 
     this.logger.log(`[MAIL TRACE] sendWelcomeEmail() returned emailSent=${emailSent}`);
+
+    if (this.auditService) {
+      await this.auditService.logAction({
+        action: AuditAction.USER_CREATED,
+        actorId: actingAdminId,
+        targetId: user._id.toString(),
+        targetType: 'user',
+        details: {
+          email: user.email,
+          role: targetRole,
+          departments,
+          emailSent,
+        },
+      });
+    }
 
     return {
       user: this.toIUser(user),
@@ -322,22 +372,81 @@ export class UsersService {
       emailSent,
       message: emailSent
         ? 'User created and welcome email dispatched successfully.'
-        : 'User created. Email delivery pending/unavailable; temporary password generated below.',
+        : 'User created. Email delivery was unavailable or skipped; provide the temporary password to the user directly or use Resend Credentials.',
     };
   }
 
-  async deleteUser(id: string): Promise<void> {
+  async resendCredentials(
+    userId: string,
+    actingAdminId = 'admin',
+  ): Promise<{ success: boolean; emailSent: boolean; temporaryPassword?: string; message: string }> {
+    const user = await this.usersRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const newTemporaryPassword = this.generateTemporaryPassword();
+    const passwordHash = await argon2.hash(newTemporaryPassword);
+
+    await this.usersRepository.updateById(userId, {
+      passwordHash,
+      mustChangePassword: true,
+      refreshTokenHash: null,
+    } as any);
+
+    let emailSent = false;
+    try {
+      emailSent = await this.mailService.sendWelcomeEmail(
+        user.email,
+        user.firstName,
+        newTemporaryPassword,
+      );
+    } catch (err) {
+      this.logger.warn(`[RESEND_CREDENTIALS_ERROR] Failed sending email to ${user.email}: ${err}`);
+      emailSent = false;
+    }
+
+    if (this.auditService) {
+      await this.auditService.logAction({
+        action: AuditAction.USER_CREDENTIALS_RESENT,
+        actorId: actingAdminId,
+        targetId: userId,
+        targetType: 'user',
+        details: {
+          email: user.email,
+          emailSent,
+        },
+      });
+    }
+
+    return {
+      success: true,
+      emailSent,
+      temporaryPassword: newTemporaryPassword,
+      message: emailSent
+        ? `Fresh credentials generated and emailed successfully to ${user.email}.`
+        : `Fresh credentials generated. Email delivery unavailable; provide the temporary password to the user directly: ${newTemporaryPassword}`,
+    };
+  }
+
+  async deleteUser(id: string, actingAdminId = 'admin'): Promise<void> {
     const user = await this.usersRepository.findById(id);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const primaryAdminEmail = (this.configService?.get<string>('PRIMARY_ADMIN_EMAIL') || 'aadhildevwork@gmail.com').toLowerCase().trim();
+    const configuredAdminEmail = this.configService?.get<string>('PRIMARY_ADMIN_EMAIL')?.toLowerCase().trim();
     const userRoleStr = (user.role || '').toString().toLowerCase().trim();
     const userEmailStr = (user.email || '').toString().toLowerCase().trim();
 
-    if (userRoleStr === 'admin' && (userEmailStr === primaryAdminEmail || userEmailStr === 'aadhildevwork@gmail.com')) {
-      throw new ConflictException('The primary system administrator account cannot be deleted.');
+    if (userRoleStr === 'admin') {
+      if (configuredAdminEmail && userEmailStr === configuredAdminEmail) {
+        throw new ConflictException('The primary system administrator account cannot be deleted.');
+      }
+      const adminCount = await this.usersRepository.count({ role: 'admin' });
+      if (adminCount <= 1) {
+        throw new ConflictException('Cannot delete the last remaining administrator account.');
+      }
     }
 
     // Preserve historical requester & resolver names in access requests audit log
@@ -367,9 +476,23 @@ export class UsersService {
       }
     }
 
-    const deleted = await this.usersRepository.deleteById(id);
-    if (!deleted) {
+    // Perform soft delete
+    const softDeleted = await this.usersRepository.softDeleteById(id, actingAdminId);
+    if (!softDeleted) {
       throw new NotFoundException('User not found');
+    }
+
+    if (this.auditService) {
+      await this.auditService.logAction({
+        action: AuditAction.USER_DELETED,
+        actorId: actingAdminId,
+        targetId: id,
+        targetType: 'user',
+        details: {
+          email: user.email,
+          role: user.role,
+        },
+      });
     }
   }
 
@@ -405,8 +528,25 @@ export class UsersService {
     }
   }
 
-  async findAll(): Promise<IUser[]> {
-    const users = await this.usersRepository.findAll();
-    return users.map((u) => this.toIUser(u));
+  async findAll(pagination?: { page?: number; limit?: number }): Promise<IUser[]> {
+    const result = await this.usersRepository.findAll({}, pagination);
+    return result.users.map((u) => this.toIUser(u));
+  }
+
+  async findPaginated(pagination?: { page?: number; limit?: number }): Promise<{
+    users: IUser[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const result = await this.usersRepository.findAll({}, pagination);
+    return {
+      users: result.users.map((u) => this.toIUser(u)),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages,
+    };
   }
 }

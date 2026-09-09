@@ -11,6 +11,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AuthThrottlerGuard } from './guards/auth-throttler.guard';
 import { CurrentUser } from '../permissions/decorators/current-user.decorator';
 import { IAuthResponse, IUser } from '@enter-chat/shared-types';
 
@@ -19,6 +20,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Public()
+  @UseGuards(AuthThrottlerGuard)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto): Promise<IAuthResponse> {
@@ -26,6 +28,7 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(AuthThrottlerGuard)
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refreshToken(

@@ -1213,11 +1213,17 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   private generatingInterval: any = null;
 
   triggerDraftAutosave(): void {
+    const targetConvId = this.activeConversation?.id || TEMPORARY_NEW_CHAT_ID;
     if (this.draftDebounceTimer) {
       clearTimeout(this.draftDebounceTimer);
+      this.draftDebounceTimer = null;
     }
     this.draftDebounceTimer = setTimeout(() => {
-      this.persistActiveDraft();
+      // Only persist if still on the same conversation or in new chat mode
+      const currentActiveId = this.activeConversation?.id || TEMPORARY_NEW_CHAT_ID;
+      if (currentActiveId === targetConvId) {
+        this.persistActiveDraft(targetConvId);
+      }
     }, 300);
   }
 
@@ -1277,8 +1283,8 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     return undefined;
   }
 
-  private persistActiveDraft(): void {
-    const convId = this.activeConversation?.id || TEMPORARY_NEW_CHAT_ID;
+  private persistActiveDraft(explicitConvId?: string): void {
+    const convId = explicitConvId || this.activeConversation?.id || TEMPORARY_NEW_CHAT_ID;
     this.chatDraftService.saveDraft(convId, this.inputText, this.attachedResources);
   }
 
@@ -2571,8 +2577,13 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   selectConversation(conv: IConversation): void {
+    if (this.draftDebounceTimer) {
+      clearTimeout(this.draftDebounceTimer);
+      this.draftDebounceTimer = null;
+    }
+
     if (this.activeConversation && this.activeConversation.id !== conv.id) {
-      this.persistActiveDraft();
+      this.persistActiveDraft(this.activeConversation.id);
     }
 
     // If selecting a persistent chat while in temporary mode, exit temporary mode cleanly
@@ -2643,7 +2654,11 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   }
 
   createNewConversation(collectionId?: string | null): void {
-    this.persistActiveDraft();
+    if (this.draftDebounceTimer) {
+      clearTimeout(this.draftDebounceTimer);
+      this.draftDebounceTimer = null;
+    }
+    this.persistActiveDraft(this.activeConversation?.id);
 
     if (this.isTemporaryMode) {
       // Create fresh temporary session without MongoDB call

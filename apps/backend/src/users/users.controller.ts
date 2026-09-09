@@ -1,11 +1,24 @@
-import { Controller, Get, Post, Patch, Delete, Body, UseGuards, Param, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  UseGuards,
+  Param,
+  Query,
+  BadRequestException,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { CurrentUser } from '../permissions/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { AuthThrottlerGuard } from '../auth/guards/auth-throttler.guard';
 import { IUser, UserRole, ICreateUserResult } from '@enter-chat/shared-types';
 
 @Controller('users')
@@ -31,6 +44,7 @@ export class UsersController {
     return this.usersService.completeOnboarding(userId);
   }
 
+  @UseGuards(AuthThrottlerGuard)
   @Patch('me/password')
   async changePassword(
     @CurrentUser('id') userId: string,
@@ -41,17 +55,33 @@ export class UsersController {
 
   @Get()
   @Roles(UserRole.ADMIN)
-  async getAllUsers(): Promise<IUser[]> {
-    return this.usersService.findAll();
+  async getAllUsers(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ): Promise<IUser[]> {
+    const pageNum = page ? parseInt(page, 10) : undefined;
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    return this.usersService.findAll(
+      pageNum || limitNum ? { page: pageNum, limit: limitNum } : undefined,
+    );
   }
 
   @Post()
   @Roles(UserRole.ADMIN)
   async createUser(
     @CurrentUser('id') currentUserId: string,
-    @Body() createUserDto: any,
+    @Body() createUserDto: CreateUserDto | any,
   ): Promise<ICreateUserResult> {
     return this.usersService.createUserByAdmin(createUserDto, currentUserId);
+  }
+
+  @Post(':id/resend-credentials')
+  @Roles(UserRole.ADMIN)
+  async resendCredentials(
+    @CurrentUser('id') currentUserId: string,
+    @Param('id') id: string,
+  ): Promise<{ success: boolean; emailSent: boolean; temporaryPassword?: string; message: string }> {
+    return this.usersService.resendCredentials(id, currentUserId);
   }
 
   @Patch(':id')
@@ -59,7 +89,7 @@ export class UsersController {
   async updateUser(
     @CurrentUser('id') currentUserId: string,
     @Param('id') id: string,
-    @Body() updateUserDto: any,
+    @Body() updateUserDto: UpdateUserDto | any,
   ): Promise<IUser> {
     if (id === currentUserId && updateUserDto.status === 'suspended') {
       throw new BadRequestException('You cannot suspend your own account.');
@@ -76,7 +106,7 @@ export class UsersController {
     if (id === currentUserId) {
       throw new BadRequestException('You cannot delete your own account.');
     }
-    await this.usersService.deleteUser(id);
+    await this.usersService.deleteUser(id, currentUserId);
     return { success: true };
   }
 }

@@ -25,7 +25,8 @@ export class ConversationsService {
   async create(userId: string, dto: ICreateConversationDto): Promise<IConversation> {
     let attached = dto.attachedResourceIds || [];
     if (attached.length > 0) {
-      await this.ownershipService.validateUserResources(userId, attached);
+      const validated = await this.ownershipService.validateUserResources(userId, attached);
+      attached = Array.from(new Set([...validated.validDocumentIds, ...validated.validDatasetIds]));
     }
 
     const conversation = new this.conversationModel({
@@ -47,16 +48,26 @@ export class ConversationsService {
     return this.toIConversation(saved);
   }
 
-  async findAllByUser(userId: string, archived?: boolean): Promise<IConversation[]> {
+  async findAllByUser(
+    userId: string,
+    archived?: boolean,
+    pagination?: { page?: number; limit?: number },
+  ): Promise<IConversation[]> {
     const filter: any = { userId: new Types.ObjectId(userId) };
     if (archived !== undefined) {
       filter.archived = archived;
     }
-    const convs = await this.conversationModel
+    const query = this.conversationModel
       .find(filter)
-      .sort({ pinned: -1, updatedAt: -1 })
-      .exec();
+      .sort({ pinned: -1, updatedAt: -1 });
 
+    if (pagination && pagination.limit && pagination.limit > 0) {
+      const page = Math.max(1, pagination.page || 1);
+      const skip = (page - 1) * pagination.limit;
+      query.skip(skip).limit(pagination.limit);
+    }
+
+    const convs = await query.exec();
     return convs.map((c) => this.toIConversation(c));
   }
 
@@ -114,10 +125,6 @@ export class ConversationsService {
       throw new NotFoundException('Conversation not found');
     }
 
-    if (dto.attachedResourceIds && dto.attachedResourceIds.length > 0) {
-      await this.ownershipService.validateUserResources(userId, dto.attachedResourceIds);
-    }
-
     const updateData: any = {};
     if (dto.title !== undefined) updateData.title = dto.title;
     if (dto.collectionId !== undefined) {
@@ -125,7 +132,14 @@ export class ConversationsService {
         ? new Types.ObjectId(dto.collectionId)
         : null;
     }
-    if (dto.attachedResourceIds !== undefined) updateData.attachedResourceIds = dto.attachedResourceIds;
+    if (dto.attachedResourceIds !== undefined) {
+      if (dto.attachedResourceIds.length > 0) {
+        const validated = await this.ownershipService.validateUserResources(userId, dto.attachedResourceIds);
+        updateData.attachedResourceIds = Array.from(new Set([...validated.validDocumentIds, ...validated.validDatasetIds]));
+      } else {
+        updateData.attachedResourceIds = [];
+      }
+    }
     if (dto.pinned !== undefined) updateData.pinned = dto.pinned;
     if (dto.archived !== undefined) updateData.archived = dto.archived;
     if (dto.activeScope !== undefined) {

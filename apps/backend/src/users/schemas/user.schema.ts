@@ -47,6 +47,15 @@ export class User {
   @Prop({ type: Object, default: {} })
   settings: Record<string, any>;
 
+  @Prop({ type: Boolean, default: false })
+  isDeleted: boolean;
+
+  @Prop({ type: Date, required: false })
+  deletedAt?: Date;
+
+  @Prop({ type: String, required: false })
+  deletedBy?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }

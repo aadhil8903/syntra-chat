@@ -469,6 +469,19 @@ export class MessagesService {
     // ==========================================
     // CASE 3: NO EXPLICIT MENTION & NO ACTIVE SCOPE
     // ==========================================
+    if (conv.attachedResourceIds && conv.attachedResourceIds.length > 0) {
+      const validated = await this.ownershipService.validateUserResources(userId, conv.attachedResourceIds);
+      const validAccessibleResourceIds = Array.from(
+        new Set([...validated.validDocumentIds, ...validated.validDatasetIds]),
+      );
+      return {
+        explicitMentionedIds: [],
+        effectiveResourceIds: validAccessibleResourceIds,
+        activeScope: null,
+        resolutionSource: 'none',
+      };
+    }
+
     return {
       explicitMentionedIds: [],
       effectiveResourceIds: [],
@@ -542,28 +555,50 @@ export class MessagesService {
       // 3. Resolve Active Scope and Resource IDs
       const scopeData = await this.resolveScopeAndResources(userId, conv, content, referencedResourceIds);
 
-      // 4. Handle User Message (Save to DB only for persistent chats)
-      let savedUserMsg: any;
-      if (!isTemp) {
-        const userMsgDoc = new this.messageModel({
-          conversationId: new Types.ObjectId(conversationId),
-          userId: new Types.ObjectId(userId),
-          role: MessageRole.USER,
-          content,
-          referencedResourceIds: scopeData.explicitMentionedIds,
-        });
-        savedUserMsg = await userMsgDoc.save();
-      } else {
-        savedUserMsg = {
-          _id: 'temp-msg-user-' + Date.now(),
-          conversationId,
-          userId,
-          role: MessageRole.USER,
-          content,
-          referencedResourceIds: scopeData.explicitMentionedIds,
-          createdAt: new Date(),
-        };
-      }
+      // 4. Concurrently run independent operations: Save User Msg, Fetch Past History, and Fetch Shared Memory
+      const userMsgPromise = !isTemp
+        ? new this.messageModel({
+            conversationId: new Types.ObjectId(conversationId),
+            userId: new Types.ObjectId(userId),
+            role: MessageRole.USER,
+            content,
+            referencedResourceIds: scopeData.explicitMentionedIds,
+          }).save()
+        : Promise.resolve({
+            _id: 'temp-msg-user-' + Date.now(),
+            conversationId,
+            userId,
+            role: MessageRole.USER,
+            content,
+            referencedResourceIds: scopeData.explicitMentionedIds,
+            createdAt: new Date(),
+          });
+
+      const historyPromise = !isTemp
+        ? this.messageModel
+            .find({
+              conversationId: new Types.ObjectId(conversationId),
+              userId: new Types.ObjectId(userId),
+            })
+            .sort({ createdAt: -1 })
+            .limit(50)
+            .exec()
+        : Promise.resolve([]);
+
+      const sharedMemoryPromise = conv.collectionId
+        ? this.collectionsService.getSharedMemory(userId, conv.collectionId.toString())
+        : Promise.resolve('');
+
+      const validConvAttachedPromise = conv.attachedResourceIds && conv.attachedResourceIds.length > 0
+        ? this.ownershipService.validateUserResources(userId, conv.attachedResourceIds)
+        : Promise.resolve({ validDocumentIds: [], validDatasetIds: [] });
+
+      const [savedUserMsg, pastMessages, sharedMemory, validatedConv] = await Promise.all([
+        userMsgPromise,
+        historyPromise,
+        sharedMemoryPromise,
+        validConvAttachedPromise,
+      ]);
 
       // Check for ungrounded / unresolved operational intent
       const unresolvedCheck = detectUnresolvedTargetOperation(content, scopeData.effectiveResourceIds, scopeData.activeScope);
@@ -592,8 +627,8 @@ export class MessagesService {
           );
 
           return {
-            userMessage: this.toIMessage(savedUserMsg),
-            assistantMessage: this.toIMessage(savedAssistantMsg),
+            userMessage: this.toIMessage(savedUserMsg as MessageEntityDocument),
+            assistantMessage: this.toIMessage(savedAssistantMsg as MessageEntityDocument),
             conversation: updatedConv ? {
               id: updatedConv._id.toString(),
               title: updatedConv.title,
@@ -615,14 +650,14 @@ export class MessagesService {
         } else {
           return {
             userMessage: {
-              id: savedUserMsg._id,
+              id: (savedUserMsg as any)._id.toString(),
               conversationId,
               userId,
               role: MessageRole.USER,
               content,
               referencedResourceIds: scopeData.explicitMentionedIds,
               citations: [],
-              createdAt: new Date().toISOString(),
+              createdAt: (savedUserMsg as any).createdAt instanceof Date ? (savedUserMsg as any).createdAt.toISOString() : new Date().toISOString(),
             },
             assistantMessage: {
               id: 'temp-msg-asst-' + Date.now(),
@@ -650,42 +685,24 @@ export class MessagesService {
         }
       }
 
-      // 5. Validate and filter ANY legacy attached resources from the conversation
-      const validConvAttachedIds: string[] = [];
-      if (conv.attachedResourceIds && conv.attachedResourceIds.length > 0) {
-        const validated = await this.ownershipService.validateUserResources(userId, conv.attachedResourceIds);
-        validConvAttachedIds.push(...validated.validDocumentIds, ...validated.validDatasetIds);
-      }
+      // 5. Combine validated attached resources and scope resources
+      const validConvAttachedIds = [
+        ...validatedConv.validDocumentIds,
+        ...validatedConv.validDatasetIds,
+      ];
 
       const combinedResourceIds = Array.from(
         new Set([...validConvAttachedIds, ...scopeData.effectiveResourceIds]),
       );
 
-      // 6. Fetch previous conversation history (up to 50 recent messages in chronological order)
-      let history: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
-      let pastMessages: any[] = [];
-      if (!isTemp) {
-        pastMessages = await this.messageModel
-          .find({
-            conversationId: new Types.ObjectId(conversationId),
-            userId: new Types.ObjectId(userId),
-            _id: { $ne: savedUserMsg._id },
-          })
-          .sort({ createdAt: -1 })
-          .limit(50)
-          .exec();
-
-        history = pastMessages.reverse().map((m) => ({
+      // 6. Format previous conversation history (excluding currently written user message if returned)
+      const history = pastMessages
+        .filter((m: any) => m._id.toString() !== savedUserMsg._id.toString())
+        .reverse()
+        .map((m: any) => ({
           role: m.role as 'user' | 'assistant' | 'system',
           content: m.content,
         }));
-      }
-
-      // 7. Retrieve Collection Shared Memory if conversation is assigned to a collection
-      let sharedMemory = '';
-      if (conv.collectionId) {
-        sharedMemory = await this.collectionsService.getSharedMemory(userId, conv.collectionId.toString());
-      }
 
       // 8. Call AI Service via AiGateway with structured activeScope
       const isFileReq = isPdfDiscoveryRequest(content);
@@ -825,18 +842,18 @@ export class MessagesService {
       }
 
       return {
-        userMessage: !isTemp ? this.toIMessage(savedUserMsg) : {
-          id: savedUserMsg._id,
+        userMessage: !isTemp ? this.toIMessage(savedUserMsg as MessageEntityDocument) : {
+          id: (savedUserMsg as any)._id.toString(),
           conversationId,
           userId,
           role: MessageRole.USER,
           content,
           referencedResourceIds: scopeData.explicitMentionedIds,
           citations: [],
-          createdAt: savedUserMsg.createdAt.toISOString(),
+          createdAt: (savedUserMsg as any).createdAt instanceof Date ? (savedUserMsg as any).createdAt.toISOString() : new Date().toISOString(),
         },
-        assistantMessage: !isTemp ? this.toIMessage(savedAssistantMsg) : {
-          id: savedAssistantMsg._id,
+        assistantMessage: !isTemp ? this.toIMessage(savedAssistantMsg as MessageEntityDocument) : {
+          id: (savedAssistantMsg as any)._id.toString(),
           conversationId,
           userId,
           role: MessageRole.ASSISTANT,

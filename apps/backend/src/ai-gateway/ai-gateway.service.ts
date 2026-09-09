@@ -10,6 +10,12 @@ import {
   IDatasetInspectResponse,
 } from '@enter-chat/shared-types';
 
+export const DEFAULT_AI_TIMEOUT_MS = 90_000;
+export const CHAT_TIMEOUT_MS = 120_000;
+export const RETRY_DELAY_MS = 2_000;
+export const MAX_INGEST_RETRIES = 3;
+export const MAX_CHAT_RETRIES = 6;
+
 @Injectable()
 export class AiGatewayService {
   private readonly logger = new Logger(AiGatewayService.name);
@@ -25,7 +31,7 @@ export class AiGatewayService {
     const baseURL = (
       this.configService.get<string>('AI_SERVICE_URL') || defaultAiUrl
     ).trim().replace(/\/+$/, '');
-    const timeout = Number(this.configService.get<number>('AI_SERVICE_TIMEOUT_MS', 90000));
+    const timeout = Number(this.configService.get<number>('AI_SERVICE_TIMEOUT_MS', DEFAULT_AI_TIMEOUT_MS));
 
     this.client = axios.create({
       baseURL,
@@ -43,15 +49,17 @@ export class AiGatewayService {
     } catch (error: any) {
       const code: string = error.code || '';
 
-      // Auto-retry on connection refused (AI service still booting) — up to 3 attempts
-      if ((code === 'ECONNREFUSED' || code === 'ECONNRESET') && _retryCount < 3) {
-        const delayMs = (1 + _retryCount) * 2000;
-        this.logger.warn(`AI Service not reachable for ingest (attempt ${_retryCount + 1}/3), retrying in ${delayMs / 1000}s...`);
+      // Auto-retry on connection refused (AI service still booting)
+      if ((code === 'ECONNREFUSED' || code === 'ECONNRESET') && _retryCount < MAX_INGEST_RETRIES) {
+        const delayMs = (1 + _retryCount) * RETRY_DELAY_MS;
+        this.logger.warn(`AI Service not reachable for ingest (attempt ${_retryCount + 1}/${MAX_INGEST_RETRIES}), retrying in ${delayMs / 1000}s...`);
         await new Promise((r) => setTimeout(r, delayMs));
         return this.ingestDocument(payload, _retryCount + 1);
       }
 
-      this.logger.error(`AI Service ingest failed: ${error.response?.data?.detail || error.message}`);
+      this.logger.error(
+        `[AI_GATEWAY_ERROR] Endpoint=/rag/ingest documentId=${payload.documentId} attempt=${_retryCount + 1} status=${error.response?.status || 'network'} error=${error.response?.data?.detail || error.message} stack=${error.stack}`,
+      );
       return {
         documentId: payload.documentId,
         chunkCount: 0,
@@ -68,15 +76,17 @@ export class AiGatewayService {
     } catch (error: any) {
       const code: string = error.code || '';
 
-      // Auto-retry on connection refused (AI service still booting) — up to 3 attempts
-      if ((code === 'ECONNREFUSED' || code === 'ECONNRESET') && _retryCount < 3) {
-        const delayMs = (1 + _retryCount) * 2000;
-        this.logger.warn(`AI Service not reachable for inspect (attempt ${_retryCount + 1}/3), retrying in ${delayMs / 1000}s...`);
+      // Auto-retry on connection refused (AI service still booting)
+      if ((code === 'ECONNREFUSED' || code === 'ECONNRESET') && _retryCount < MAX_INGEST_RETRIES) {
+        const delayMs = (1 + _retryCount) * RETRY_DELAY_MS;
+        this.logger.warn(`AI Service not reachable for inspect (attempt ${_retryCount + 1}/${MAX_INGEST_RETRIES}), retrying in ${delayMs / 1000}s...`);
         await new Promise((r) => setTimeout(r, delayMs));
         return this.inspectDataset(payload, _retryCount + 1);
       }
 
-      this.logger.error(`AI Service inspect dataset failed: ${error.response?.data?.detail || error.message}`);
+      this.logger.error(
+        `[AI_GATEWAY_ERROR] Endpoint=/datasets/inspect datasetId=${payload.datasetId} attempt=${_retryCount + 1} status=${error.response?.status || 'network'} error=${error.response?.data?.detail || error.message} stack=${error.stack}`,
+      );
       return {
         datasetId: payload.datasetId,
         totalRows: 0,
@@ -88,56 +98,58 @@ export class AiGatewayService {
     }
   }
 
-    async chat(payload: IAiChatRequest, _retryCount = 0): Promise<IAiChatResponse> {
-      try {
-        const response = await this.client.post<IAiChatResponse>('/chat', payload, {
-          timeout: 120000, // 2 minute timeout for heavy analysis
-        });
-        return response.data;
-      } catch (error: any) {
-        const rawMessage: string = error.response?.data?.detail || error.message || '';
-        const code: string = error.code || '';
-
-        // Auto-retry on connection issues (service still booting) — up to 6 attempts (~42s total)
-        if ((code === 'ECONNREFUSED' || code === 'ECONNRESET' || code === 'ENOTFOUND') && _retryCount < 6) {
-          const delayMs = (1 + _retryCount) * 2000;
-          this.logger.warn(`AI Service not reachable (attempt ${_retryCount + 1}/6), retrying in ${delayMs / 1000}s...`);
-          await new Promise((r) => setTimeout(r, delayMs));
-          return this.chat(payload, _retryCount + 1);
-        }
-
-        this.logger.error(`AI Service chat error: ${rawMessage}`);
-
-        let userFacingError = '';
-        const lower = rawMessage.toLowerCase();
-
-        if (code === 'ECONNREFUSED' || code === 'ECONNRESET' || lower.includes('econnrefused')) {
-          userFacingError = 'Sorry, I\'m temporarily unavailable. Please try again in a moment.';
-        } else if (lower.includes('resource_exhausted') || lower.includes('429') || lower.includes('quota') || lower.includes('credit') || lower.includes('rate limit')) {
-          userFacingError = 'I\'ve reached my usage limit for the moment. Please wait a minute and try again, or contact your administrator to check the API quota.';
-        } else if (lower.includes('timeout') || lower.includes('econnaborted')) {
-          userFacingError = 'That request took too long to process. Please try again — if this keeps happening, try a shorter or simpler question.';
-        } else if (lower.includes('api_key') || lower.includes('invalid api key') || lower.includes('401') || lower.includes('403')) {
-          userFacingError = 'There\'s an authentication issue on my end. Please contact your administrator to check the API configuration in Settings.';
-        } else {
-          userFacingError = 'Something went wrong while processing your request. Please try again.';
-        }
-
-        return {
-          answer: userFacingError,
-          intent: 'general_chat' as any,
-          citations: [],
-        };
-      }
-    }
-
-    async streamChat(payload: IAiChatRequest): Promise<any> {
-      const response = await this.client.post('/chat/stream', payload, {
-        responseType: 'stream',
-        timeout: 120000,
+  async chat(payload: IAiChatRequest, _retryCount = 0): Promise<IAiChatResponse> {
+    try {
+      const response = await this.client.post<IAiChatResponse>('/chat', payload, {
+        timeout: CHAT_TIMEOUT_MS,
       });
       return response.data;
+    } catch (error: any) {
+      const rawMessage: string = error.response?.data?.detail || error.message || '';
+      const code: string = error.code || '';
+
+      // Auto-retry on connection issues (service still booting)
+      if ((code === 'ECONNREFUSED' || code === 'ECONNRESET' || code === 'ENOTFOUND') && _retryCount < MAX_CHAT_RETRIES) {
+        const delayMs = (1 + _retryCount) * RETRY_DELAY_MS;
+        this.logger.warn(`AI Service not reachable (attempt ${_retryCount + 1}/${MAX_CHAT_RETRIES}), retrying in ${delayMs / 1000}s...`);
+        await new Promise((r) => setTimeout(r, delayMs));
+        return this.chat(payload, _retryCount + 1);
+      }
+
+      this.logger.error(
+        `[AI_GATEWAY_ERROR] Endpoint=/chat conversationId=${payload.conversationId} userId=${payload.userId} attempt=${_retryCount + 1} status=${error.response?.status || 'network'} code=${code} rawMessage=${rawMessage} stack=${error.stack}`,
+      );
+
+      let userFacingError = '';
+      const lower = rawMessage.toLowerCase();
+
+      if (code === 'ECONNREFUSED' || code === 'ECONNRESET' || lower.includes('econnrefused')) {
+        userFacingError = 'Sorry, I\'m temporarily unavailable. Please try again in a moment.';
+      } else if (lower.includes('resource_exhausted') || lower.includes('429') || lower.includes('quota') || lower.includes('credit') || lower.includes('rate limit')) {
+        userFacingError = 'I\'ve reached my usage limit for the moment. Please wait a minute and try again, or contact your administrator to check the API quota.';
+      } else if (lower.includes('timeout') || lower.includes('econnaborted')) {
+        userFacingError = 'That request took too long to process. Please try again — if this keeps happening, try a shorter or simpler question.';
+      } else if (lower.includes('api_key') || lower.includes('invalid api key') || lower.includes('401') || lower.includes('403')) {
+        userFacingError = 'There\'s an authentication issue on my end. Please contact your administrator to check the API configuration in Settings.';
+      } else {
+        userFacingError = 'Something went wrong while processing your request. Please try again.';
+      }
+
+      return {
+        answer: userFacingError,
+        intent: 'general_chat' as any,
+        citations: [],
+      };
     }
+  }
+
+  async streamChat(payload: IAiChatRequest): Promise<any> {
+    const response = await this.client.post('/chat/stream', payload, {
+      responseType: 'stream',
+      timeout: CHAT_TIMEOUT_MS,
+    });
+    return response.data;
+  }
 
     async generateTitle(message: string): Promise<string> {
       try {
