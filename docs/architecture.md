@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="../apps/frontend/public/logo-icon.png" alt="Syntra Chat Logo" width="80" height="80" style="border-radius: 16px;" />
+  <img src="apps/frontend/public/logo-icon.png" alt="Syntra Chat Logo" width="80" height="80" style="border-radius: 16px;" />
 </p>
 
 # Syntra Chat - System Architecture
 
 > **Authoritative Technical Architecture, Infrastructure & Implementation Reference**  
 > *Author:* Aadil  
-> *Version:* 5.1 (Monorepo Standard - High-Legibility Visuals & Deep Audit)  
+> *Version:* 6.0 (Post-Audit Hardening & Round 31 Infrastructure)  
 > *Target Audience:* Core Engineers, Systems Architects, Security Auditors, and Autonomous AI Agents
 
 ---
@@ -76,14 +76,14 @@
 
 # 1. Executive Architecture Summary
 
-**Syntra Chat** is a multi-tier, secure enterprise AI platform designed for organizational knowledge retrieval, structured dataset analysis, and departmental collaboration. It blends conversational AI with deep document retrieval (RAG), sandboxed tabular data analytics (Python/Pandas execution), granular Access Control Lists (ACLs), and persistent workspace memory.
+**Syntra Chat** is a multi-tier, secure enterprise AI platform designed for organizational knowledge retrieval, structured dataset analysis, and departmental collaboration. It blends conversational AI with deep document retrieval (RAG), sandboxed tabular data analytics (Python/Pandas execution), granular Access Control Lists (ACLs), sliding-window rate limiting, structured audit trails, and persistent workspace memory.
 
 ### Core Architectural Pillars:
 
-1. **Frontend Tier (Angular 19 Standalone)**: Responsive Single-Page Application (SPA) driven by Angular Signals and RxJS observables. Features a multi-chat composer with background concurrency control (max 2 active generations), live markdown rendering with syntax highlighting, dynamic chart rendering (Chart.js), client-side lazy conversation initialization, and high-contrast notifications.
-2. **Backend API Gateway Tier (NestJS 10)**: Enterprise Node.js orchestrator providing RESTful endpoints, Passport JWT authentication, Argon2/bcrypt password hashing, multi-tier RBAC/ACL resolution, MongoDB GridFS binary streaming, Nodemailer CID email delivery, and a resilient streaming AI Gateway with exponential backoff.
+1. **Frontend Tier (Angular 19 Standalone)**: Responsive Single-Page Application (SPA) driven by Angular Signals and RxJS observables. Features a multi-chat composer with background concurrency control (max 2 active generations), live markdown rendering with syntax highlighting, dynamic chart rendering (Chart.js), client-side lazy conversation initialization, draft race condition prevention, and high-contrast notifications.
+2. **Backend API Gateway Tier (NestJS 10)**: Enterprise Node.js orchestrator providing RESTful endpoints, Passport JWT authentication, sliding-window rate limiting (`AuthThrottlerGuard`), Argon2/bcrypt password hashing, multi-tier RBAC/ACL resolution, MongoDB connection pooling, GridFS binary streaming, Nodemailer CID email delivery, and a resilient streaming AI Gateway with exponential backoff and structured observability.
 3. **AI Microservice Tier (FastAPI + LangGraph + Python 3.11)**: Deterministic, state-machine-driven agent graph orchestrating document RAG, AST-sandboxed Pandas analysis, dynamic ChartSpec generation, and math calculation. Embeddings are generated using local BGE models (`BAAI/bge-base-en-v1.5`, 768 dimensions), with vectors stored directly in MongoDB chunks and queried via NumPy cosine similarity.
-4. **Data Persistence Tier (MongoDB Atlas / Community)**: Document-oriented database serving application collections (`users`, `roles`, `folders`, `documents`, `datasets`, `conversations`, `messages`, `collections`, `accessrequests`, `systemsettings`) and GridFS binary buckets (`uploads.files`, `uploads.chunks`).
+4. **Data Persistence Tier (MongoDB Atlas / Community)**: Document-oriented database serving application collections (`users`, `roles`, `folders`, `documents`, `datasets`, `conversations`, `messages`, `collections`, `accessrequests`, `audit_logs`, `systemsettings`) with configured connection pooling (max 50, min 5) and GridFS binary buckets (`uploads.files`, `uploads.chunks`).
 
 ### System Topography
 
@@ -94,57 +94,46 @@ flowchart TD
     end
 
     subgraph BackendTier [Backend API Gateway - Port 3000]
+        Throttler[Auth Throttler Guard]
         Auth[Auth & JWT Service]
+        Audit[Audit Service & Logging]
         ACL[ACL & Ownership Resolver]
         Gate[AI Gateway SSE Streamer]
         GFS[GridFS Cloud Streamer]
-        Mail[Nodemailer CID Dispatcher]
     end
 
-    subgraph AITier [Python AI Microservice - Port 8000]
-        FastAPI[FastAPI Router]
-        Graph[LangGraph State Machine]
-        Parser[Multi-Format Ingestion Parser]
-        BGE[Local BGE-v1.5 Embedder]
-        Sim[NumPy Cosine Matcher]
-        Sandbox[AST Sandboxed Pandas Engine]
-        LLMAdapter[Gemini / Local Adapter]
+    subgraph AIServiceTier [AI Microservice - Port 8000]
+        Router[FastAPI LangGraph Router]
+        Sandbox[AST Sandboxed Python Execution]
+        BGE[Local BGE 768d Embedder]
+        RAG[NumPy Cosine Vector Search]
     end
 
-    subgraph StorageTier [MongoDB Database Cluster]
-        MongoDocs[(Application Collections)]
-        VectorChunks[(document_chunks - 768d Vectors)]
-        GridFSBucket[(GridFS Binary Buckets)]
+    subgraph PersistenceTier [Persistence Tier]
+        Mongo[(MongoDB Database - Pool: 50)]
+        GridFS[(GridFS Binary Store)]
     end
 
-    subgraph ExternalTier [External Cloud Providers]
-        LLM[Google Gemini API / Ollama]
-        SMTP[Enterprise SMTP Relay]
-    end
-
-    UI -->|HTTP REST / JWT| Auth
-    UI -->|SSE Stream / Messages| Gate
-    Auth --> ACL
-    ACL --> MongoDocs
-    GFS --> GridFSBucket
-    Gate -->|HTTP POST /chat| FastAPI
-    FastAPI --> Graph
-    Graph --> Parser
-    Parser --> BGE
-    BGE --> VectorChunks
-    Graph --> Sim
-    Sim <--> VectorChunks
-    Graph --> Sandbox
-    Graph --> LLMAdapter
-    LLMAdapter --> LLM
-    Mail --> SMTP
+    UI -->|HTTPS / REST / SSE| Throttler
+    Throttler --> Auth
+    Auth --> Audit
+    UI -->|REST / Mentions| ACL
+    UI -->|SSE Stream / POST| Gate
+    Gate -->|HTTP Proxy /stream| Router
+    Router --> BGE
+    Router --> RAG
+    Router --> Sandbox
+    Gate --> Mongo
+    ACL --> Mongo
+    GFS --> GridFS
+    RAG -.->|Read Chunk Vectors| Mongo
 ```
 
 ---
 
 # 2. Repository / Monorepo Architecture
 
-The repository is structured as an npm workspaces monorepo containing three core applications and one shared TypeScript contracts package:
+Syntra Chat is organized as a unified, single-repository npm monorepo with explicit boundaries:
 
 ```text
 /
@@ -161,18 +150,19 @@ The repository is structured as an npm workspaces monorepo containing three core
 │   │   └── tailwind.config.js
 │   ├── backend/                  # NestJS 10 REST API & Gateway
 │   │   ├── src/
-│   │   │   ├── auth/             # JWT, Local strategy, password reset, guards
+│   │   │   ├── auth/             # JWT, Local strategy, AuthThrottlerGuard, password reset
+│   │   │   ├── audit/            # Security & user lifecycle audit logging module
 │   │   │   ├── permissions/      # ACL resolution, ownership verification, department rules
 │   │   │   ├── documents/        # File upload, replace, move, delete, download, permissions
 │   │   │   ├── datasets/         # Tabular dataset schemas, rows, stats, inspection
 │   │   │   ├── conversations/    # Lazy-persisted chat management, pinning, archiving
-│   │   │   ├── messages/         # Message storage, grounding, conversation streaming
+│   │   │   ├── messages/         # Message storage, parallelized pipeline, grounding, SSE
 │   │   │   ├── collections/      # Topic folders for chats, drag-and-drop, shared memory
 │   │   │   ├── access-requests/  # Resource access approvals workflow
-│   │   │   ├── ai-gateway/       # HTTP client proxying requests to AI service
+│   │   │   ├── ai-gateway/       # HTTP client proxying requests with structured logging
 │   │   │   ├── storage/          # MongoDB GridFS streaming engine
 │   │   │   ├── mail/             # Nodemailer CID template engine
-│   │   │   ├── users/            # User CRUD, role assignments, department provisioning
+│   │   │   ├── users/            # User CRUD, soft delete, role assignments, provisioning
 │   │   │   ├── roles/            # Role definitions and administrative privilege mapping
 │   │   │   └── main.ts           # NestJS application bootstrap & CORS setup
 │   │   ├── package.json
@@ -221,6 +211,10 @@ The repository is structured as an npm workspaces monorepo containing three core
 │       │   ├── folder.types.ts
 │       │   └── collection.types.ts
 │       └── package.json
+├── docs/                         # Technical specifications & benchmark reports
+│   ├── AI_SERVICE_CONTRACT.md    # Gateway ↔ AI Microservice REST/SSE Contract
+│   ├── LOAD_TEST_RESULTS.md      # Concurrency & rate-limiting benchmark report
+│   └── architecture.md           # Master Architecture Mirror
 ├── package.json                  # Root npm workspace configuration
 └── architecture.md               # Master Architecture Reference
 ```
@@ -328,27 +322,43 @@ The frontend is an Angular 19 single-page application built entirely on **Standa
 
 # 7. Authentication Architecture
 
+Syntra Chat employs stateless Passport JWT authentication coupled with a strict sliding-window rate limiter:
+
+### Sliding-Window Rate Limiting (`AuthThrottlerGuard`)
+- **Protected Endpoints**:
+  - `POST /api/auth/login`
+  - `POST /api/auth/refresh`
+  - `PUT /api/users/me/password`
+- **Policy**: Maximum 10 attempts per minute per IP address.
+- **Enforcement**: Upon exceeding 10 attempts within a rolling 60-second window, the request is immediately aborted with `429 Too Many Requests`, returning a `Retry-After: 60` HTTP header and standard JSON error payload.
+
 ```mermaid
 sequenceDiagram
     autonumber
     actor User as User
     participant FE as Frontend
+    participant Guard as AuthThrottlerGuard
     participant BE as Backend
     participant DB as MongoDB
 
     User->>FE: 1. Submit Credentials
-    FE->>BE: 2. POST /auth/login
-    BE->>DB: 3. Query User Document
-    DB-->>BE: 4. User Record & Password Hash
-    BE->>BE: 5. Verify Password Hash
-    
-    alt Invalid Credentials
-        BE-->>FE: 6a. 401 Unauthorized
-        FE-->>User: 7a. Show Error Alert
-    else Valid Credentials
-        BE->>BE: 6b. Sign Access & Refresh JWTs
-        BE-->>FE: 7b. 200 OK (Tokens & User Object)
-        FE-->>User: 8b. Set Auth Signal & Navigate
+    FE->>Guard: 2. POST /auth/login
+    alt Exceeded 10 req/min
+        Guard-->>FE: 3a. 429 Too Many Requests (Retry-After: 60)
+        FE-->>User: 4a. Show Rate Limit Warning
+    else Within Rate Limit
+        Guard->>BE: 3b. Forward Request
+        BE->>DB: 4b. Query User Document (isDeleted != true)
+        DB-->>BE: 5b. User Record & Password Hash
+        BE->>BE: 6b. Verify Password Hash
+        alt Invalid Credentials
+            BE-->>FE: 7a. 401 Unauthorized
+            FE-->>User: 8a. Show Error Alert
+        else Valid Credentials
+            BE->>BE: 7b. Sign Access & Refresh JWTs
+            BE-->>FE: 8b. 200 OK (Tokens & User Object)
+            FE-->>User: 9b. Set Auth Signal & Navigate
+        end
     end
 ```
 
@@ -359,16 +369,19 @@ sequenceDiagram
 Syntra Chat implements a layered **Defense-in-Depth Authorization Framework**:
 
 1. **Role-Based Access Control (RBAC)**:
-   - `master_admin`: Full system control, role creation, system settings, cannot be deleted or demoted.
+   - `master_admin`: Full system control, role creation, system settings, cannot be deleted or demoted. Dynamic primary admin email is validated from `PRIMARY_ADMIN_EMAIL` environment configuration with no hardcoded source fallbacks.
    - `admin`: Administrative user provisioning, department assignments, folder ACL management, access request review.
    - `user`: Standard employee access restricted to owned files, department folders, and explicitly approved resources.
-2. **Department-Level ACLs**:
-   - Folders and resources can specify `allowedDepartments: string[]`.
-   - Users whose `departments` overlap with `allowedDepartments` obtain access.
-3. **Folder-Level ACLs**:
-   - Users possess `allowedFolders: string[]`. Files residing in matching folders are accessible.
+2. **Folder + Department Nearest-Ancestor ACL Resolution**:
+   - Folders adhere to nearest-ancestor inheritance. When resolving access for a folder `Finance/Payroll/2026`:
+     1. The system walks up from the folder to root (`Finance/Payroll/2026` &rarr; `Finance/Payroll` &rarr; `Finance` &rarr; `""`).
+     2. If the user has explicit `allowedFolders` or `deniedFolders` rules matching the nearest ancestor, that rule is final.
+     3. Otherwise, if the user's department matches `allowedDepartments` on the folder or nearest ancestor, access is granted.
+     4. Default: Deny.
+3. **Download Permission Re-Validation**:
+   - Downloads on `GET /documents/:id/download` independently re-check folder ACL, department rules, and specific `downloadPermission` policies (`allowed`, `not_allowed`, `use_folder_setting`) before binary chunks are streamed.
 4. **Ownership Verification**:
-   - `OwnershipGuard` verifies `doc.userId === req.user.id` for modification or deletion.
+   - `OwnershipGuard` verifies `doc.userId === req.user.id` or administrative privileges for resource modification or deletion.
 5. **AI Retrieval Security Boundary**:
    - The Python AI service does not trust client scope assertions. In `resolve_context_node` (`apps/ai-service/agents/graph.py`), it independently loads the user's role, department list, folder list, and approved access requests directly from MongoDB, executing a strict filter before any vectors or dataframes are queried.
 
@@ -378,16 +391,26 @@ Syntra Chat implements a layered **Defense-in-Depth Authorization Framework**:
 
 | Boundary Layer | Enforcing Component | Enforcement Mechanism | Failure Response |
 | :--- | :--- | :--- | :--- |
+| **Auth Rate Limiting** | `AuthThrottlerGuard` | In-memory 10 req/min sliding window per IP | `429 Too Many Requests` + `Retry-After: 60` |
 | **Browser Boundary** | Angular `AuthGuard` | Route activation checks `currentUser()` signal | Redirect to `/auth/login` |
 | **API Boundary** | NestJS `JwtAuthGuard` | Validates JWT signature and expiration | `401 Unauthorized` |
 | **Resource Mutation** | NestJS `OwnershipGuard` | Checks document/dataset/chat owner ID | `403 Forbidden` |
 | **Admin Boundary** | NestJS `RolesGuard` | Checks `@Roles('admin', 'master_admin')` | `403 Forbidden` |
+| **Download Boundary** | `DocumentsService` + `OwnershipService` | Re-checks folder ACL & download policy | `403 Forbidden` |
 | **AI Retrieval Boundary** | `resolve_context_node` | Database-level RBAC query filtering | Silently omits unauthorized chunks |
 | **Python Sandbox Boundary**| AST `SecurityValidator` | Restricts imports, system calls, built-ins | Rejects execution with security error |
 
 ---
 
 # 10. Database Architecture
+
+### Connection Pool Configuration (`DatabaseModule`)
+To maintain high throughput and avoid connection starvation during concurrent load, MongoDB Mongoose connections are configured with explicit pool limits:
+- `maxPoolSize`: `50`
+- `minPoolSize`: `5`
+- `serverSelectionTimeoutMS`: `5000`
+- `socketTimeoutMS`: `45000`
+- `connectTimeoutMS`: `10000`
 
 ### Primary MongoDB Collections
 
@@ -400,11 +423,25 @@ Syntra Chat implements a layered **Defense-in-Depth Authorization Framework**:
 - `roles`: Array of Strings
 - `departments`: Array of Strings (`['Engineering', 'Finance']`)
 - `allowedFolders`: Array of Strings (`['Engineering_Docs', 'Q1_Reports']`)
+- `deniedFolders`: Array of Strings
 - `isTemporaryPassword`: Boolean
 - `status`: String (`active` | `suspended` | `pending`)
+- `isDeleted`: Boolean (Default: `false`)
+- `deletedAt`: Date (Nullable)
+- `deletedBy`: ObjectId (Nullable, Ref: User)
 - `createdAt`, `updatedAt`: Date
 
-#### 2. `documents`
+#### 2. `audit_logs`
+- `_id`: ObjectId
+- `actorId`: ObjectId (Ref: User, Indexed)
+- `action`: String (`user_created`, `user_updated`, `user_role_changed`, `user_status_toggled`, `user_deleted`, `credentials_resent`, `access_request_approved`, `access_request_rejected`)
+- `targetType`: String (`user`, `document`, `dataset`, `folder`, `system_setting`)
+- `targetId`: String (Indexed)
+- `ipAddress`: String
+- `metadata`: Record<String, Any>
+- `createdAt`: Date (Indexed)
+
+#### 3. `documents`
 - `_id`: ObjectId
 - `userId`: ObjectId (Ref: User)
 - `filename`: String (Unique on disk/gridfs)
@@ -419,7 +456,7 @@ Syntra Chat implements a layered **Defense-in-Depth Authorization Framework**:
 - `gridFsFileId`: ObjectId (Ref: `uploads.files`)
 - `createdAt`, `updatedAt`: Date
 
-#### 3. `document_chunks`
+#### 4. `document_chunks`
 - `_id`: ObjectId
 - `document_id`: String (Indexed)
 - `user_id`: String (Indexed)
@@ -433,7 +470,7 @@ Syntra Chat implements a layered **Defense-in-Depth Authorization Framework**:
 - `chunk_index`: Number
 - `source_type`: String (`narrative` | `tabular`)
 
-#### 4. `conversations`
+#### 5. `conversations`
 - `_id`: ObjectId
 - `userId`: ObjectId (Ref: User, Indexed)
 - `title`: String
@@ -441,9 +478,10 @@ Syntra Chat implements a layered **Defense-in-Depth Authorization Framework**:
 - `attachedResourceIds`: Array of Strings
 - `pinned`: Boolean (Default: `false`)
 - `archived`: Boolean (Default: `false`)
+- `activeScope`: Object (`{ type, id, name, updatedAt }`, Nullable)
 - `createdAt`, `updatedAt`: Date
 
-#### 5. `messages`
+#### 6. `messages`
 - `_id`: ObjectId
 - `conversationId`: ObjectId (Ref: Conversation, Indexed)
 - `role`: String (`user` | `assistant` | `system`)
@@ -457,7 +495,7 @@ Syntra Chat implements a layered **Defense-in-Depth Authorization Framework**:
 - `downloadableFile`: DownloadableFile Object (Nullable)
 - `createdAt`: Date
 
-#### 6. `collections`
+#### 7. `collections`
 - `_id`: ObjectId
 - `userId`: ObjectId (Ref: User, Indexed)
 - `name`: String
@@ -465,14 +503,14 @@ Syntra Chat implements a layered **Defense-in-Depth Authorization Framework**:
 - `sharedMemory`: String (Established facts / context across collection chats)
 - `createdAt`, `updatedAt`: Date
 
-#### 7. `folders`
+#### 8. `folders`
 - `_id`: ObjectId
 - `name`: String (Unique)
 - `allowedDepartments`: Array of Strings
 - `defaultDownloadPermission`: String (`allowed` | `not_allowed`)
 - `createdAt`, `updatedAt`: Date
 
-#### 8. `accessrequests`
+#### 9. `accessrequests`
 - `_id`: ObjectId
 - `userId`: ObjectId (Ref: User, Indexed)
 - `resourceId`: ObjectId (Ref: Document/Dataset)
@@ -483,7 +521,7 @@ Syntra Chat implements a layered **Defense-in-Depth Authorization Framework**:
 - `reviewedAt`: Date (Nullable)
 - `createdAt`: Date
 
-#### 9. `systemsettings`
+#### 10. `systemsettings`
 - `_id`: ObjectId
 - `key`: String (Unique)
 - `value`: Any
@@ -910,9 +948,23 @@ The Admin dashboard (`apps/frontend/src/app/features/admin/`) enables enterprise
 
 # 38. Audit Log Architecture
 
-- Administrative and security-sensitive operations generate immutable audit events.
-- Tracked actions: user creation, password changes, role elevations, access request approvals/rejections, file deletions, and permission overrides.
-- Logs capture actor user ID, target entity ID, IP address, timestamp, and status.
+Syntra Chat includes a dedicated, tamper-resistant administrative audit logging module (`AuditModule` and `AuditService`):
+- **Tracked Security & Lifecycle Events**:
+  - `user_created`: User provisioned by administrator.
+  - `user_updated`: Department assignments, allowed/denied folders, or names modified.
+  - `user_role_changed`: Elevation or modification of security roles.
+  - `user_status_toggled`: Account activation or suspension.
+  - `user_deleted`: User soft-deleted by administrator.
+  - `credentials_resent`: Temporary password re-generated and re-dispatched upon delivery failure.
+  - `access_request_approved` / `access_request_rejected`: Resource access decisions.
+- **Audit Log Schema (`audit_logs`)**:
+  - `actorId`: ObjectId of administrator performing the action.
+  - `action`: Canonical event identifier.
+  - `targetType`: Target domain (`user`, `document`, `dataset`, `folder`, `system_setting`).
+  - `targetId`: Target entity identifier.
+  - `ipAddress`: Client IP address extracted from request headers / socket.
+  - `metadata`: Structured JSON payload capturing modified fields or failure reasons.
+  - `createdAt`: ISO timestamp.
 
 ---
 
@@ -926,8 +978,8 @@ The Admin dashboard (`apps/frontend/src/app/features/admin/`) enables enterprise
 
 # 40. Error Architecture
 
-- **Backend**: Handled by global `HttpExceptionFilter` converting NestJS exceptions (`NotFoundException`, `ForbiddenException`, `BadRequestException`) into standardized `{ statusCode, message, timestamp, path }` JSON payloads.
-- **AI Microservice**: Python exceptions during parsing or execution are caught, logged, and returned as structured error states in `AgentState` without crashing the FastAPI process.
+- **Backend**: Handled by global `HttpExceptionFilter` converting NestJS exceptions (`NotFoundException`, `ForbiddenException`, `BadRequestException`, `HttpException`) into standardized `{ statusCode, message, timestamp, path }` JSON payloads.
+- **AI Microservice**: Python exceptions during parsing or execution are caught, logged with full stack traces and context, and returned as structured error states in `AgentState` without crashing the FastAPI process.
 - **Frontend**: API errors are caught in RxJS `.pipe(catchError())` blocks and displayed via `ModalDialogService.alert()` or toast banners.
 
 ---
@@ -937,8 +989,8 @@ The Admin dashboard (`apps/frontend/src/app/features/admin/`) enables enterprise
 | Service | Protocol | Authentication | Data Exchanged | Failure Handling |
 | :--- | :--- | :--- | :--- | :--- |
 | **Google Gemini API** | HTTPS REST | API Key (`GEMINI_API_KEY`) | Prompts, Context Chunks, LLM Completions | Exponential backoff retry; fallback error message |
-| **SMTP Mail Server** | SMTP / TLS (Port 465/587) | Username / App Password | CID HTML Welcome Emails with temp passwords | Logs error safely without interrupting user creation |
-| **MongoDB Atlas** | MongoDB Wire Protocol | Connection String / Scram-SHA-256 | All persistent application entities & vectors | Auto-reconnect pool; 500 error if unreachable |
+| **SMTP Mail Server** | SMTP / TLS (Port 465/587) | Username / App Password | CID HTML Welcome Emails with temp passwords | Logs error safely without interrupting user creation; admin can resend credentials |
+| **MongoDB Atlas** | MongoDB Wire Protocol | Connection String / Scram-SHA-256 | All persistent application entities & vectors | Auto-reconnect pool (50 max connections); 500 error if unreachable |
 
 ---
 
@@ -950,6 +1002,8 @@ The Admin dashboard (`apps/frontend/src/app/features/admin/`) enables enterprise
 | `MONGODB_URI` | Backend / AI | Yes | MongoDB Atlas / Local connection string | Yes |
 | `JWT_SECRET` | Backend | Yes | Secret key for signing access tokens | Yes |
 | `JWT_REFRESH_SECRET` | Backend | Yes | Secret key for signing refresh tokens | Yes |
+| `PRIMARY_ADMIN_EMAIL`| Backend | Yes | Authoritative primary system admin account email | No |
+| `MASTER_ADMIN_PASSWORD`| Backend | Yes | Master recovery password for bootstrapping master admin | Yes |
 | `FRONTEND_URL` | Backend | Yes | Client origin for CORS and email links (`https://syntra-chat.onrender.com`) | No |
 | `GEMINI_API_KEY` | AI Service | Yes (if Gemini)| Google GenAI API access key | Yes |
 | `EMBEDDING_PROVIDER` | AI Service | No (default: bge_local)| Embedder selection (`bge_local` or `gemini`) | No |
@@ -967,7 +1021,7 @@ flowchart TD
     FE["Frontend SPA (Angular 19)<br/>syntra-chat.onrender.com"]
     BE["Backend API Gateway (NestJS 10)<br/>Port 3000"]
     AI["AI Microservice (FastAPI + Python 3.11)<br/>Port 8000"]
-    DB[("MongoDB Atlas Database Cluster")]
+    DB[("MongoDB Atlas Database Cluster (Pool: 50)")]
 
     FE -->|HTTPS REST / JWT| BE
     BE -->|Internal HTTP / SSE| AI
@@ -1002,7 +1056,7 @@ npm run start:ai
 # 5. Start Frontend Angular SPA (Port 4200)
 npm run start:frontend
 
-# 6. Execute Full Test Suite Across Monorepo
+# 6. Execute Full Test Suite Across Monorepo (382 Tests)
 npm test
 ```
 
@@ -1010,10 +1064,11 @@ npm test
 
 # 45. Testing Architecture
 
-Syntra Chat maintains comprehensive automated test suites across all tiers:
-- **Backend Unit & Integration Tests (Jest)**: 18 test suites, 165 tests covering auth, JWT strategies, ownership guards, ACL resolution, filename uniqueness, GridFS streaming, and email dispatch.
-- **Frontend Unit Tests (Jest / Angular Testing Library)**: 22 test suites, 199 tests covering components, signals, markdown pipes, mention autocomplete, selection toolbars, and PDF generation.
-- **AI Service Tests (PyTest)**: Unit tests covering chunking, parsers, AST sandbox security validation, and LangGraph node routing.
+Syntra Chat maintains comprehensive automated test coverage across all tiers:
+- **Backend Unit, Integration & Benchmark Tests (Jest)**: 21 test suites, 183 tests covering auth, rate limiting (`AuthThrottlerGuard`), ACL security (`acl-security.spec.ts`), full-flow chat integration (`chat-flow.integration.spec.ts`), load concurrency benchmarks (`load-benchmark.spec.ts`), filename uniqueness, GridFS streaming, and email dispatch.
+- **Frontend Unit & Component Tests (Jest / Angular Testing Library)**: 22 test suites, 199 tests covering components, signals, markdown pipes, mention autocomplete, selection toolbars, draft persistence race condition handling, and PDF generation.
+- **Automated Playwright E2E Tests**: 14 browser scenarios covering auth, lazy chat persistence, temporary sessions, document tables, and onboarding tours.
+- **Total Test Matrix**: **43 test suites, 382 tests passing with 100% success rate**.
 
 ---
 
@@ -1021,14 +1076,15 @@ Syntra Chat maintains comprehensive automated test suites across all tiers:
 
 | Workflow | Frontend Unit | Backend Unit | AI Microservice | DB Integration | ACL / Security Guard |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **User Login & Token Refresh** | PASS | PASS | N/A | PASS | PASS |
+| **User Login & Sliding Rate Limit** | PASS | PASS | N/A | PASS | PASS |
 | **New Chat Lazy Persistence** | PASS | PASS | N/A | PASS | PASS |
 | **Temporary Chat Zero-Write** | PASS | PASS | PASS | PASS | PASS |
 | **File Move + Undo Notification**| PASS | PASS | N/A | PASS | PASS |
-| **Download Precedence Resolution**| PASS | PASS | N/A | PASS | PASS |
+| **Download Permission Re-Check**| PASS | PASS | N/A | PASS | PASS |
 | **Document Vector RAG Retrieval**| PASS | PASS | PASS | PASS | PASS |
 | **Sandboxed Pandas Execution** | PASS | PASS | PASS | PASS | PASS |
-| **Admin User Provisioning + Mail**| PASS | PASS | N/A | PASS | PASS |
+| **User Soft Deletion & Audit Log**| PASS | PASS | N/A | PASS | PASS |
+| **Parallel Message Pipeline** | PASS | PASS | PASS | PASS | PASS |
 
 ---
 
@@ -1036,6 +1092,12 @@ Syntra Chat maintains comprehensive automated test suites across all tiers:
 
 ```mermaid
 flowchart LR
+    subgraph UserLifecycle [User Account Lifecycle]
+        U1[Provisioned by Admin] --> U2[Active / Suspended]
+        U2 --> U3[Soft Deleted: isDeleted=true]
+        U3 --> U4[Preserved in Audit Log]
+    end
+
     subgraph FileLifecycle [Document & Dataset Lifecycle]
         F1[Upload] --> F2[GridFS Storage]
         F2 --> F3[Text Extraction & Chunking]
@@ -1080,6 +1142,8 @@ Developers and future AI agents working on Syntra Chat **must never violate** th
 5. **No Local Disk Retention**: File binaries must be streamed directly to and from MongoDB GridFS. The backend must not store permanent local files on disk.
 6. **AST Sandbox Isolation**: Python code execution in data analysis must pass AST security validation and execute only with `SAFE_BUILTINS` and allowed mathematical/data science libraries.
 7. **Single Master Admin Invariance**: The `master_admin` role cannot be deleted, suspended, or demoted through standard user administration endpoints.
+8. **No Hardcoded Personal Credentials**: Administrator emails must strictly come from the environment (`PRIMARY_ADMIN_EMAIL`) and fail startup loudly if missing.
+9. **User Soft Deletion Preservation**: Users deleted by administrators must be soft-deleted (`isDeleted: true`) to preserve historical audit logs and message authorship.
 
 ---
 
@@ -1092,6 +1156,10 @@ Developers and future AI agents working on Syntra Chat **must never violate** th
 | **ADR-03** | In-Memory Cosine Vector Search | Eliminates operational complexity of dedicated vector databases for small-to-medium enterprise scopes. | Qdrant / Pinecone / Milvus | **Active** |
 | **ADR-04** | MongoDB GridFS for File Storage | Unifies database backups, eliminates external S3 dependencies, and simplifies local development. | AWS S3 / Local Disk Folders | **Active** |
 | **ADR-05** | Lazy Chat Persistence | Prevents database clutter from empty abandoned chats when users click "New Chat". | Eager database creation on button click | **Active** |
+| **ADR-06** | Sliding-Window Auth Rate Limiting | Protects `/auth/login`, `/auth/refresh`, and password routes from credential stuffing with 10 req/min per IP. | Unrestricted endpoints or basic linear timers | **Active** |
+| **ADR-07** | Nearest-Ancestor Folder ACL | Folder permissions inherit from parent hierarchy unless explicitly overridden, simplifying enterprise governance. | Flat per-file permission matrices | **Active** |
+| **ADR-08** | MongoDB Connection Pooling & Parallelism | Explicit pool sizing (`maxPoolSize: 50`) and `Promise.all` in `sendMessage` prevents socket starvation and cuts latency. | Sequential database operations | **Active** |
+| **ADR-09** | User Soft Deletion | Sets `isDeleted: true`, filtering from active queries while maintaining foreign key integrity and audit logs. | Hard deletion from MongoDB | **Active** |
 
 ---
 
@@ -1099,11 +1167,11 @@ Developers and future AI agents working on Syntra Chat **must never violate** th
 
 | Threat Scenario | Vector | Mitigation in Syntra Chat | Residual Risk / Gap |
 | :--- | :--- | :--- | :--- |
+| **Brute Force & Credential Stuffing** | Repeated login attempts | Sliding-window `AuthThrottlerGuard` blocks > 10 attempts/min per IP with HTTP 429 and `Retry-After: 60`. | Fully Mitigated at API Gateway |
 | **Unauthorized File Download** | Tampering with document IDs in URL | NestJS verifies user department, folder ACL, and download permission before streaming. | None (Server Enforced) |
 | **AI Data Leakage** | Asking AI about files in other departments | `resolve_context_node` filters MongoDB vector chunks strictly by user department/folder ACLs before retrieval. | None (Pre-Retrieval Filter) |
 | **Python Sandbox Escape** | Prompt injection requesting `os.system` / `subprocess` | AST `SecurityValidator` inspects syntax tree for forbidden imports and attributes before `exec()`. | Highly mitigated; sub-process execution blocked |
 | **JWT Token Hijacking** | XSS or network eavesdropping | HTTPS enforcement, short-lived 15m access tokens, and refresh token rotation. | Standard Web XSS precautions apply |
-| **Brute Force Login** | Repeated credential attempts | Argon2id / bcrypt computational cost; account status checks. | IP rate limiting recommended at reverse proxy |
 
 ---
 
