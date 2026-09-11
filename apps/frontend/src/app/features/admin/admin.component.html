@@ -102,6 +102,7 @@
         <input
           type="text"
           [(ngModel)]="searchQuery"
+          (ngModelChange)="onUsersSearchChange()"
           placeholder="Filter by name, email, department, or folder..."
           class="w-full pl-10 pr-4 py-2 rounded-xl bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-zinc-900 dark:focus:border-white transition-colors shadow-sm dark:shadow-none"
         />
@@ -114,6 +115,17 @@
 
     <!-- Users Table (Desktop View >= 768px) -->
     <div class="hidden md:block bg-white dark:bg-[#111114] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 overflow-hidden shadow-sm dark:shadow-none">
+      <app-pagination
+        position="top"
+        *ngIf="filteredUsers.length > 0"
+        [currentPage]="usersPage"
+        [pageSize]="usersPageSize"
+        [totalItems]="filteredUsers.length"
+        [pageSizeOptions]="usersPageSizeOptions"
+        itemLabel="users"
+        (pageChange)="onUsersPageChange($event)"
+        (pageSizeChange)="onUsersPageSizeChange($event)"
+      ></app-pagination>
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-xs">
           <thead>
@@ -127,7 +139,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800/60">
-            @for (user of filteredUsers; track user.id) {
+            @for (user of paginatedUsers; track user.id) {
               <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
                 <!-- User Account -->
                 <td class="py-3.5 px-5">
@@ -346,7 +358,19 @@
 
     <!-- Mobile User Cards (< 768px) -->
     <div class="block md:hidden space-y-3">
-      @for (user of filteredUsers; track user.id) {
+      <app-pagination
+        position="top"
+        class="block rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-none"
+        *ngIf="filteredUsers.length > 0"
+        [currentPage]="usersPage"
+        [pageSize]="usersPageSize"
+        [totalItems]="filteredUsers.length"
+        [pageSizeOptions]="usersPageSizeOptions"
+        itemLabel="users"
+        (pageChange)="onUsersPageChange($event)"
+        (pageSizeChange)="onUsersPageSizeChange($event)"
+      ></app-pagination>
+      @for (user of paginatedUsers; track user.id) {
         <div class="bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 space-y-3.5 text-xs shadow-sm dark:shadow-none">
           <!-- User Account Header -->
           <div class="flex items-center justify-between gap-3 pb-3 border-b border-zinc-200 dark:border-zinc-800">
@@ -611,9 +635,9 @@
                   <div *ngIf="editingRoleId === (role._id || role.id)" class="space-y-1.5">
                     <div class="flex flex-wrap gap-1">
                       @for (f of editRoleSelectedFolders; track f) {
-                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200 text-[10px] border border-zinc-700 font-mono">
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-[10px] border border-zinc-300 dark:border-zinc-700 font-mono">
                           {{ f }}
-                          <button type="button" (click)="removeItem(editRoleSelectedFolders, f, $event)" class="text-zinc-400 hover:text-white">&times;</button>
+                          <button type="button" (click)="removeItem(editRoleSelectedFolders, f, $event)" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white">&times;</button>
                         </span>
                       }
                     </div>
@@ -771,9 +795,9 @@
             <div *ngIf="editingRoleId === (role._id || role.id)" class="space-y-1.5">
               <div class="flex flex-wrap gap-1">
                 @for (f of editRoleSelectedFolders; track f) {
-                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200 text-[10px] border border-zinc-700 font-mono">
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-[10px] border border-zinc-300 dark:border-zinc-700 font-mono">
                     📁 {{ f }}
-                    <button type="button" (click)="removeItem(editRoleSelectedFolders, f, $event)" class="text-zinc-400 hover:text-white">&times;</button>
+                    <button type="button" (click)="removeItem(editRoleSelectedFolders, f, $event)" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white">&times;</button>
                   </span>
                 }
               </div>
@@ -910,6 +934,17 @@
     <div *ngIf="requestsSubTab === 'pending'" class="space-y-4">
       <!-- Desktop Table (>= 768px) -->
       <div class="hidden md:block bg-white dark:bg-[#111114] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 overflow-hidden shadow-sm dark:shadow-none">
+        <app-pagination
+          position="top"
+          *ngIf="pendingRequests.length > 0"
+          [currentPage]="requestsPage"
+          [pageSize]="requestsPageSize"
+          [totalItems]="pendingRequests.length"
+          [pageSizeOptions]="requestsPageSizeOptions"
+          itemLabel="requests"
+          (pageChange)="onRequestsPageChange($event)"
+          (pageSizeChange)="onRequestsPageSizeChange($event)"
+        ></app-pagination>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs">
             <thead>
@@ -922,7 +957,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800/60">
-              @for (req of pendingRequests; track req.id) {
+              @for (req of paginatedPendingRequests; track req.id) {
                 <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
                   <td class="py-3.5 px-5">
                     <div class="font-medium text-zinc-900 dark:text-zinc-100">{{ req.userName || req.userEmail || req.userId }}</div>
@@ -978,11 +1013,23 @@
 
       <!-- Mobile Pending Request Cards (< 768px) -->
       <div class="block md:hidden space-y-3">
-        @for (req of pendingRequests; track req.id) {
-          <div class="bg-[#111114] border border-zinc-800 rounded-2xl p-4 space-y-3 text-xs">
-            <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-zinc-800">
+        <app-pagination
+          position="top"
+          class="block rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-none"
+          *ngIf="pendingRequests.length > 0"
+          [currentPage]="requestsPage"
+          [pageSize]="requestsPageSize"
+          [totalItems]="pendingRequests.length"
+          [pageSizeOptions]="requestsPageSizeOptions"
+          itemLabel="requests"
+          (pageChange)="onRequestsPageChange($event)"
+          (pageSizeChange)="onRequestsPageSizeChange($event)"
+        ></app-pagination>
+        @for (req of paginatedPendingRequests; track req.id) {
+          <div class="bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 space-y-3 text-xs shadow-sm dark:shadow-none">
+            <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-zinc-200 dark:border-zinc-800">
               <div>
-                <div class="font-semibold text-white text-sm">{{ req.userName || req.userEmail || req.userId }}</div>
+                <div class="font-semibold text-zinc-900 dark:text-white text-sm">{{ req.userName || req.userEmail || req.userId }}</div>
                 <div *ngIf="req.userEmail" class="text-[11px] text-zinc-500 font-mono">{{ req.userEmail }}</div>
               </div>
               <span class="text-[10px] font-mono uppercase text-zinc-500 dark:text-zinc-400 font-medium tracking-wider">
@@ -992,29 +1039,29 @@
 
             <div>
               <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-1">Target Resource</span>
-              <span class="font-mono text-xs text-white break-all">{{ req.resourceName || req.folderPath || req.resourceId }}</span>
+              <span class="font-mono text-xs text-zinc-900 dark:text-white break-all">{{ req.resourceName || req.folderPath || req.resourceId }}</span>
             </div>
 
             <div>
               <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-1">Reason / Justification</span>
-              <p class="text-zinc-300 text-xs leading-relaxed">{{ req.reason || 'No justification provided' }}</p>
+              <p class="text-zinc-700 dark:text-zinc-300 text-xs leading-relaxed">{{ req.reason || 'No justification provided' }}</p>
             </div>
 
             <div>
               <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-0.5">Requested At</span>
-              <span class="text-zinc-400 font-mono text-[11px]">{{ req.createdAt | date:'medium' }}</span>
+              <span class="text-zinc-500 dark:text-zinc-400 font-mono text-[11px]">{{ req.createdAt | date:'medium' }}</span>
             </div>
 
             <div class="pt-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center gap-2">
               <button
                 (click)="approveRequest(req)"
-                class="flex-1 min-h-[44px] px-3 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs transition-colors flex items-center justify-center gap-1"
+                class="flex-1 min-h-[44px] px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-colors flex items-center justify-center gap-1 shadow-sm"
               >
                 Approve Access
               </button>
               <button
                 (click)="rejectRequest(req)"
-                class="min-h-[44px] px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white font-medium text-xs transition-colors border border-zinc-700 flex items-center justify-center"
+                class="min-h-[44px] px-4 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-400 dark:hover:text-white font-medium text-xs transition-colors border border-zinc-300 dark:border-zinc-700 flex items-center justify-center"
               >
                 Reject
               </button>
@@ -1148,6 +1195,17 @@
 
       <!-- History Table (Desktop View >= 768px) -->
       <div class="hidden md:block bg-white dark:bg-[#111114] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 overflow-hidden shadow-sm dark:shadow-none">
+        <app-pagination
+          position="top"
+          *ngIf="historyTotal > 0"
+          [currentPage]="historyPage"
+          [pageSize]="historyPageSize"
+          [totalItems]="historyTotal"
+          [pageSizeOptions]="historyPageSizeOptions"
+          itemLabel="records"
+          (pageChange)="goToHistoryPage($event)"
+          (pageSizeChange)="onHistoryPageSizeChange($event)"
+        ></app-pagination>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs">
             <thead>
@@ -1272,55 +1330,32 @@
             </tbody>
           </table>
         </div>
-
-        <!-- Desktop Pagination Controls -->
-        <div *ngIf="historyTotalPages > 1" class="p-4 bg-zinc-50 dark:bg-[#09090b] border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs">
-          <span class="text-zinc-500">
-            Page {{ historyPage }} of {{ historyTotalPages }} ({{ historyTotal }} records)
-          </span>
-          <div class="flex items-center gap-1.5">
-            <button
-              type="button"
-              (click)="goToHistoryPage(historyPage - 1)"
-              [disabled]="historyPage === 1"
-              class="px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-zinc-200 dark:border-transparent"
-            >
-              Previous
-            </button>
-            @for (p of [].constructor(historyTotalPages); track $index) {
-              <button
-                type="button"
-                (click)="goToHistoryPage($index + 1)"
-                [ngClass]="historyPage === ($index + 1) ? 'bg-zinc-900 text-white font-bold dark:bg-white dark:text-black shadow-sm' : 'bg-white text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 border border-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:text-white dark:border-zinc-800'"
-                class="w-7 h-7 rounded-lg text-xs transition-colors"
-              >
-                {{ $index + 1 }}
-              </button>
-            }
-            <button
-              type="button"
-              (click)="goToHistoryPage(historyPage + 1)"
-              [disabled]="historyPage === historyTotalPages"
-              class="px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-zinc-200 dark:border-transparent"
-            >
-              Next
-            </button>
-          </div>
-        </div>
       </div>
 
       <!-- Mobile History Cards (< 768px) -->
       <div class="block md:hidden space-y-3">
+        <app-pagination
+          position="top"
+          class="block rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-sm dark:shadow-none"
+          *ngIf="historyTotal > 0"
+          [currentPage]="historyPage"
+          [pageSize]="historyPageSize"
+          [totalItems]="historyTotal"
+          [pageSizeOptions]="historyPageSizeOptions"
+          itemLabel="records"
+          (pageChange)="goToHistoryPage($event)"
+          (pageSizeChange)="onHistoryPageSizeChange($event)"
+        ></app-pagination>
         @for (req of historyRequests; track req.id) {
-          <div class="bg-[#111114] border border-zinc-800 rounded-2xl p-4 space-y-3 text-xs">
-            <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-zinc-800">
+          <div class="bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 space-y-3 text-xs shadow-sm dark:shadow-none">
+            <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-zinc-200 dark:border-zinc-800">
               <div>
-                <div class="font-semibold text-white text-sm">{{ req.userName || req.userEmail || (req.userId ? 'User (' + req.userId.slice(-4) + ')' : 'Former User') }}</div>
+                <div class="font-semibold text-zinc-900 dark:text-white text-sm">{{ req.userName || req.userEmail || (req.userId ? 'User (' + req.userId.slice(-4) + ')' : 'Former User') }}</div>
                 <div *ngIf="req.userEmail" class="text-[11px] text-zinc-500 font-mono">{{ req.userEmail }}</div>
               </div>
               <span
                 class="inline-flex items-center gap-1.5 text-[11px] font-mono capitalize font-medium"
-                [ngClass]="req.status === 'approved' ? 'text-zinc-200' : 'text-zinc-400'"
+                [ngClass]="req.status === 'approved' ? 'text-zinc-800 dark:text-zinc-200' : 'text-zinc-500 dark:text-zinc-400'"
               >
                 <span class="w-1.5 h-1.5 rounded-full" [ngClass]="req.status === 'approved' ? 'bg-emerald-500' : (req.status === 'rejected' ? 'bg-rose-500' : 'bg-amber-500 animate-pulse')"></span>
                 {{ req.status }}
@@ -1329,7 +1364,7 @@
 
             <div>
               <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-1">Target Resource</span>
-              <div class="flex items-center gap-2 flex-wrap text-xs text-white">
+              <div class="flex items-center gap-2 flex-wrap text-xs">
                 <span class="text-[10px] font-mono uppercase text-zinc-500 dark:text-zinc-400 font-medium tracking-wider">{{ req.resourceType }}</span>
                 <span class="break-all font-mono text-zinc-900 dark:text-zinc-100">{{ req.resourceName || req.folderPath || req.resourceId }}</span>
               </div>
@@ -1341,26 +1376,26 @@
             <div class="grid grid-cols-2 gap-2 text-[11px]">
               <div>
                 <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-0.5">Requested</span>
-                <span class="text-zinc-400 font-mono">{{ req.createdAt | date:'short' }}</span>
+                <span class="text-zinc-500 dark:text-zinc-400 font-mono">{{ req.createdAt | date:'short' }}</span>
               </div>
               <div>
                 <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-0.5">Resolved</span>
-                <span class="text-zinc-400 font-mono">{{ req.resolvedAt ? (req.resolvedAt | date:'short') : '—' }}</span>
+                <span class="text-zinc-500 dark:text-zinc-400 font-mono">{{ req.resolvedAt ? (req.resolvedAt | date:'short') : '—' }}</span>
               </div>
             </div>
 
             <div *ngIf="req.resolvedByName || req.resolvedByEmail">
               <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-0.5">Resolved By</span>
-              <span class="text-zinc-300 font-mono text-xs">{{ req.resolvedByName || req.resolvedByEmail }}</span>
+              <span class="text-zinc-700 dark:text-zinc-300 font-mono text-xs">{{ req.resolvedByName || req.resolvedByEmail }}</span>
             </div>
 
             <!-- Mobile Requester Note Button -->
-            <div *ngIf="req.reason" class="pt-2 border-t border-zinc-800/80 flex items-center justify-between">
+            <div *ngIf="req.reason" class="pt-2 border-t border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between">
               <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Requester Note</span>
               <button
                 type="button"
                 (click)="openRequestMessage(req, $event)"
-                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 transition-colors text-xs"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 border border-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-300 dark:hover:text-white dark:border-zinc-800 transition-colors text-xs"
               >
                 <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -1375,31 +1410,6 @@
             No history records match the selected filters.
           </div>
         }
-
-        <!-- Mobile History Pagination -->
-        <div *ngIf="historyTotalPages > 1" class="p-3 bg-[#111114] border border-zinc-800 rounded-2xl flex items-center justify-between text-xs">
-          <span class="text-zinc-500 text-[11px]">
-            Page {{ historyPage }} of {{ historyTotalPages }}
-          </span>
-          <div class="flex items-center gap-2">
-            <button
-              type="button"
-              (click)="goToHistoryPage(historyPage - 1)"
-              [disabled]="historyPage === 1"
-              class="min-h-[36px] px-3 py-1.5 rounded-xl bg-zinc-800 text-zinc-300 disabled:opacity-30 text-xs"
-            >
-              Prev
-            </button>
-            <button
-              type="button"
-              (click)="goToHistoryPage(historyPage + 1)"
-              [disabled]="historyPage === historyTotalPages"
-              class="min-h-[36px] px-3 py-1.5 rounded-xl bg-zinc-800 text-zinc-300 disabled:opacity-30 text-xs"
-            >
-              Next
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -1417,9 +1427,9 @@
       aria-label="Requester Note"
     >
       <!-- Header -->
-      <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-zinc-800">
+      <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-zinc-200 dark:border-zinc-800">
         <div class="flex items-center gap-2">
-          <div class="w-6 h-6 rounded-md bg-zinc-800 flex items-center justify-center text-zinc-300">
+          <div class="w-6 h-6 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-700 dark:text-zinc-300">
             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
             </svg>
@@ -1429,7 +1439,7 @@
         <button
           type="button"
           (click)="closeRequestMessage()"
-          class="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 transition-colors"
+          class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
           title="Close"
         >
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1439,22 +1449,22 @@
       </div>
 
       <!-- Meta Details -->
-      <div class="space-y-1.5 mb-3 text-[11px] text-zinc-400">
+      <div class="space-y-1.5 mb-3 text-[11px] text-zinc-500 dark:text-zinc-400">
         <div class="flex items-center justify-between">
           <span class="text-zinc-500">From:</span>
-          <span class="text-zinc-200 font-medium truncate max-w-[180px]">
+          <span class="text-zinc-800 dark:text-zinc-200 font-medium truncate max-w-[180px]">
             {{ activeMessageRequest.userName || activeMessageRequest.userEmail || 'User' }}
           </span>
         </div>
         <div class="flex items-center justify-between">
           <span class="text-zinc-500">Target:</span>
-          <span class="text-zinc-200 font-mono truncate max-w-[180px]" [title]="activeMessageRequest.resourceName || activeMessageRequest.folderPath || activeMessageRequest.resourceId">
+          <span class="text-zinc-800 dark:text-zinc-200 font-mono truncate max-w-[180px]" [title]="activeMessageRequest.resourceName || activeMessageRequest.folderPath || activeMessageRequest.resourceId">
             {{ activeMessageRequest.resourceName || activeMessageRequest.folderPath || activeMessageRequest.resourceId }}
           </span>
         </div>
         <div class="flex items-center justify-between">
           <span class="text-zinc-500">Requested:</span>
-          <span class="text-zinc-400 font-mono text-[10px]">
+          <span class="text-zinc-600 dark:text-zinc-400 font-mono text-[10px]">
             {{ activeMessageRequest.createdAt | date:'medium' }}
           </span>
         </div>
@@ -1470,9 +1480,9 @@
   <!-- Create User Modal -->
   <div *ngIf="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-black/50 dark:bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
     <div class="w-full max-w-lg max-h-[82vh] overflow-y-auto bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 space-y-5 text-zinc-900 dark:text-zinc-200 shadow-2xl my-auto">
-      <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+      <div class="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
         <h3 class="text-base font-bold text-zinc-900 dark:text-white tracking-tight">Add New Enterprise User</h3>
-        <button (click)="showCreateModal = false" class="text-zinc-500 hover:text-white text-xl leading-none">&times;</button>
+        <button (click)="showCreateModal = false" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white text-xl leading-none">&times;</button>
       </div>
 
       <div *ngIf="createUserError" class="p-3 rounded-xl bg-red-50/80 border border-red-200/90 text-red-700 dark:bg-red-950/25 dark:border-red-900/40 dark:text-red-300 text-xs">
@@ -1537,8 +1547,8 @@
         </div>
 
         <div *ngIf="newUser.role === 'admin'" class="space-y-1 animate-fade-in">
-          <label class="block text-zinc-400 font-medium mb-1 flex items-center justify-between">
-            <span class="text-zinc-200 font-semibold">Master Admin Password *</span>
+          <label class="block text-zinc-700 dark:text-zinc-400 font-medium mb-1 flex items-center justify-between">
+            <span class="text-zinc-900 dark:text-zinc-200 font-semibold">Master Admin Password *</span>
             <span class="text-[10px] text-zinc-500 font-normal">Required for Administrator assignment</span>
           </label>
           <div class="relative">
@@ -1554,7 +1564,7 @@
             <button
               type="button"
               (click)="newUserShowMasterAdminPassword = !newUserShowMasterAdminPassword"
-              class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors focus:outline-none p-1"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors focus:outline-none p-1"
               [title]="newUserShowMasterAdminPassword ? 'Hide password' : 'Show password'"
               aria-label="Toggle master admin password visibility"
             >
@@ -1574,9 +1584,9 @@
           <label class="block text-zinc-700 dark:text-zinc-400 font-medium mb-1">Departments</label>
           <div class="flex flex-wrap gap-1 mb-2">
             @for (d of newUserSelectedDepartments; track d) {
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200 text-[10px] border border-zinc-700 font-mono">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-[10px] border border-zinc-300 dark:border-zinc-700 font-mono">
                 {{ d }}
-                <button type="button" (click)="removeItem(newUserSelectedDepartments, d, $event)" class="text-zinc-400 hover:text-white">&times;</button>
+                <button type="button" (click)="removeItem(newUserSelectedDepartments, d, $event)" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white">&times;</button>
               </span>
             }
           </div>
@@ -1615,9 +1625,9 @@
           <p class="text-[11px] text-zinc-500 mb-2">Leave empty for standard department-based access, or select specific folders to grant extra access.</p>
           <div class="flex flex-wrap gap-1 mb-2" *ngIf="newUserSelectedFolders.length">
             @for (f of newUserSelectedFolders; track f) {
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200 text-[10px] border border-zinc-700 font-mono">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-[10px] border border-zinc-300 dark:border-zinc-700 font-mono">
                 📁 {{ f }}
-                <button type="button" (click)="removeItem(newUserSelectedFolders, f, $event)" class="text-zinc-400 hover:text-white">&times;</button>
+                <button type="button" (click)="removeItem(newUserSelectedFolders, f, $event)" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white">&times;</button>
               </span>
             }
           </div>
@@ -1653,7 +1663,7 @@
           </div>
         </div>
 
-        <div class="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
           <button
             type="button"
             (click)="showCreateModal = false"
@@ -1676,27 +1686,27 @@
   <!-- User Provisioned Credentials Modal -->
   <div *ngIf="showCreatedUserModal && createdUserResult" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-black/50 dark:bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
     <div class="w-full max-w-md max-h-[82vh] overflow-y-auto bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 space-y-4 text-zinc-900 dark:text-zinc-200 shadow-2xl my-auto">
-      <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+      <div class="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
         <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-white"></span>
+          <span class="w-2 h-2 rounded-full bg-zinc-900 dark:bg-white"></span>
           <h3 class="text-base font-bold text-zinc-900 dark:text-white tracking-tight">User Account Provisioned</h3>
         </div>
-        <button (click)="closeCreatedUserModal()" class="text-zinc-500 hover:text-white text-xl leading-none">&times;</button>
+        <button (click)="closeCreatedUserModal()" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white text-xl leading-none">&times;</button>
       </div>
 
       <!-- Email Dispatch Status Banner -->
       <div
         class="p-3 rounded-xl text-xs flex items-center gap-2.5 border"
-        [ngClass]="createdUserResult.emailSent ? 'bg-zinc-900 border-zinc-700 text-zinc-200' : 'bg-zinc-900 border-zinc-700 text-zinc-300'"
+        [ngClass]="createdUserResult.emailSent ? 'bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200' : 'bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300'"
       >
-        <svg class="w-4 h-4 text-zinc-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg class="w-4 h-4 text-zinc-500 dark:text-zinc-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
         <div class="leading-relaxed">
           <p class="font-medium">
             {{ createdUserResult.emailSent ? 'Welcome email dispatched successfully.' : 'Email delivery was unavailable or skipped.' }}
           </p>
-          <p class="text-[11px] opacity-70 mt-0.5">
+          <p class="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
             {{ createdUserResult.emailSent ? 'The user will receive their temporary password in their inbox.' : 'Please copy and provide the temporary password to the user directly.' }}
           </p>
         </div>
@@ -1707,7 +1717,7 @@
         <div>
           <span class="text-[10px] text-zinc-500 block uppercase tracking-wider">User Account</span>
           <span class="text-zinc-900 dark:text-white font-semibold">{{ createdUserResult.user?.firstName }} {{ createdUserResult.user?.lastName }}</span>
-          <span class="text-zinc-400 block text-[11px]">{{ createdUserResult.user?.email }}</span>
+          <span class="text-zinc-500 dark:text-zinc-400 block text-[11px]">{{ createdUserResult.user?.email }}</span>
         </div>
 
         <div>
@@ -1722,7 +1732,7 @@
             <button
               type="button"
               (click)="copyCreatedPassword(createdUserResult.temporaryPassword)"
-              class="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white transition-colors border border-zinc-700 flex-shrink-0"
+              class="px-3 py-2 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-xs font-semibold text-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-white transition-colors border border-zinc-300 dark:border-zinc-700 flex-shrink-0"
             >
               {{ copiedPassword ? 'Copied!' : 'Copy' }}
             </button>
@@ -1730,7 +1740,7 @@
         </div>
       </div>
 
-      <div class="flex justify-end pt-2 border-t border-zinc-800">
+      <div class="flex justify-end pt-2 border-t border-zinc-200 dark:border-zinc-800">
         <button
           type="button"
           (click)="closeCreatedUserModal()"
@@ -1745,9 +1755,9 @@
   <!-- Create Role Modal -->
   <div *ngIf="showCreateRoleModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-black/50 dark:bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
     <div class="w-full max-w-md max-h-[82vh] overflow-y-auto bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 space-y-5 text-zinc-900 dark:text-zinc-200 shadow-2xl my-auto">
-      <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+      <div class="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
         <h3 class="text-base font-bold text-zinc-900 dark:text-white tracking-tight">Create Custom Security Role</h3>
-        <button (click)="showCreateRoleModal = false" class="text-zinc-500 hover:text-white text-xl leading-none">&times;</button>
+        <button (click)="showCreateRoleModal = false" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white text-xl leading-none">&times;</button>
       </div>
 
       <div *ngIf="createRoleError" class="p-3 rounded-xl bg-red-50/80 border border-red-200/90 text-red-700 dark:bg-red-950/25 dark:border-red-900/40 dark:text-red-300 text-xs">
@@ -1796,9 +1806,9 @@
           <p class="text-[11px] text-zinc-500 mb-2">Leave empty for standard department-based access, or select specific folders to grant access to this role.</p>
           <div class="flex flex-wrap gap-1 mb-2" *ngIf="newRoleSelectedFolders.length">
             @for (f of newRoleSelectedFolders; track f) {
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200 text-[10px] border border-zinc-700 font-mono">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-[10px] border border-zinc-300 dark:border-zinc-700 font-mono">
                 📁 {{ f }}
-                <button type="button" (click)="removeItem(newRoleSelectedFolders, f, $event)" class="text-zinc-400 hover:text-white">&times;</button>
+                <button type="button" (click)="removeItem(newRoleSelectedFolders, f, $event)" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white">&times;</button>
               </span>
             }
           </div>
@@ -1831,7 +1841,7 @@
           </div>
         </div>
 
-        <div class="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-zinc-200 dark:border-zinc-800">
           <button
             type="button"
             (click)="showCreateRoleModal = false"

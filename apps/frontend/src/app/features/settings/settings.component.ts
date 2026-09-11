@@ -92,7 +92,7 @@ import { IUser } from '@enter-chat/shared-types';
             [ngClass]="themeService.themePreference() === 'dark' ? 'border-[#e11d48] bg-rose-50/20 dark:bg-zinc-900/90 ring-1 ring-[#e11d48]' : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900/40'"
           >
             <!-- Compact Mini Preview (Dark) -->
-            <div class="w-full h-14 rounded-lg overflow-hidden border border-[#27272a] bg-[#09090b] flex relative select-none pointer-events-none shadow-2xs">
+            <div class="theme-preview-card w-full h-14 rounded-lg overflow-hidden border border-[#27272a] bg-[#09090b] flex relative select-none pointer-events-none shadow-2xs">
               <div class="w-[26%] bg-[#0c0c0e] border-r border-[#27272a] p-1 flex flex-col justify-between">
                 <div class="space-y-1">
                   <div class="w-2 h-0.5 bg-[#e11d48] rounded-full"></div>
@@ -149,7 +149,7 @@ import { IUser } from '@enter-chat/shared-types';
             [ngClass]="themeService.themePreference() === 'light' ? 'border-[#e11d48] bg-rose-50/20 dark:bg-zinc-900/90 ring-1 ring-[#e11d48]' : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900/40'"
           >
             <!-- Compact Mini Preview (Light) -->
-            <div class="w-full h-14 rounded-lg overflow-hidden border border-[#dcdde1] bg-[#f7f8fa] flex relative select-none pointer-events-none shadow-2xs">
+            <div class="theme-preview-card w-full h-14 rounded-lg overflow-hidden border border-[#dcdde1] bg-[#f7f8fa] flex relative select-none pointer-events-none shadow-2xs">
               <div class="w-[26%] bg-[#ffffff] border-r border-[#dcdde1] p-1 flex flex-col justify-between">
                 <div class="space-y-1">
                   <div class="w-2 h-0.5 bg-[#e11d48] rounded-full"></div>
@@ -206,7 +206,7 @@ import { IUser } from '@enter-chat/shared-types';
             [ngClass]="themeService.themePreference() === 'system' ? 'border-[#e11d48] bg-rose-50/20 dark:bg-zinc-900/90 ring-1 ring-[#e11d48]' : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900/40'"
           >
             <!-- Compact Mini Preview (System Split) -->
-            <div class="w-full h-14 rounded-lg overflow-hidden border border-zinc-300 dark:border-[#27272a] flex relative select-none pointer-events-none shadow-2xs">
+            <div class="theme-preview-card w-full h-14 rounded-lg overflow-hidden border border-zinc-300 dark:border-[#27272a] flex relative select-none pointer-events-none shadow-2xs">
               <!-- Dark Left Split -->
               <div class="w-1/2 bg-[#09090b] flex flex-col justify-between border-r border-[#27272a] p-1.5">
                 <div class="flex items-center gap-1">

@@ -877,4 +877,81 @@ describe('DocumentsComponent (Responsive Navigation & Modal UX)', () => {
       expect(component.moveUndoNotifications[3].documentId).toBe('doc-5');
     });
   });
+
+  describe('Documents Table Pagination System', () => {
+    beforeEach(() => {
+      // Create 65 mock documents
+      const docs: any[] = [];
+      for (let i = 1; i <= 65; i++) {
+        docs.push({
+          id: `doc-${i}`,
+          userId: 'user-1',
+          filename: `doc_${i}.pdf`,
+          originalName: `Document ${i}.pdf`,
+          fileType: SupportedDocumentFormat.PDF,
+          mimeType: 'application/pdf',
+          fileSize: 1024 * i,
+          folder: i <= 30 ? 'Finance' : 'Operations',
+          status: DocumentStatus.READY,
+          createdAt: new Date(2026, 0, i).toISOString(),
+        });
+      }
+      component.documents = docs;
+      component.currentPage = 1;
+      component.pageSize = 50;
+    });
+
+    it('should paginate documents with default page size 50', () => {
+      expect(component.filteredDocuments.length).toBe(65);
+      expect(component.paginatedDocuments.length).toBe(50);
+      expect(component.paginatedDocuments[0].id).toBe('doc-65'); // sorted newest first
+
+      component.onPageChange(2);
+      expect(component.currentPage).toBe(2);
+      expect(component.paginatedDocuments.length).toBe(15);
+    });
+
+    it('should slice documents when page size is changed to 10', () => {
+      component.onPageSizeChange(10);
+      expect(component.pageSize).toBe(10);
+      expect(component.currentPage).toBe(1);
+      expect(component.paginatedDocuments.length).toBe(10);
+    });
+
+    it('should return all documents when page size is "all"', () => {
+      component.onPageSizeChange('all');
+      expect(component.pageSize).toBe('all');
+      expect(component.paginatedDocuments.length).toBe(65);
+    });
+
+    it('should reset currentPage to 1 when folder changes', () => {
+      component.currentPage = 2;
+      component.setActiveFolder('Finance');
+      expect(component.currentPage).toBe(1);
+    });
+
+    it('should reset currentPage to 1 when search or sort changes', () => {
+      component.currentPage = 2;
+      component.searchQuery = 'Document 1';
+      component.onFilterOrSortChange();
+      expect(component.currentPage).toBe(1);
+
+      component.currentPage = 2;
+      component.selectedSort = 'oldest';
+      component.onFilterOrSortChange();
+      expect(component.currentPage).toBe(1);
+    });
+
+    it('should auto-clamp currentPage if items decrease below current page boundary', () => {
+      component.pageSize = 10;
+      component.currentPage = 7; // page 7 of 7
+      expect(component.paginatedDocuments.length).toBe(5);
+
+      // Now filter to only Finance (30 items = 3 pages of 10)
+      component.searchQuery = 'Finance';
+      // paginatedDocuments automatically bounds currentPage to 3
+      expect(component.paginatedDocuments.length).toBe(10);
+      expect(component.currentPage).toBe(3);
+    });
+  });
 });

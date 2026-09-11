@@ -6,11 +6,12 @@ import { ModalDialogService } from '../../core/services/modal-dialog.service';
 import { IUser, UserRole, ICreateUserDto } from '@enter-chat/shared-types';
 import { forkJoin, of } from 'rxjs';
 import { catchError, finalize } from 'rxjs/operators';
+import { PaginationComponent, PageSizeOption } from '../../shared/components/pagination/pagination.component';
 
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PaginationComponent],
   templateUrl: './admin.component.html',
   styleUrls: ['./admin.component.scss'],
 })
@@ -33,7 +34,7 @@ export class AdminComponent implements OnInit {
   historyRequests: any[] = [];
   historyTotal = 0;
   historyPage = 1;
-  historyLimit = 10;
+  historyLimit = 50;
   historyTotalPages = 1;
   historyLoading = false;
   historyError = '';
@@ -124,6 +125,79 @@ export class AdminComponent implements OnInit {
         u.departments?.some((d) => d.toLowerCase().includes(q)) ||
         u.allowedFolders?.some((f) => f.toLowerCase().includes(q))
     );
+  }
+
+  // Users Table Pagination
+  usersPage = 1;
+  usersPageSize: PageSizeOption = 50;
+  usersPageSizeOptions: PageSizeOption[] = [10, 50, 'all'];
+
+  get paginatedUsers(): IUser[] {
+    const list = this.filteredUsers;
+    if (this.usersPageSize === 'all') {
+      return list;
+    }
+    const size = Number(this.usersPageSize);
+    if (size <= 0) return list;
+    const maxPage = Math.max(1, Math.ceil(list.length / size));
+    if (this.usersPage > maxPage) {
+      this.usersPage = maxPage;
+    }
+    const start = (this.usersPage - 1) * size;
+    return list.slice(start, start + size);
+  }
+
+  onUsersPageChange(page: number): void {
+    this.usersPage = page;
+  }
+
+  onUsersPageSizeChange(size: PageSizeOption): void {
+    this.usersPageSize = size;
+    this.usersPage = 1;
+  }
+
+  onUsersSearchChange(): void {
+    this.usersPage = 1;
+  }
+
+  // Pending Access Requests Pagination
+  requestsPage = 1;
+  requestsPageSize: PageSizeOption = 50;
+  requestsPageSizeOptions: PageSizeOption[] = [10, 50, 'all'];
+
+  get paginatedPendingRequests(): any[] {
+    const list = this.pendingRequests;
+    if (this.requestsPageSize === 'all') {
+      return list;
+    }
+    const size = Number(this.requestsPageSize);
+    if (size <= 0) return list;
+    const maxPage = Math.max(1, Math.ceil(list.length / size));
+    if (this.requestsPage > maxPage) {
+      this.requestsPage = maxPage;
+    }
+    const start = (this.requestsPage - 1) * size;
+    return list.slice(start, start + size);
+  }
+
+  onRequestsPageChange(page: number): void {
+    this.requestsPage = page;
+  }
+
+  onRequestsPageSizeChange(size: PageSizeOption): void {
+    this.requestsPageSize = size;
+    this.requestsPage = 1;
+  }
+
+  // Audit History Pagination
+  historyPageSize: PageSizeOption = 50;
+  historyPageSizeOptions: PageSizeOption[] = [10, 50, 'all'];
+
+  onHistoryPageSizeChange(size: PageSizeOption): void {
+    this.historyPageSize = size;
+    this.historyLimit = size === 'all' ? 1000 : Number(size);
+    this.historyPage = 1;
+    this.loadHistory();
   }
 
   ngOnInit() {
@@ -399,9 +473,9 @@ export class AdminComponent implements OnInit {
       next: (res) => {
         this.historyRequests = res.items || [];
         this.historyTotal = res.total || 0;
-        this.historyPage = res.page || 1;
-        this.historyLimit = res.limit || 10;
-        this.historyTotalPages = res.totalPages || 1;
+        if (res.page) this.historyPage = res.page;
+        if (res.limit) this.historyLimit = res.limit;
+        this.historyTotalPages = res.totalPages || Math.max(1, Math.ceil(this.historyTotal / (this.historyLimit || 50)));
         this.historyLoading = false;
       },
       error: (err) => {

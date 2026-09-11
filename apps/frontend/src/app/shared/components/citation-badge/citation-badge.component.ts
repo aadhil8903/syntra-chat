@@ -14,8 +14,8 @@ interface IDedupedCitationFile {
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="mt-2.5 pt-2 border-t border-[#27272a]/60">
-      <div class="flex items-center gap-1.5 text-[11px] text-[#71717a] font-medium mb-1.5 select-none">
+    <div class="mt-2.5 pt-2 border-t border-zinc-200 dark:border-[#27272a]/60">
+      <div class="flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-[#71717a] font-medium mb-1.5 select-none">
         <svg class="w-3 h-3 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
@@ -49,13 +49,13 @@ interface IDedupedCitationFile {
       </div>
 
       @if (expandedIdx !== null && uniqueSourceFiles[expandedIdx]) {
-        <div class="mt-2 p-2.5 rounded-xl bg-[#111114] border border-[#27272a] text-[11px] text-zinc-300 space-y-1.5 animate-fade-in font-mono">
-          <div class="font-semibold text-white flex items-center justify-between text-xs font-sans pb-1 border-b border-zinc-800">
+        <div class="mt-2 p-2.5 rounded-xl bg-white dark:bg-[#111114] border border-zinc-200 dark:border-[#27272a] text-[11px] text-zinc-800 dark:text-zinc-300 space-y-1.5 animate-fade-in font-mono shadow-sm dark:shadow-none">
+          <div class="font-semibold text-zinc-900 dark:text-white flex items-center justify-between text-xs font-sans pb-1 border-b border-zinc-200 dark:border-zinc-800">
             <span>{{ uniqueSourceFiles[expandedIdx].filename }}</span>
-            <button (click)="expandedIdx = null" class="text-zinc-500 hover:text-white text-xs">&times;</button>
+            <button (click)="expandedIdx = null" class="text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-white text-xs">&times;</button>
           </div>
           @for (snippet of uniqueSourceFiles[expandedIdx].textSnippets; track $index) {
-            <div class="text-[#a1a1aa] leading-relaxed italic text-[11px] bg-black/40 p-1.5 rounded">
+            <div class="text-zinc-700 dark:text-[#a1a1aa] leading-relaxed italic text-[11px] bg-zinc-50 dark:bg-black/40 p-1.5 rounded border border-zinc-200/60 dark:border-transparent">
               "{{ snippet }}"
             </div>
           }

@@ -27,30 +27,30 @@ export interface ISelectionActionEvent {
         #toolbar
         [style.top.px]="top"
         [style.left.px]="left"
-        class="fixed z-50 transform -translate-x-1/2 -translate-y-full mb-2 bg-[#18181b]/95 backdrop-blur-md border border-[#3f3f46] text-white rounded-full px-1.5 py-1 flex items-center gap-0.5 text-xs font-medium animate-in fade-in zoom-in-95 duration-150 select-none"
+        class="fixed z-50 transform -translate-x-1/2 -translate-y-full mb-2 bg-white/95 dark:bg-[#18181b]/95 backdrop-blur-md border border-zinc-200/90 dark:border-[#3f3f46] text-zinc-900 dark:text-white rounded-full px-1.5 py-1 flex items-center gap-0.5 text-xs font-medium shadow-xl shadow-zinc-900/10 dark:shadow-2xl dark:shadow-black/80 animate-in fade-in zoom-in-95 duration-150 select-none"
         (mousedown)="$event.preventDefault()"
       >
         <!-- Ask AI Button (Primary Pill) -->
         <button
           (click)="triggerAction('ask')"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white hover:bg-zinc-200 text-black font-semibold transition-colors"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold transition-colors cursor-pointer"
           title="Ask AI about this selection"
         >
-          <svg class="w-3.5 h-3.5 text-black" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="w-3.5 h-3.5 text-white dark:text-black" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
           <span>Ask AI</span>
         </button>
 
-        <div class="h-4 w-[1px] bg-zinc-700 mx-1"></div>
+        <div class="h-4 w-[1px] bg-zinc-200 dark:bg-zinc-700 mx-1"></div>
 
         <!-- Explain -->
         <button
           (click)="triggerAction('explain')"
-          class="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
+          class="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors cursor-pointer"
           title="Explain this text in detail"
         >
-          <svg class="w-3.5 h-3.5 text-zinc-300" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-300" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
           </svg>
           <span>Explain</span>
@@ -59,10 +59,10 @@ export interface ISelectionActionEvent {
         <!-- Summarize -->
         <button
           (click)="triggerAction('summarize')"
-          class="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
+          class="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors cursor-pointer"
           title="Summarize key points"
         >
-          <svg class="w-3.5 h-3.5 text-zinc-300" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-300" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
           </svg>
           <span>Summarize</span>
@@ -71,15 +71,15 @@ export interface ISelectionActionEvent {
         <!-- Copy -->
         <button
           (click)="triggerAction('copy')"
-          class="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
+          class="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors cursor-pointer"
           [title]="copied ? 'Copied to clipboard!' : 'Copy selection'"
         >
           @if (!copied) {
-            <svg class="w-3.5 h-3.5 text-zinc-400" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
           } @else {
-            <svg class="w-3.5 h-3.5 text-white" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
           }

@@ -8,36 +8,36 @@ import { ApiService } from '../../../core/services/api.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div class="w-full max-w-md bg-[#111114] border border-[#27272a] rounded-2xl p-6 space-y-4">
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-black/85 backdrop-blur-md animate-fade-in">
+      <div class="w-full max-w-md bg-white dark:bg-[#111114] border border-zinc-200 dark:border-[#27272a] rounded-2xl p-6 space-y-4 text-zinc-900 dark:text-zinc-200 shadow-2xl">
         
-        <div class="border-b border-[#27272a] pb-3 space-y-1">
-          <h2 class="text-base font-bold text-white tracking-tight">Set Your Personal Password</h2>
-          <p class="text-xs text-[#a1a1aa] leading-relaxed">
+        <div class="border-b border-zinc-200 dark:border-[#27272a] pb-3 space-y-1">
+          <h2 class="text-base font-bold text-zinc-900 dark:text-white tracking-tight">Set Your Personal Password</h2>
+          <p class="text-xs text-zinc-500 dark:text-[#a1a1aa] leading-relaxed">
             Your account was provisioned with a temporary password. For security, please choose a new private password to continue.
           </p>
         </div>
 
         @if (errorMessage) {
-          <div class="p-3 bg-zinc-900 border border-zinc-700 rounded-xl text-xs text-zinc-200">
+          <div class="p-3 bg-red-50 dark:bg-zinc-900 border border-red-200 dark:border-zinc-700 rounded-xl text-xs text-red-700 dark:text-zinc-200">
             {{ errorMessage }}
           </div>
         }
 
         <div class="space-y-3 text-xs">
           <div>
-            <label class="block text-[#a1a1aa] font-medium mb-1">Temporary Password *</label>
+            <label class="block text-zinc-700 dark:text-[#a1a1aa] font-medium mb-1">Temporary Password *</label>
             <div class="relative">
               <input
                 [type]="showCurrentPassword ? 'text' : 'password'"
                 [(ngModel)]="currentPassword"
                 placeholder="Enter the password from your welcome email"
-                class="w-full pl-3 pr-10 py-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-white focus:outline-none focus:border-white placeholder:text-zinc-600"
+                class="w-full pl-3 pr-10 py-2.5 rounded-xl bg-[#f8f9fa] dark:bg-[#18181b] border border-zinc-300 dark:border-[#27272a] text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
               />
               <button
                 type="button"
                 (click)="showCurrentPassword = !showCurrentPassword"
-                class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors focus:outline-none p-1"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors focus:outline-none p-1"
                 [title]="showCurrentPassword ? 'Hide password' : 'Show password'"
                 aria-label="Toggle temporary password visibility"
               >
@@ -56,18 +56,18 @@ import { ApiService } from '../../../core/services/api.service';
           </div>
 
           <div>
-            <label class="block text-[#a1a1aa] font-medium mb-1">New Password *</label>
+            <label class="block text-zinc-700 dark:text-[#a1a1aa] font-medium mb-1">New Password *</label>
             <div class="relative">
               <input
                 [type]="showNewPassword ? 'text' : 'password'"
                 [(ngModel)]="newPassword"
                 placeholder="Min 8 characters, mixed case, numbers/symbols"
-                class="w-full pl-3 pr-10 py-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-white focus:outline-none focus:border-white placeholder:text-zinc-600"
+                class="w-full pl-3 pr-10 py-2.5 rounded-xl bg-[#f8f9fa] dark:bg-[#18181b] border border-zinc-300 dark:border-[#27272a] text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
               />
               <button
                 type="button"
                 (click)="showNewPassword = !showNewPassword"
-                class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors focus:outline-none p-1"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors focus:outline-none p-1"
                 [title]="showNewPassword ? 'Hide password' : 'Show password'"
                 aria-label="Toggle new password visibility"
               >
@@ -86,18 +86,18 @@ import { ApiService } from '../../../core/services/api.service';
           </div>
 
           <div>
-            <label class="block text-[#a1a1aa] font-medium mb-1">Confirm New Password *</label>
+            <label class="block text-zinc-700 dark:text-[#a1a1aa] font-medium mb-1">Confirm New Password *</label>
             <div class="relative">
               <input
                 [type]="showConfirmPassword ? 'text' : 'password'"
                 [(ngModel)]="confirmPassword"
                 placeholder="Re-enter new password"
-                class="w-full pl-3 pr-10 py-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-white focus:outline-none focus:border-white placeholder:text-zinc-600"
+                class="w-full pl-3 pr-10 py-2.5 rounded-xl bg-[#f8f9fa] dark:bg-[#18181b] border border-zinc-300 dark:border-[#27272a] text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
               />
               <button
                 type="button"
                 (click)="showConfirmPassword = !showConfirmPassword"
-                class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors focus:outline-none p-1"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors focus:outline-none p-1"
                 [title]="showConfirmPassword ? 'Hide password' : 'Show password'"
                 aria-label="Toggle confirm password visibility"
               >
@@ -121,7 +121,7 @@ import { ApiService } from '../../../core/services/api.service';
             type="button"
             (click)="submitPasswordChange()"
             [disabled]="loading || !currentPassword.trim() || !newPassword.trim() || !confirmPassword.trim()"
-            class="w-full py-2.5 bg-white hover:bg-zinc-200 text-black text-xs font-semibold rounded-xl transition-colors disabled:opacity-40"
+            class="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black text-xs font-semibold rounded-xl transition-colors disabled:opacity-40 shadow-sm"
           >
             {{ loading ? 'Updating Password...' : 'Save and Continue' }}
           </button>

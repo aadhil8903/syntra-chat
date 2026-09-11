@@ -20,8 +20,28 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="/config.js"></script>
+  <script>
+    (function() {
+      try {
+        var mode = localStorage.getItem('syntra_theme_mode');
+        var isDark = mode === 'dark' || (!mode || mode === 'system' ? window.matchMedia('(prefers-color-scheme: dark)').matches : false);
+        var root = document.documentElement;
+        if (!isDark) {
+          root.classList.remove('dark');
+          root.classList.add('light');
+          root.setAttribute('data-theme', 'light');
+          root.style.colorScheme = 'light';
+        } else {
+          root.classList.remove('light');
+          root.classList.add('dark');
+          root.setAttribute('data-theme', 'dark');
+          root.style.colorScheme = 'dark';
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
-<body class="bg-[#09090b] text-[#fafafa] antialiased overflow-hidden selection:bg-[#e11d48]/30 selection:text-white font-sans">
+<body class="bg-[#f7f8fa] dark:bg-[#09090b] text-[#111214] dark:text-[#fafafa] antialiased overflow-hidden font-sans">
   <app-root></app-root>
 </body>
 </html>

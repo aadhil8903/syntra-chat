@@ -453,6 +453,36 @@ code.hljs ::selection {
   color: #ffffff !important;
 }
 
+/* Global Selection Styling (Theme-Aware) */
+::selection {
+  background-color: rgba(225, 29, 72, 0.18);
+  color: #09090b;
+}
+
+html.dark ::selection,
+body.dark ::selection,
+[data-theme="dark"] ::selection {
+  background-color: rgba(225, 29, 72, 0.35);
+  color: #ffffff;
+}
+
+[data-theme="light"] ::selection,
+html.light ::selection,
+body.light ::selection {
+  background-color: rgba(225, 29, 72, 0.18) !important;
+  color: #09090b !important;
+}
+
+[data-theme="light"] pre.hljs-vscode-dark ::selection,
+[data-theme="light"] code.hljs ::selection,
+html.light pre.hljs-vscode-dark ::selection,
+html.light code.hljs ::selection,
+body.light pre.hljs-vscode-dark ::selection,
+body.light code.hljs ::selection {
+  background-color: rgba(225, 29, 72, 0.18) !important;
+  color: #09090b !important;
+}
+
 /* ==========================================================================
    Light Theme Global Overrides
    ========================================================================== */

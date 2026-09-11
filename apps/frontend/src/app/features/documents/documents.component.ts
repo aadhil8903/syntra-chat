@@ -15,6 +15,7 @@ import {
 import { AuthService } from '../../core/services/auth.service';
 import { ModalDialogService } from '../../core/services/modal-dialog.service';
 import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder.util';
+import { PaginationComponent, PageSizeOption } from '../../shared/components/pagination/pagination.component';
 
 export interface IMoveUndoNotification {
   id: string;
@@ -29,7 +30,7 @@ export interface IMoveUndoNotification {
 @Component({
   selector: 'app-documents',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PaginationComponent],
   template: `
     <div class="relative p-4 sm:p-6 lg:p-8 w-full max-w-7xl mx-auto space-y-6 animate-fade-in text-zinc-900 dark:text-zinc-200">
       <!-- OS Drag & Drop Full Area Dashed Overlay Cue (Admin Only) -->
@@ -159,11 +160,11 @@ export interface IMoveUndoNotification {
       <!-- In-App Access Request Modal Dialog -->
       @if (showAccessModal && targetAccessItem) {
         <div
-          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-black/80 backdrop-blur-sm animate-fade-in"
           (click)="closeAccessModal()"
         >
           <div
-            class="w-full max-w-md bg-[#111114] border border-zinc-800 rounded-2xl shadow-2xl p-6 space-y-4"
+            class="w-full max-w-md bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 space-y-4"
             (click)="$event.stopPropagation()"
           >
             <div class="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
@@ -194,14 +195,14 @@ export interface IMoveUndoNotification {
                 class="w-full px-3 py-2 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-500 placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
               ></textarea>
               @if (accessError) {
-                <p class="text-[11px] text-zinc-300 font-mono">{{ accessError }}</p>
+                <p class="text-[11px] text-rose-600 dark:text-zinc-300 font-mono">{{ accessError }}</p>
               }
             </div>
 
             <div class="flex items-center justify-end gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">
               <button
                 (click)="closeAccessModal()"
-                class="px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-colors"
+                class="px-3.5 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 text-xs font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -220,11 +221,11 @@ export interface IMoveUndoNotification {
       <!-- Move Document to Folder Modal (File-Manager Style) -->
       @if (showMoveModal && moveTargetDoc) {
         <div
-          class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-sm animate-fade-in"
+          class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/50 dark:bg-black/80 backdrop-blur-sm animate-fade-in"
           (click)="closeMoveModal()"
         >
           <div
-            class="w-full max-w-lg bg-[#111114] border border-zinc-800 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
+            class="w-full max-w-lg bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
             (click)="$event.stopPropagation()"
           >
             <!-- Header -->
@@ -244,7 +245,7 @@ export interface IMoveUndoNotification {
               </div>
               <button
                 (click)="closeMoveModal()"
-                class="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                class="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                 title="Close (Esc)"
               >
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -298,7 +299,7 @@ export interface IMoveUndoNotification {
                   <div class="flex items-center gap-2.5 min-w-0">
                     <span
                       class="w-5 h-5 rounded-full flex items-center justify-center border text-[10px]"
-                      [ngClass]="moveSelectedDestination === moveModalCurrentNavPath ? 'border-red-500 bg-red-500 text-white' : 'border-zinc-600 text-transparent'"
+                      [ngClass]="moveSelectedDestination === moveModalCurrentNavPath ? 'border-red-500 bg-red-500 text-white' : 'border-zinc-400 dark:border-zinc-600 text-transparent'"
                     >
                       ✓
                     </span>
@@ -325,7 +326,7 @@ export interface IMoveUndoNotification {
                         <div class="flex items-center gap-2.5 min-w-0 flex-1">
                           <span
                             class="w-5 h-5 rounded-full flex items-center justify-center border text-[10px] flex-shrink-0"
-                            [ngClass]="moveSelectedDestination === sub.fullPath ? 'border-red-500 bg-red-500 text-white' : 'border-zinc-700 text-transparent group-hover:border-zinc-500'"
+                            [ngClass]="moveSelectedDestination === sub.fullPath ? 'border-red-500 bg-red-500 text-white' : 'border-zinc-300 dark:border-zinc-700 text-transparent group-hover:border-zinc-500'"
                           >
                             ✓
                           </span>
@@ -366,20 +367,20 @@ export interface IMoveUndoNotification {
 
               <!-- Location & Selection Feedback -->
               <div class="p-3 rounded-xl bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 text-xs space-y-1.5">
-                <div class="flex items-center justify-between text-zinc-400">
+                <div class="flex items-center justify-between text-zinc-500 dark:text-zinc-400">
                   <span>Current location:</span>
                   <span class="text-zinc-800 dark:text-zinc-200 font-mono">{{ moveTargetDoc.folder ? moveTargetDoc.folder : 'All Files (Root)' }}</span>
                 </div>
 
                 @if (moveSelectedDestination !== null) {
-                  <div class="flex items-center justify-between text-zinc-400 pt-1 border-t border-zinc-800/80">
+                  <div class="flex items-center justify-between text-zinc-500 dark:text-zinc-400 pt-1 border-t border-zinc-200 dark:border-zinc-800/80">
                     <span>Target destination:</span>
-                    <span class="text-white font-mono font-semibold">{{ moveSelectedDestination ? moveSelectedDestination : 'All Files (Root)' }}</span>
+                    <span class="text-zinc-900 dark:text-white font-mono font-semibold">{{ moveSelectedDestination ? moveSelectedDestination : 'All Files (Root)' }}</span>
                   </div>
                 }
 
                 @if (isDestinationCurrentLocation()) {
-                  <div class="text-[11px] text-amber-400 flex items-center gap-1.5 pt-1">
+                  <div class="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1.5 pt-1">
                     <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
@@ -388,7 +389,7 @@ export interface IMoveUndoNotification {
                 }
 
                 @if (moveErrorMessage) {
-                  <div class="text-[11px] text-red-400 pt-1">
+                  <div class="text-[11px] text-rose-600 dark:text-red-400 pt-1">
                     {{ moveErrorMessage }}
                   </div>
                 }
@@ -409,7 +410,7 @@ export interface IMoveUndoNotification {
                 type="button"
                 (click)="executeMove()"
                 [disabled]="isMovingFile || moveSelectedDestination === null || isDestinationCurrentLocation()"
-                class="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-400 active:bg-red-600 text-white text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+                class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 active:bg-red-700 text-white text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
               >
                 @if (isMovingFile) {
                   <svg class="w-3.5 h-3.5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
@@ -500,18 +501,18 @@ export interface IMoveUndoNotification {
       <!-- Upload File Modal (Admin with Downloads Choice) -->
       @if (showUploadModal && pendingUploadFile && isAdmin) {
         <div
-          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-black/80 backdrop-blur-sm animate-fade-in"
           (click)="closeUploadModal()"
         >
           <div
-            class="w-full max-w-md bg-[#111114] border border-zinc-800 rounded-2xl p-6 space-y-5 shadow-2xl"
+            class="w-full max-w-md bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 space-y-5 shadow-2xl"
             (click)="$event.stopPropagation()"
           >
             <div class="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
               <h3 class="text-sm font-semibold text-zinc-900 dark:text-white">Upload File</h3>
               <button
                 (click)="closeUploadModal()"
-                class="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                class="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
               >
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 18L18 6M6 6l12 12" />
@@ -520,11 +521,11 @@ export interface IMoveUndoNotification {
             </div>
 
             <div class="space-y-2 text-xs">
-              <div class="flex items-center justify-between text-zinc-400">
+              <div class="flex items-center justify-between text-zinc-500 dark:text-zinc-400">
                 <span>File:</span>
                 <span class="text-zinc-800 dark:text-zinc-200 font-mono truncate max-w-[220px]" [title]="pendingUploadFile.name">{{ pendingUploadFile.name }}</span>
               </div>
-              <div class="flex items-center justify-between text-zinc-400">
+              <div class="flex items-center justify-between text-zinc-500 dark:text-zinc-400">
                 <span>Folder:</span>
                 <span class="text-zinc-800 dark:text-zinc-200 font-medium">{{ activeFolder || 'All Files (Root)' }}</span>
               </div>
@@ -543,11 +544,11 @@ export interface IMoveUndoNotification {
                   name="uploadPolicyOption"
                   value="inherit"
                   [checked]="uploadDownloadPolicy === 'inherit'"
-                  class="mt-0.5 accent-white"
+                  class="mt-0.5 accent-zinc-900 dark:accent-white"
                 />
                 <div>
                   <div class="text-xs font-semibold text-zinc-900 dark:text-white">Use folder setting</div>
-                  <div class="text-[11px] text-zinc-400 mt-0.5">
+                  <div class="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                     Follow the folder's download setting.
                   </div>
                 </div>
@@ -563,11 +564,11 @@ export interface IMoveUndoNotification {
                   name="uploadPolicyOption"
                   value="allowed"
                   [checked]="uploadDownloadPolicy === 'allowed'"
-                  class="mt-0.5 accent-white"
+                  class="mt-0.5 accent-zinc-900 dark:accent-white"
                 />
                 <div>
                   <div class="text-xs font-semibold text-zinc-900 dark:text-white">Allow downloads</div>
-                  <div class="text-[11px] text-zinc-400 mt-0.5">
+                  <div class="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                     People who can access this file can download it.
                   </div>
                 </div>
@@ -583,11 +584,11 @@ export interface IMoveUndoNotification {
                   name="uploadPolicyOption"
                   value="restricted"
                   [checked]="uploadDownloadPolicy === 'restricted'"
-                  class="mt-0.5 accent-white"
+                  class="mt-0.5 accent-zinc-900 dark:accent-white"
                 />
                 <div>
                   <div class="text-xs font-semibold text-zinc-900 dark:text-white">Don't allow downloads</div>
-                  <div class="text-[11px] text-zinc-400 mt-0.5">
+                  <div class="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                     People can access this file, but cannot download it.
                   </div>
                 </div>
@@ -757,7 +758,7 @@ export interface IMoveUndoNotification {
 
               <button
                 (click)="deleteFolder(activeFolder)"
-                class="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 text-xs font-medium transition-colors flex items-center gap-1.5"
+                class="px-3 py-2 rounded-xl bg-white hover:bg-zinc-100 text-rose-600 border border-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-rose-400 dark:border-zinc-800 text-xs font-medium transition-colors flex items-center gap-1.5"
                 title="Delete this folder"
               >
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -769,7 +770,7 @@ export interface IMoveUndoNotification {
 
             <button
               (click)="showNewFolderInput = !showNewFolderInput"
-              class="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border border-zinc-800 text-xs font-medium transition-colors flex items-center gap-2"
+              class="px-3.5 py-2 rounded-xl bg-white hover:bg-zinc-100 text-zinc-700 hover:text-zinc-900 border border-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-200 dark:hover:text-white dark:border-zinc-800 text-xs font-medium transition-colors flex items-center gap-2"
             >
               <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h5l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
@@ -834,7 +835,7 @@ export interface IMoveUndoNotification {
                 <span class="text-[10px] text-zinc-500 font-normal">• Members of selected departments get access</span>
               </label>
               @if (newFolderDepartments.length > 0) {
-                <span class="text-[11px] text-zinc-300 font-mono">{{ newFolderDepartments.length }} selected</span>
+                <span class="text-[11px] text-zinc-500 dark:text-zinc-300 font-mono">{{ newFolderDepartments.length }} selected</span>
               } @else {
                 <span class="text-[11px] text-zinc-500">Unrestricted</span>
               }
@@ -849,7 +850,7 @@ export interface IMoveUndoNotification {
                 >
                   <span>{{ dept }}</span>
                   @if (newFolderDepartments.includes(dept)) {
-                    <svg class="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg class="w-3 h-3 text-white dark:text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
                     </svg>
                   }
@@ -861,7 +862,7 @@ export interface IMoveUndoNotification {
       }
 
       @if (uploadError) {
-        <div class="p-3.5 rounded-xl bg-zinc-900 border border-zinc-800 text-rose-300 text-xs flex items-center justify-between">
+        <div class="p-3.5 rounded-xl bg-rose-50 dark:bg-zinc-900 border border-rose-200 dark:border-zinc-800 text-rose-700 dark:text-rose-300 text-xs flex items-center justify-between">
           <span>{{ uploadError }}</span>
           <button (click)="uploadError = ''" class="hover:underline font-bold">Dismiss</button>
         </div>
@@ -908,6 +909,7 @@ export interface IMoveUndoNotification {
             <select
               id="documentsSort"
               [(ngModel)]="selectedSort"
+              (ngModelChange)="onFilterOrSortChange()"
               class="w-full sm:w-auto px-3 py-1.5 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-800 dark:text-zinc-300 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors cursor-pointer min-h-[36px]"
               aria-label="Sort documents"
             >
@@ -923,6 +925,7 @@ export interface IMoveUndoNotification {
             <input
               type="text"
               [(ngModel)]="searchQuery"
+              (ngModelChange)="onFilterOrSortChange()"
               placeholder="Search files or formats..."
               class="w-full pl-8 pr-7 py-1.5 rounded-xl bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 transition-colors min-h-[36px]"
             />
@@ -930,7 +933,7 @@ export interface IMoveUndoNotification {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             @if (searchQuery) {
-              <button (click)="searchQuery = ''" class="absolute right-2 top-2 text-zinc-500 hover:text-white text-xs font-bold">×</button>
+              <button (click)="searchQuery = ''; onFilterOrSortChange()" class="absolute right-2 top-2 text-zinc-500 hover:text-white text-xs font-bold">×</button>
             }
           </div>
         </div>
@@ -971,7 +974,7 @@ export interface IMoveUndoNotification {
                 <button
                   *ngIf="isAdmin"
                   (click)="$event.stopPropagation(); deleteFolder(sub.fullPath)"
-                  class="opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity p-1 rounded-lg hover:bg-zinc-800 text-zinc-500"
+                  class="opacity-0 group-hover:opacity-100 hover:text-rose-600 dark:hover:text-rose-400 transition-opacity p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 dark:text-zinc-500"
                   title="Delete folder"
                 >
                   <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1004,6 +1007,17 @@ export interface IMoveUndoNotification {
             </p>
           </div>
         } @else {
+          <app-pagination
+            position="top"
+            [currentPage]="currentPage"
+            [pageSize]="pageSize"
+            [totalItems]="filteredDocuments.length"
+            [pageSizeOptions]="pageSizeOptions"
+            itemLabel="files"
+            (pageChange)="onPageChange($event)"
+            (pageSizeChange)="onPageSizeChange($event)"
+          ></app-pagination>
+
           <!-- Desktop Documents Table (>= 768px) -->
           <div class="hidden md:block overflow-x-auto w-full">
             <table class="w-full text-left text-xs">
@@ -1021,7 +1035,7 @@ export interface IMoveUndoNotification {
                 </tr>
               </thead>
               <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800/60">
-                @for (doc of filteredDocuments; track doc.id) {
+                @for (doc of paginatedDocuments; track doc.id) {
                   <tr
                     [draggable]="isAdmin"
                     (dragstart)="onDocDragStart($event, doc)"
@@ -1031,7 +1045,7 @@ export interface IMoveUndoNotification {
                     [class.z-30]="editingDownloadPolicyDoc?.id === doc.id"
                     [ngClass]="[
                       isAdmin ? 'active:cursor-grabbing select-none' : '',
-                      !canAccessDoc(doc) ? 'opacity-60 bg-black/20' : ''
+                      !canAccessDoc(doc) ? 'opacity-60 bg-zinc-100/60 dark:bg-black/20' : ''
                     ]"
                     (click)="onRowClick(doc)"
                   >
@@ -1039,7 +1053,7 @@ export interface IMoveUndoNotification {
                     <td class="px-4 py-2.5">
                       <div class="flex items-center gap-2.5">
                         @if (!canAccessDoc(doc)) {
-                          <span class="p-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-500" title="Access Locked">
+                          <span class="p-1 rounded bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500" title="Access Locked">
                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
@@ -1085,14 +1099,14 @@ export interface IMoveUndoNotification {
                         </span>
                       } @else {
                         <div class="inline-flex items-center gap-2">
-                          <span class="inline-flex items-center gap-1.5 text-xs font-mono text-red-400">
-                            <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                          <span class="inline-flex items-center gap-1.5 text-xs font-mono text-rose-600 dark:text-red-400">
+                            <span class="w-2 h-2 rounded-full bg-rose-600 dark:bg-red-400"></span>
                             <span>Failed</span>
                           </span>
                           <button
                             *ngIf="isAdmin"
                             (click)="$event.stopPropagation(); retryDoc(doc.id)"
-                            class="px-2 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] border border-zinc-700 transition-colors"
+                            class="px-2 py-0.5 rounded-md bg-zinc-100 hover:bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-white text-[10px] border border-zinc-300 dark:border-zinc-700 transition-colors"
                             title="Retry ingestion"
                           >
                             Retry
@@ -1161,7 +1175,7 @@ export interface IMoveUndoNotification {
                         </button>
                       } @else {
                         @if (doc.requestStatus === 'pending') {
-                          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-400 font-mono">
+                          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[10px] text-zinc-600 dark:text-zinc-400 font-mono">
                             Pending
                           </span>
                         } @else {
@@ -1185,12 +1199,12 @@ export interface IMoveUndoNotification {
 
           <!-- Mobile Documents Card List (< 768px) -->
           <div class="block md:hidden divide-y divide-zinc-200 dark:divide-zinc-800/80">
-            @for (doc of filteredDocuments; track doc.id) {
+            @for (doc of paginatedDocuments; track doc.id) {
               <div
                 class="p-4 space-y-3 transition-colors"
                 [class.relative]="editingDownloadPolicyDoc?.id === doc.id"
                 [class.z-30]="editingDownloadPolicyDoc?.id === doc.id"
-                [ngClass]="!canAccessDoc(doc) ? 'opacity-60 bg-zinc-100 dark:bg-black/20' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/20'"
+                [ngClass]="!canAccessDoc(doc) ? 'opacity-60 bg-zinc-100/60 dark:bg-black/20' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/20'"
                 (click)="onRowClick(doc)"
               >
                 <!-- Header: Icon, Name, Format -->
@@ -1202,7 +1216,7 @@ export interface IMoveUndoNotification {
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
                       } @else {
-                        <svg class="w-4 h-4 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg class="w-4 h-4 text-zinc-600 dark:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                       }
@@ -1227,7 +1241,7 @@ export interface IMoveUndoNotification {
                       <button
                         type="button"
                         (click)="toggleActionMenu(doc, $event)"
-                        class="w-11 h-11 min-w-[44px] min-h-[44px] -mr-2 -my-2 rounded-lg text-zinc-400 hover:text-white active:bg-zinc-800 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-600"
+                        class="w-11 h-11 min-w-[44px] min-h-[44px] -mr-2 -my-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 active:bg-zinc-200 dark:active:bg-zinc-800 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
                         [attr.aria-expanded]="activeActionMenuDoc?.id === doc.id"
                         [attr.aria-label]="'More actions for ' + doc.originalName"
                         title="More actions"
@@ -1256,8 +1270,8 @@ export interface IMoveUndoNotification {
                         Indexing...
                       </span>
                     } @else {
-                      <span class="inline-flex items-center gap-1.5 text-[11px] text-red-400">
-                        <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                      <span class="inline-flex items-center gap-1.5 text-[11px] text-rose-600 dark:text-red-400">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-600 dark:bg-red-400"></span>
                         Failed
                       </span>
                     }
@@ -1285,7 +1299,7 @@ export interface IMoveUndoNotification {
                     }
                   </div>
 
-                  <div class="text-zinc-400">
+                  <div class="text-zinc-500 dark:text-zinc-400">
                     @if (isTabular(doc)) {
                       <span>{{ doc.totalRows || 0 }} rows</span>
                     } @else {
@@ -1296,9 +1310,9 @@ export interface IMoveUndoNotification {
 
                 <!-- Access Request for Inaccessible Documents on Mobile -->
                 @if (!canAccessDoc(doc)) {
-                  <div class="pt-2 border-t border-zinc-800/80 flex items-center gap-2" (click)="$event.stopPropagation()">
+                  <div class="pt-2 border-t border-zinc-200 dark:border-zinc-800/80 flex items-center gap-2" (click)="$event.stopPropagation()">
                     @if (doc.requestStatus === 'pending') {
-                      <span class="w-full text-center py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-400 font-mono">
+                      <span class="w-full text-center py-2 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-600 dark:text-zinc-400 font-mono">
                         Access Request Pending
                       </span>
                     } @else {
@@ -1323,17 +1337,17 @@ export interface IMoveUndoNotification {
       <!-- Hidden File Picker for File Replacement -->
       <input #replaceFileInput type="file" (change)="onReplaceFileSelected($event)" accept=".pdf,.docx,.txt,.md,.json,.csv,.xlsx,.xls" class="hidden" />
 
-      <!-- Move + Undo Notification Stack (Bottom-Right Floating with Inverted High-Contrast Theme) -->
+      <!-- Move + Undo Notification Stack (Bottom-Right Floating Toast) -->
       @if (moveUndoNotifications.length > 0) {
         <div class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 left-4 sm:left-auto z-50 flex flex-col-reverse gap-2.5 pointer-events-none max-w-md w-auto sm:w-full pb-[env(safe-area-inset-bottom)]">
           @for (item of moveUndoNotifications; track item.id) {
-            <div class="pointer-events-auto bg-zinc-900 dark:bg-white border border-zinc-800 dark:border-zinc-200/90 text-white dark:text-zinc-900 rounded-xl p-3 sm:p-3.5 shadow-2xl dark:shadow-[0_12px_40px_rgba(0,0,0,0.6)] animate-toast-in flex items-center justify-between gap-3 sm:gap-4 transition-all">
+            <div class="pointer-events-auto bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white rounded-xl p-3 sm:p-3.5 shadow-xl dark:shadow-[0_12px_40px_rgba(0,0,0,0.6)] animate-toast-in flex items-center justify-between gap-3 sm:gap-4 transition-all">
               <div class="min-w-0 flex-1 space-y-0.5">
-                <div class="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">File moved</div>
-                <div class="text-xs font-medium text-white dark:text-zinc-900 truncate" [title]="item.documentName + ' → ' + (item.destinationPath || 'Root')">
+                <div class="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">File moved</div>
+                <div class="text-xs font-medium text-zinc-900 dark:text-white truncate" [title]="item.documentName + ' → ' + (item.destinationPath || 'Root')">
                   <span class="font-semibold">{{ item.documentName }}</span>
                   <span class="text-zinc-400 dark:text-zinc-400 mx-1.5">→</span>
-                  <span class="font-mono text-zinc-300 dark:text-zinc-700">{{ item.destinationPath || 'Root' }}</span>
+                  <span class="font-mono text-zinc-600 dark:text-zinc-300">{{ item.destinationPath || 'Root' }}</span>
                 </div>
               </div>
 
@@ -1342,10 +1356,10 @@ export interface IMoveUndoNotification {
                   type="button"
                   (click)="undoMove(item)"
                   [disabled]="item.isUndoing"
-                  class="px-3 py-1.5 rounded-lg bg-white hover:bg-zinc-100 active:bg-zinc-200 text-zinc-900 font-semibold dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:active:bg-black dark:text-white text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  class="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 active:bg-black text-white font-semibold dark:bg-white dark:hover:bg-zinc-100 dark:active:bg-zinc-200 dark:text-zinc-900 text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 shadow-sm cursor-pointer"
                 >
                   @if (item.isUndoing) {
-                    <span class="w-3 h-3 rounded-full border-2 border-zinc-400 dark:border-zinc-500 border-t-zinc-900 dark:border-t-white animate-spin"></span>
+                    <span class="w-3 h-3 rounded-full border-2 border-zinc-400 dark:border-zinc-500 border-t-white dark:border-t-zinc-900 animate-spin"></span>
                     <span>Undoing...</span>
                   } @else {
                     <span>Undo</span>
@@ -1354,7 +1368,7 @@ export interface IMoveUndoNotification {
                 <button
                   type="button"
                   (click)="dismissMoveUndoNotification(item.id)"
-                  class="text-zinc-400 hover:text-white dark:text-zinc-400 dark:hover:text-zinc-900 p-1.5 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors cursor-pointer"
+                  class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                   title="Dismiss notification"
                   aria-label="Dismiss notification"
                 >
@@ -1387,6 +1401,11 @@ export class DocumentsComponent implements OnInit, OnDestroy {
   toastMessage = '';
   searchQuery = '';
   selectedSort: 'newest' | 'oldest' | 'name_asc' | 'name_desc' = 'newest';
+
+  // Table Pagination
+  currentPage = 1;
+  pageSize: PageSizeOption = 50;
+  pageSizeOptions: PageSizeOption[] = [10, 50, 'all'];
 
   activeFolder: string | null = null;
   private routeSub?: Subscription;
@@ -1695,6 +1714,34 @@ export class DocumentsComponent implements OnInit, OnDestroy {
     return docs;
   }
 
+  get paginatedDocuments(): IDocument[] {
+    const docs = this.filteredDocuments;
+    if (this.pageSize === 'all') {
+      return docs;
+    }
+    const size = Number(this.pageSize);
+    if (size <= 0) return docs;
+    const maxPage = Math.max(1, Math.ceil(docs.length / size));
+    if (this.currentPage > maxPage) {
+      this.currentPage = maxPage;
+    }
+    const start = (this.currentPage - 1) * size;
+    return docs.slice(start, start + size);
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage = page;
+  }
+
+  onPageSizeChange(size: PageSizeOption): void {
+    this.pageSize = size;
+    this.currentPage = 1;
+  }
+
+  onFilterOrSortChange(): void {
+    this.currentPage = 1;
+  }
+
   get currentActiveSheet(): any | null {
     if (!this.selectedTabularDoc || !this.selectedTabularDoc.sheets || this.selectedTabularDoc.sheets.length === 0) {
       return null;
@@ -1932,6 +1979,7 @@ export class DocumentsComponent implements OnInit, OnDestroy {
 
   setActiveFolder(folder: string | null): void {
     const target = folder && folder.trim() ? folder.trim() : null;
+    this.currentPage = 1;
     if (this.activeFolder === target) return;
     this.router.navigate([], {
       relativeTo: this.route,

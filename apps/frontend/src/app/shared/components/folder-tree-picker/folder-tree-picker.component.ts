@@ -41,7 +41,7 @@ export interface IFolderTreeNode {
               <button
                 type="button"
                 (click)="toggleFolderSelection(folder, $event)"
-                class="hover:text-white font-bold ml-0.5"
+                class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white font-bold ml-0.5"
                 title="Toggle folder access"
               >
                 ×
@@ -55,9 +55,9 @@ export interface IFolderTreeNode {
       <button
         type="button"
         (click)="toggleOpen($event)"
-        class="w-full min-h-[44px] flex items-center justify-between px-3 py-2 rounded-xl bg-[#18181b] border border-[#3f3f46] hover:border-white text-xs text-white transition-colors"
+        class="w-full min-h-[44px] flex items-center justify-between px-3 py-2 rounded-xl bg-white dark:bg-[#18181b] border border-zinc-300 dark:border-[#3f3f46] hover:border-zinc-500 dark:hover:border-white text-xs text-zinc-900 dark:text-white transition-colors"
       >
-        <span class="text-zinc-300 text-[11px] truncate">
+        <span class="text-zinc-700 dark:text-zinc-300 text-[11px] truncate">
           {{
             effectiveSelectedFolders.length > 0
               ? effectiveSelectedFolders.length + ' folder(s) accessible'
@@ -66,7 +66,7 @@ export interface IFolderTreeNode {
         </span>
         <svg
           class="w-3.5 h-3.5 text-zinc-400 transition-transform duration-200"
-          [ngClass]="isOpen ? 'rotate-180 text-white' : ''"
+          [ngClass]="isOpen ? 'rotate-180 text-zinc-900 dark:text-white' : ''"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -78,17 +78,17 @@ export interface IFolderTreeNode {
       <!-- Dropdown Tree Flyout Menu (VS Code Explorer Style) -->
       @if (isOpen) {
         <div
-          class="absolute z-50 left-0 mt-1.5 w-full sm:w-84 max-w-[calc(100vw-2rem)] bg-[#111114] border border-[#3f3f46] rounded-2xl p-3 space-y-2.5 animate-fade-in text-xs shadow-2xl"
+          class="absolute z-50 left-0 mt-1.5 w-full sm:w-84 max-w-[calc(100vw-2rem)] bg-white dark:bg-[#111114] border border-zinc-200 dark:border-[#3f3f46] rounded-2xl p-3 space-y-2.5 animate-fade-in text-xs shadow-xl dark:shadow-2xl"
         >
           <!-- Search and Quick Actions Bar -->
-          <div class="flex items-center justify-between gap-2 pb-1.5 border-b border-[#27272a]">
+          <div class="flex items-center justify-between gap-2 pb-1.5 border-b border-zinc-200 dark:border-[#27272a]">
             <div class="relative flex-1">
               <input
                 type="text"
                 [(ngModel)]="searchQuery"
                 (input)="filterTree()"
                 placeholder="Filter tree..."
-                class="w-full pl-7 pr-2 py-1 bg-[#18181b] border border-[#27272a] rounded-lg text-[11px] text-white focus:outline-none focus:border-white placeholder:text-zinc-600 font-mono"
+                class="w-full pl-7 pr-2 py-1 bg-[#f8f9fa] dark:bg-[#18181b] border border-zinc-300 dark:border-[#27272a] rounded-lg text-[11px] text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-mono"
               />
               <svg class="w-3.5 h-3.5 text-zinc-500 absolute left-2 top-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -98,7 +98,7 @@ export interface IFolderTreeNode {
               <button
                 type="button"
                 (click)="expandAll()"
-                class="px-1.5 py-1 text-[10px] text-zinc-400 hover:text-white rounded hover:bg-[#18181b]"
+                class="px-1.5 py-1 text-[10px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white rounded hover:bg-zinc-100 dark:hover:bg-[#18181b]"
                 title="Expand All"
               >
                 Expand
@@ -106,7 +106,7 @@ export interface IFolderTreeNode {
               <button
                 type="button"
                 (click)="collapseAll()"
-                class="px-1.5 py-1 text-[10px] text-zinc-400 hover:text-white rounded hover:bg-[#18181b]"
+                class="px-1.5 py-1 text-[10px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white rounded hover:bg-zinc-100 dark:hover:bg-[#18181b]"
                 title="Collapse All"
               >
                 Collapse
@@ -117,14 +117,14 @@ export interface IFolderTreeNode {
           <!-- Tree Hierarchy View -->
           <div class="max-h-80 overflow-y-auto space-y-1 py-1 custom-scrollbar">
             @if (visibleNodes.length === 0) {
-              <div class="py-4 text-center text-[#71717a] text-[11px]">
+              <div class="py-4 text-center text-zinc-500 dark:text-[#71717a] text-[11px]">
                 No folders available. Create one below.
               </div>
             }
 
             @for (node of visibleNodes; track node.fullPath) {
               <div
-                class="flex items-center gap-2 py-1.5 px-1.5 min-h-[36px] rounded-lg hover:bg-[#18181b] transition-colors group cursor-pointer"
+                class="flex items-center gap-2 py-1.5 px-1.5 min-h-[36px] rounded-lg hover:bg-zinc-100 dark:hover:bg-[#18181b] transition-colors group cursor-pointer"
                 [style.padding-left.px]="node.depth * 14 + 4"
                 (click)="toggleExpand(node, $event)"
               >
@@ -133,12 +133,12 @@ export interface IFolderTreeNode {
                   <button
                     type="button"
                     (click)="toggleExpand(node, $event)"
-                    class="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white transition-transform p-1 rounded"
+                    class="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-transform p-1 rounded"
                     [title]="node.expanded ? 'Collapse folder' : 'Expand folder'"
                   >
                     <svg
                       class="w-3.5 h-3.5 transition-transform duration-150"
-                      [ngClass]="node.expanded ? 'rotate-90 text-white' : ''"
+                      [ngClass]="node.expanded ? 'rotate-90 text-zinc-900 dark:text-white' : ''"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -154,14 +154,14 @@ export interface IFolderTreeNode {
                   type="checkbox"
                   [checked]="isFolderEffectivelyAllowed(node.fullPath)"
                   (click)="onCheckboxClick(node, $event)"
-                  class="rounded border-zinc-700 bg-zinc-900 text-white focus:ring-0 cursor-pointer w-4 h-4"
+                  class="rounded border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:ring-0 cursor-pointer w-4 h-4"
                 />
 
                 <!-- Folder Icon & Name -->
                 <span class="text-sm flex-shrink-0">📁</span>
                 <span
                   class="font-mono text-xs truncate max-w-[140px]"
-                  [ngClass]="isFolderEffectivelyAllowed(node.fullPath) ? 'text-white font-medium' : 'text-zinc-400'"
+                  [ngClass]="isFolderEffectivelyAllowed(node.fullPath) ? 'text-zinc-900 dark:text-white font-medium' : 'text-zinc-500 dark:text-zinc-400'"
                 >
                   {{ node.name }}
                 </span>
@@ -180,19 +180,19 @@ export interface IFolderTreeNode {
           </div>
 
           <!-- Add New Folder Custom Input -->
-          <div class="pt-2 border-t border-[#27272a] flex items-center gap-1.5">
+          <div class="pt-2 border-t border-zinc-200 dark:border-[#27272a] flex items-center gap-1.5">
             <input
               type="text"
               [(ngModel)]="newFolderInput"
               (keydown.enter)="addNewFolder($event)"
               placeholder="+ Add folder (e.g. Sales, Q1/Reports)..."
-              class="flex-1 px-2.5 py-1 rounded-lg bg-[#18181b] border border-[#27272a] text-[11px] text-white focus:outline-none focus:border-white placeholder:text-zinc-600 font-mono"
+              class="flex-1 px-2.5 py-1 rounded-lg bg-[#f8f9fa] dark:bg-[#18181b] border border-zinc-300 dark:border-[#27272a] text-[11px] text-zinc-900 dark:text-white focus:outline-none focus:border-zinc-900 dark:focus:border-white placeholder:text-zinc-400 dark:placeholder:text-zinc-600 font-mono"
             />
             <button
               type="button"
               (click)="addNewFolder($event)"
               [disabled]="!newFolderInput.trim()"
-              class="px-2.5 py-1 bg-white hover:bg-zinc-200 text-black text-[10px] font-semibold rounded-lg disabled:opacity-40 transition-colors"
+              class="px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black text-[10px] font-semibold rounded-lg disabled:opacity-40 transition-colors shadow-sm"
             >
               Add
             </button>
@@ -330,7 +330,7 @@ export class FolderTreePickerComponent implements OnInit, OnChanges {
   }
 
   getBadgeClass(folderPath: string): string {
-    return 'bg-zinc-900 text-zinc-300 border-zinc-800';
+    return 'bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-300 border-zinc-300 dark:border-zinc-800';
   }
 
   private getAncestors(folderPath: string): string[] {
