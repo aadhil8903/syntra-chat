@@ -112,3 +112,19 @@ export interface IJwtPayload {
   role: UserRole;
 }
 
+export interface IUserPresence {
+  userId: string;
+  isOnline: boolean;
+  lastSeenAt?: string;
+  lastSeenRelative?: string;
+}
+
+export interface IOrgMember {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role?: string;
+  departments?: string[];
+  presence?: IUserPresence;
+}

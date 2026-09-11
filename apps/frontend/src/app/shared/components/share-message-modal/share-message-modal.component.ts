@@ -1,0 +1,312 @@
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  inject,
+  signal,
+  OnChanges,
+  SimpleChanges,
+  HostListener,
+} from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { SharingService } from '../../../core/services/sharing.service';
+import { PresenceService } from '../../../core/services/presence.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { IMessage, IOrgMember } from '@enter-chat/shared-types';
+
+@Component({
+  selector: 'app-share-message-modal',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  template: `
+    @if (isOpen && message) {
+      <div
+        class="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+        role="dialog"
+        aria-modal="true"
+        (click)="close()"
+      >
+        <div
+          class="w-full max-w-md bg-white dark:bg-[#111114] border border-[#dcdde1] dark:border-[#27272a] rounded-2xl overflow-hidden p-6 space-y-4 text-zinc-800 dark:text-zinc-200 animate-scale-up shadow-2xl flex flex-col max-h-[85vh]"
+          (click)="$event.stopPropagation()"
+        >
+          <!-- Header -->
+          <div class="flex items-center justify-between gap-3 border-b border-[#e7e9ed] dark:border-[#27272a] pb-3">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#f8f9fa] dark:bg-zinc-900 border border-[#dcdde1] dark:border-zinc-800 text-zinc-700 dark:text-zinc-200">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-sm font-semibold text-zinc-900 dark:text-white truncate">
+                  Share Message
+                </h3>
+                <p class="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                  Share this specific insight with colleagues
+                </p>
+              </div>
+            </div>
+
+            <button
+              (click)="close()"
+              class="p-1 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors"
+            >
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Message Preview -->
+          <div class="p-3 rounded-xl bg-[#f8f9fa] dark:bg-[#18181b] border border-[#e7e9ed] dark:border-[#27272a] space-y-1">
+            <div class="flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+              <span class="font-medium text-zinc-700 dark:text-zinc-300">
+                {{ getMessageAuthorName() }}
+              </span>
+              <span>·</span>
+              <span>{{ message.createdAt | date:'short' }}</span>
+            </div>
+            <p class="text-xs text-zinc-800 dark:text-zinc-200 line-clamp-3 leading-relaxed whitespace-pre-wrap">
+              {{ message.content }}
+            </p>
+          </div>
+
+          <!-- Search Members -->
+          <div>
+            <label class="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+              Send to
+            </label>
+            <div class="relative">
+              <input
+                type="text"
+                [(ngModel)]="searchQuery"
+                (input)="onSearchInput()"
+                placeholder="Search colleagues by name or email..."
+                class="w-full px-3 py-2 bg-[#f8f9fa] dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] focus:border-zinc-900 dark:focus:border-white focus:outline-none rounded-xl text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-600 transition-colors"
+              />
+              @if (isLoadingMembers()) {
+                <div class="absolute right-3 top-2.5">
+                  <div class="w-3.5 h-3.5 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Members List -->
+          <div class="border border-[#e7e9ed] dark:border-[#27272a] rounded-xl divide-y divide-[#e7e9ed] dark:divide-[#27272a] max-h-48 overflow-y-auto flex-1">
+            @for (member of availableMembers(); track member.id) {
+              <div
+                (click)="toggleMember(member.id)"
+                class="flex items-center justify-between p-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 cursor-pointer transition-colors"
+                [class.bg-zinc-100]="isMemberSelected(member.id)"
+                [class.dark:bg-zinc-900]="isMemberSelected(member.id)"
+              >
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <input
+                    type="checkbox"
+                    [checked]="isMemberSelected(member.id)"
+                    (click)="$event.stopPropagation()"
+                    (change)="toggleMember(member.id)"
+                    class="rounded border-[#dcdde1] dark:border-zinc-700 text-zinc-900 focus:ring-0 cursor-pointer"
+                  />
+                  <div class="w-7 h-7 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex-shrink-0">
+                    {{ member.firstName.charAt(0) }}{{ member.lastName.charAt(0) }}
+                  </div>
+                  <div class="min-w-0">
+                    <span class="text-xs font-medium text-zinc-900 dark:text-white truncate block">
+                      {{ member.firstName }} {{ member.lastName }}
+                    </span>
+                    <span class="text-[11px] text-zinc-500 dark:text-zinc-400 truncate block">
+                      {{ member.email }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-1.5 flex-shrink-0">
+                  @if (member.presence?.isOnline) {
+                    <span class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                      <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      Online
+                    </span>
+                  } @else {
+                    <span class="inline-flex items-center gap-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+                      <span class="w-2 h-2 rounded-full border border-zinc-400 dark:border-zinc-600"></span>
+                      {{ presenceService.formatLastActive(member.presence?.lastSeenAt) }}
+                    </span>
+                  }
+                </div>
+              </div>
+            } @empty {
+              <div class="p-6 text-center text-xs text-zinc-500 dark:text-zinc-400">
+                No members found.
+              </div>
+            }
+          </div>
+
+          @if (errorMessage()) {
+            <div class="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs">
+              {{ errorMessage() }}
+            </div>
+          }
+
+          @if (successMessage()) {
+            <div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs">
+              {{ successMessage() }}
+            </div>
+          }
+
+          <!-- Footer Actions -->
+          <div class="flex items-center justify-between gap-2 pt-3 border-t border-[#e7e9ed] dark:border-[#27272a]">
+            <span class="text-xs text-zinc-500 dark:text-zinc-400">
+              {{ selectedUserIds().length }} selected
+            </span>
+
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                (click)="close()"
+                class="px-3.5 py-1.5 rounded-xl bg-white hover:bg-zinc-100 text-zinc-700 hover:text-zinc-900 dark:bg-[#18181b] dark:hover:bg-[#27272a] text-xs font-medium dark:text-zinc-300 dark:hover:text-white transition-colors border border-[#dcdde1] dark:border-[#27272a]"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                (click)="submitShare()"
+                [disabled]="selectedUserIds().length === 0 || isSubmitting()"
+                class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black transition-colors flex items-center gap-1.5"
+              >
+                @if (isSubmitting()) {
+                  <div class="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                }
+                <span>Share Message</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  `,
+})
+export class ShareMessageModalComponent implements OnChanges {
+  @Input() isOpen = false;
+  @Input() message: IMessage | null = null;
+
+  @Output() closed = new EventEmitter<void>();
+
+  private sharingService = inject(SharingService);
+  readonly presenceService = inject(PresenceService);
+  private authService = inject(AuthService);
+
+  readonly availableMembers = signal<IOrgMember[]>([]);
+  readonly selectedUserIds = signal<string[]>([]);
+  readonly isLoadingMembers = signal(false);
+  readonly isSubmitting = signal(false);
+  readonly errorMessage = signal<string | null>(null);
+  readonly successMessage = signal<string | null>(null);
+
+  searchQuery = '';
+
+  get currentUserId(): string {
+    return this.authService.currentUser()?.id || '';
+  }
+
+  getMessageAuthorName(): string {
+    if (!this.message) return 'User';
+    if (this.message.role === 'assistant') return 'Syntra AI';
+    if (this.message.author?.firstName) {
+      return `${this.message.author.firstName} ${this.message.author.lastName || ''}`.trim();
+    }
+    return 'User';
+  }
+
+  @HostListener('window:keydown.escape')
+  onEscape(): void {
+    if (this.isOpen) {
+      this.close();
+    }
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['isOpen'] && this.isOpen) {
+      this.resetModal();
+      this.loadMembers();
+    }
+  }
+
+  resetModal(): void {
+    this.selectedUserIds.set([]);
+    this.searchQuery = '';
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+  }
+
+  loadMembers(): void {
+    this.isLoadingMembers.set(true);
+    this.sharingService.getOrganizationMembers(this.searchQuery).subscribe({
+      next: (members) => {
+        this.availableMembers.set(members.filter((m) => m.id !== this.currentUserId));
+        this.isLoadingMembers.set(false);
+      },
+      error: () => {
+        this.isLoadingMembers.set(false);
+      },
+    });
+  }
+
+  onSearchInput(): void {
+    this.loadMembers();
+  }
+
+  isMemberSelected(userId: string): boolean {
+    return this.selectedUserIds().includes(userId);
+  }
+
+  toggleMember(userId: string): void {
+    const current = [...this.selectedUserIds()];
+    const index = current.indexOf(userId);
+    if (index >= 0) {
+      current.splice(index, 1);
+    } else {
+      current.push(userId);
+    }
+    this.selectedUserIds.set(current);
+  }
+
+  submitShare(): void {
+    if (!this.message?.id || this.selectedUserIds().length === 0) return;
+
+    this.isSubmitting.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    this.sharingService
+      .shareMessage(this.message.id, {
+        userIds: this.selectedUserIds(),
+      })
+      .subscribe({
+        next: () => {
+          this.isSubmitting.set(false);
+          this.successMessage.set('Message shared successfully!');
+          this.selectedUserIds.set([]);
+          setTimeout(() => {
+            this.successMessage.set(null);
+            this.close();
+          }, 1000);
+        },
+        error: (err) => {
+          this.isSubmitting.set(false);
+          this.errorMessage.set(
+            err.error?.message || err.message || 'Failed to share message.',
+          );
+        },
+      });
+  }
+
+  close(): void {
+    this.closed.emit();
+  }
+}

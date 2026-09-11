@@ -5,6 +5,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
 import { WalkthroughService } from '../../core/services/walkthrough.service';
 import { ThemeService, ThemeMode } from '../../core/services/theme.service';
+import { SoundService } from '../../core/services/sound.service';
 import { IUser } from '@enter-chat/shared-types';
 
 @Component({
@@ -257,6 +258,95 @@ import { IUser } from '@enter-chat/shared-types';
               </div>
             </div>
           </button>
+        </div>
+      </section>
+
+      <!-- Section 3: Messaging Sounds -->
+      <section class="space-y-4 pt-2">
+        <div>
+          <h2 class="text-xs font-semibold tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Messaging Sounds</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Customize audio feedback for incoming and outgoing direct messages.</p>
+        </div>
+
+        <div class="divide-y divide-zinc-200/70 dark:divide-zinc-800/80 border-y border-zinc-200/70 dark:border-zinc-800/80 text-xs">
+          <!-- Master Toggle -->
+          <div class="py-3.5 flex items-center justify-between">
+            <div>
+              <div class="font-medium text-zinc-900 dark:text-white">Enable Messaging Sounds</div>
+              <div class="text-[11px] text-zinc-500 dark:text-zinc-400">Play subtle audio alerts for message events</div>
+            </div>
+            <button
+              type="button"
+              (click)="soundService.updateSettings({ messagingSounds: !soundService.settings().messagingSounds })"
+              class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+              [ngClass]="soundService.settings().messagingSounds ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-300 dark:bg-zinc-700'"
+            >
+              <span
+                class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 shadow ring-0 transition duration-200 ease-in-out"
+                [ngClass]="soundService.settings().messagingSounds ? 'translate-x-4' : 'translate-x-0'"
+              ></span>
+            </button>
+          </div>
+
+          <!-- Send Sound Toggle -->
+          <div class="py-3.5 flex items-center justify-between" [class.opacity-50]="!soundService.settings().messagingSounds">
+            <div>
+              <div class="font-medium text-zinc-900 dark:text-white">Outgoing Message Sound</div>
+              <div class="text-[11px] text-zinc-500 dark:text-zinc-400">Play a subtle tone when sending a message</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                (click)="soundService.playSendSound()"
+                class="px-2.5 py-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-800 transition-colors"
+                title="Preview sound"
+              >
+                Test
+              </button>
+              <button
+                type="button"
+                [disabled]="!soundService.settings().messagingSounds"
+                (click)="soundService.updateSettings({ sendSound: !soundService.settings().sendSound })"
+                class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:cursor-not-allowed"
+                [ngClass]="soundService.settings().sendSound && soundService.settings().messagingSounds ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-300 dark:bg-zinc-700'"
+              >
+                <span
+                  class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 shadow ring-0 transition duration-200 ease-in-out"
+                  [ngClass]="soundService.settings().sendSound && soundService.settings().messagingSounds ? 'translate-x-4' : 'translate-x-0'"
+                ></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Receive Sound Toggle -->
+          <div class="py-3.5 flex items-center justify-between" [class.opacity-50]="!soundService.settings().messagingSounds">
+            <div>
+              <div class="font-medium text-zinc-900 dark:text-white">Incoming Message Sound</div>
+              <div class="text-[11px] text-zinc-500 dark:text-zinc-400">Play a pleasant chime when receiving a new message</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                (click)="soundService.playReceiveSound()"
+                class="px-2.5 py-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-800 transition-colors"
+                title="Preview sound"
+              >
+                Test
+              </button>
+              <button
+                type="button"
+                [disabled]="!soundService.settings().messagingSounds"
+                (click)="soundService.updateSettings({ receiveSound: !soundService.settings().receiveSound })"
+                class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:cursor-not-allowed"
+                [ngClass]="soundService.settings().receiveSound && soundService.settings().messagingSounds ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-300 dark:bg-zinc-700'"
+              >
+                <span
+                  class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 shadow ring-0 transition duration-200 ease-in-out"
+                  [ngClass]="soundService.settings().receiveSound && soundService.settings().messagingSounds ? 'translate-x-4' : 'translate-x-0'"
+                ></span>
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -575,6 +665,7 @@ export class SettingsComponent implements OnInit {
   private api = inject(ApiService);
   private walkthrough = inject(WalkthroughService);
   readonly themeService = inject(ThemeService);
+  readonly soundService = inject(SoundService);
 
   user = this.auth.currentUser;
   isAdmin = this.auth.isAdmin;

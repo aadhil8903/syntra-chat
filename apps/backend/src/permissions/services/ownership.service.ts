@@ -59,6 +59,54 @@ export class OwnershipService {
         resourceUserId.toString() === userObjectId.toString());
 
     if (!isOwner) {
+      if (collectionName === 'conversations') {
+        if (resource.type === 'direct' && Array.isArray(resource.participants)) {
+          if (resource.participants.some((p: any) => p.toString() === userId.toString())) {
+            return true;
+          }
+        }
+        const sharesCollection = this.connection.collection('conversation_shares');
+        const share = await sharesCollection.findOne({
+          conversationId: objectId,
+          sharedWithUserId: userObjectId as any,
+        });
+        if (share) {
+          return true;
+        }
+      }
+
+      if (collectionName === 'messages') {
+        if (resource.conversationId) {
+          const convsCollection = this.connection.collection('conversations');
+          const conv = await convsCollection.findOne({ _id: resource.conversationId });
+          if (conv && conv.type === 'direct' && Array.isArray(conv.participants)) {
+            if (conv.participants.some((p: any) => p.toString() === userId.toString())) {
+              return true;
+            }
+          }
+        }
+
+        const sharesCollection = this.connection.collection('message_shares');
+        const share = await sharesCollection.findOne({
+          messageId: objectId,
+          sharedWithUserId: userObjectId as any,
+        });
+        if (share) {
+          return true;
+        }
+
+        if (resource.conversationId) {
+          const convSharesCollection = this.connection.collection('conversation_shares');
+          const convShare = await convSharesCollection.findOne({
+            conversationId: resource.conversationId,
+            sharedWithUserId: userObjectId as any,
+          });
+          if (convShare) {
+            return true;
+          }
+        }
+      }
+
       throw new ForbiddenException(
         `You do not have permission to access this ${collectionName.slice(0, -1)}`,
       );

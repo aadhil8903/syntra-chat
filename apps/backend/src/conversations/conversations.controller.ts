@@ -12,16 +12,65 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
+import { ConversationSharesService } from './conversation-shares.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../permissions/decorators/current-user.decorator';
-import { IConversation } from '@enter-chat/shared-types';
+import {
+  IConversation,
+  IConversationShare,
+  ISharedConversationItem,
+  IShareConversationDto,
+  IUpdateSharePermissionDto,
+  IDirectConversationItem,
+} from '@enter-chat/shared-types';
 
 @Controller('conversations')
 @UseGuards(JwtAuthGuard)
 export class ConversationsController {
-  constructor(private readonly conversationsService: ConversationsService) {}
+  constructor(
+    private readonly conversationsService: ConversationsService,
+    private readonly conversationSharesService: ConversationSharesService,
+  ) {}
+
+  @Get('shared/with-me')
+  async listSharedWithMe(
+    @CurrentUser('id') userId: string,
+  ): Promise<ISharedConversationItem[]> {
+    return this.conversationSharesService.listSharedWithUser(userId);
+  }
+
+  @Get('direct')
+  async listDirectConversations(
+    @CurrentUser('id') userId: string,
+  ): Promise<IDirectConversationItem[]> {
+    return this.conversationsService.listDirectConversations(userId);
+  }
+
+  @Post('direct')
+  async getOrCreateDirectConversation(
+    @CurrentUser('id') userId: string,
+    @Body() body: { targetUserId: string },
+  ): Promise<IConversation> {
+    return this.conversationsService.getOrCreateDirectConversation(userId, body.targetUserId);
+  }
+
+  @Get('direct/:id')
+  async getDirectConversation(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+  ): Promise<IConversation> {
+    return this.conversationsService.getDirectConversation(userId, id);
+  }
+
+  @Patch('direct/:id/read')
+  async markDirectConversationAsRead(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+  ): Promise<{ success: boolean }> {
+    return this.conversationsService.markDirectConversationAsRead(userId, id);
+  }
 
   @Post()
   async create(
@@ -56,6 +105,55 @@ export class ConversationsController {
   ): Promise<IConversation[]> {
     const isArchived = archived === 'true' ? true : archived === 'false' ? false : undefined;
     return this.conversationsService.search(userId, query, isArchived);
+  }
+
+  @Get(':id/shares')
+  async listShares(
+    @CurrentUser('id') userId: string,
+    @Param('id') conversationId: string,
+  ): Promise<IConversationShare[]> {
+    return this.conversationSharesService.listConversationShares(userId, conversationId);
+  }
+
+  @Post(':id/shares')
+  async shareConversation(
+    @CurrentUser('id') userId: string,
+    @Param('id') conversationId: string,
+    @Body() dto: IShareConversationDto,
+  ): Promise<IConversationShare[]> {
+    return this.conversationSharesService.shareConversation(userId, conversationId, dto);
+  }
+
+  @Patch(':id/shares/:targetUserId')
+  async updateSharePermission(
+    @CurrentUser('id') userId: string,
+    @Param('id') conversationId: string,
+    @Param('targetUserId') targetUserId: string,
+    @Body() dto: IUpdateSharePermissionDto,
+  ): Promise<IConversationShare> {
+    return this.conversationSharesService.updateSharePermission(
+      userId,
+      conversationId,
+      targetUserId,
+      dto.permission,
+    );
+  }
+
+  @Delete(':id/shares/:targetUserId')
+  async revokeShare(
+    @CurrentUser('id') userId: string,
+    @Param('id') conversationId: string,
+    @Param('targetUserId') targetUserId: string,
+  ): Promise<{ success: boolean }> {
+    return this.conversationSharesService.revokeShare(userId, conversationId, targetUserId);
+  }
+
+  @Delete(':id/shares/leave')
+  async leaveSharedConversation(
+    @CurrentUser('id') userId: string,
+    @Param('id') conversationId: string,
+  ): Promise<{ success: boolean }> {
+    return this.conversationSharesService.leaveSharedConversation(userId, conversationId);
   }
 
   @Get(':id')

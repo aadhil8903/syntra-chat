@@ -8,10 +8,19 @@ export type PageSizeOption = number | 'all';
   standalone: true,
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '[class.sticky]': 'position === "top"',
+    '[class.top-0]': 'position === "top"',
+    '[class.z-20]': 'position === "top"',
+    '[class.block]': 'true',
+    '[class.bg-white]': 'true',
+    '[class.dark:bg-[#111114]]': 'true',
+    '[class.rounded-b-2xl]': 'position === "bottom"',
+  },
   template: `
     <div
-      class="px-4 py-3 bg-zinc-50 dark:bg-[#09090b] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-600 dark:text-zinc-400 select-none"
-      [ngClass]="position === 'bottom' ? 'border-t border-zinc-200 dark:border-zinc-800' : 'border-b border-zinc-200 dark:border-zinc-800'"
+      class="px-4 py-3 bg-white dark:bg-[#111114] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-600 dark:text-zinc-400 select-none transition-colors"
+      [ngClass]="position === 'bottom' ? 'border-t border-zinc-200 dark:border-zinc-800 rounded-b-2xl' : 'border-b border-zinc-200 dark:border-zinc-800'"
     >
       <!-- Left: Range & Total count & Per-page selector -->
       <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start flex-wrap">
@@ -61,25 +70,21 @@ export type PageSizeOption = number | 'all';
             Previous
           </button>
 
-          <!-- Page Numbers with Ellipsis -->
+          <!-- 3-Page Sliding Window Numbers -->
           <div class="flex items-center gap-1">
-            @for (p of pages; track $index) {
-              @if (p === '...') {
-                <span class="w-7 h-7 flex items-center justify-center text-zinc-400 text-xs">...</span>
-              } @else {
-                <button
-                  type="button"
-                  (click)="onPageSelect(p)"
-                  class="w-7 h-7 rounded-lg text-xs font-medium transition-colors cursor-pointer flex items-center justify-center page-num-btn"
-                  [ngClass]="currentPage === p
-                    ? 'bg-zinc-900 text-white font-semibold dark:bg-white dark:text-black shadow-xs active-page'
-                    : 'bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'"
-                  [attr.aria-label]="'Go to page ' + p"
-                  [attr.aria-current]="currentPage === p ? 'page' : null"
-                >
-                  {{ p }}
-                </button>
-              }
+            @for (p of pages; track p) {
+              <button
+                type="button"
+                (click)="onPageSelect(p)"
+                class="w-7 h-7 rounded-lg text-xs font-medium transition-colors cursor-pointer flex items-center justify-center page-num-btn"
+                [ngClass]="currentPage === p
+                  ? 'bg-zinc-900 text-white font-semibold dark:bg-white dark:text-black shadow-xs active-page'
+                  : 'bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'"
+                [attr.aria-label]="'Go to page ' + p"
+                [attr.aria-current]="currentPage === p ? 'page' : null"
+              >
+                {{ p }}
+              </button>
             }
           </div>
 
@@ -128,23 +133,23 @@ export class PaginationComponent {
     return Math.min(this.currentPage * Number(this.pageSize), this.totalItems);
   }
 
-  get pages(): (number | string)[] {
+  get pages(): number[] {
     const total = this.totalPages;
     const current = this.currentPage;
-    if (total <= 7) {
+
+    if (total <= 3) {
       return Array.from({ length: total }, (_, i) => i + 1);
     }
-
-    if (current <= 4) {
-      return [1, 2, 3, 4, 5, '...', total];
+    if (current <= 2) {
+      return [1, 2, 3];
     }
-    if (current >= total - 3) {
-      return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+    if (current >= total - 1) {
+      return [total - 2, total - 1, total];
     }
-    return [1, '...', current - 1, current, current + 1, '...', total];
+    return [current - 1, current, current + 1];
   }
 
-  onPageSelect(page: number | string): void {
+  onPageSelect(page: number): void {
     if (typeof page === 'number' && page >= 1 && page <= this.totalPages && page !== this.currentPage) {
       this.pageChange.emit(page);
     }

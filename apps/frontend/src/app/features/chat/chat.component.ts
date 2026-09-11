@@ -29,9 +29,22 @@ import {
   IChartSpec,
   IChartSeries,
   ChartType,
+  ISharedConversationItem,
+  IConversationShare,
+  IMessageShare,
+  IOrgMember,
+  SharePermission,
+  INotification,
+  NotificationType,
+  IDirectConversationItem,
+  IReplyToPreview,
 } from '@enter-chat/shared-types';
 import { WalkthroughService } from '../../core/services/walkthrough.service';
 import { VoiceRecognitionService } from '../../core/services/voice-recognition.service';
+import { PresenceService } from '../../core/services/presence.service';
+import { NotificationService } from '../../core/services/notification.service';
+import { SharingService } from '../../core/services/sharing.service';
+import { SoundService } from '../../core/services/sound.service';
 import { TableViewerComponent } from '../../shared/components/table-viewer/table-viewer.component';
 import { ChartViewerComponent } from '../../shared/components/chart-viewer/chart-viewer.component';
 import { MentionAutocompleteComponent } from './mention-autocomplete/mention-autocomplete.component';
@@ -40,6 +53,11 @@ import { PdfReportService } from '../../core/services/pdf-report.service';
 import { CitationBadgeComponent } from '../../shared/components/citation-badge/citation-badge.component';
 import { MarkdownPipe } from '../../shared/pipes/markdown.pipe';
 import { ChatDraftService, TEMPORARY_NEW_CHAT_ID } from '../../core/services/chat-draft.service';
+import { ShareConversationModalComponent } from '../../shared/components/share-conversation-modal/share-conversation-modal.component';
+import { ShareMessageModalComponent } from '../../shared/components/share-message-modal/share-message-modal.component';
+import { SharedMessageViewerModalComponent } from '../../shared/components/shared-message-viewer-modal/shared-message-viewer-modal.component';
+import { UserProfilePopoverComponent } from '../../shared/components/user-profile-popover/user-profile-popover.component';
+import { OrgDirectoryModalComponent } from '../../shared/components/org-directory-modal/org-directory-modal.component';
 import jsPDF from 'jspdf';
 import hljs from 'highlight.js';
 
@@ -64,6 +82,11 @@ export interface IDynamicStarterCard {
     TextSelectionToolbarComponent,
     CitationBadgeComponent,
     MarkdownPipe,
+    ShareConversationModalComponent,
+    ShareMessageModalComponent,
+    SharedMessageViewerModalComponent,
+    UserProfilePopoverComponent,
+    OrgDirectoryModalComponent,
   ],
   template: `
     <div class="flex h-full bg-[#f7f8fa] dark:bg-[#09090b] overflow-hidden select-text relative">
@@ -193,8 +216,12 @@ export interface IDynamicStarterCard {
                       <button
                         type="button"
                         (click)="toggleActionMenu(conv, $event)"
-                        class="p-1 rounded-md text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 flex-shrink-0"
+                        class="p-1 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/80 active:bg-zinc-200 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 dark:active:bg-zinc-700 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
                         [class.opacity-100]="openActionMenuConvId === conv.id"
+                        [class.bg-zinc-200]="openActionMenuConvId === conv.id"
+                        [class.text-zinc-900]="openActionMenuConvId === conv.id"
+                        [class.dark:bg-zinc-800]="openActionMenuConvId === conv.id"
+                        [class.dark:text-white]="openActionMenuConvId === conv.id"
                         title="Chat options"
                         aria-label="Chat options"
                       >
@@ -209,6 +236,125 @@ export interface IDynamicStarterCard {
                 </div>
               </div>
             } @else {
+              <!-- Pinned Chats Section -->
+              @if (getPinnedChats().length > 0) {
+                <div class="space-y-1">
+                  <div class="flex items-center justify-between px-2 py-1 text-xs select-none">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-[#71717a]">Pinned</span>
+                    <span class="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono font-medium">({{ getPinnedChats().length }})</span>
+                  </div>
+
+                  <div class="space-y-0.5">
+                    @for (conv of getPinnedChats(); track conv.id) {
+                      <div
+                        [id]="'conv-item-' + conv.id"
+                        (click)="selectConversation(conv)"
+                        draggable="true"
+                        (dragstart)="onDragStartChat(conv, $event)"
+                        (dragend)="onDragEndChat()"
+                        [ngClass]="activeConversation?.id === conv.id ? 'bg-[#f0f1f3] text-zinc-900 font-medium border border-[#dcdde1] dark:bg-[#18181b] dark:text-white dark:border-[#3f3f46]' : 'text-zinc-500 hover:text-zinc-900 hover:bg-[#f0f1f3] dark:text-[#71717a] dark:hover:text-white dark:hover:bg-[#141417]'"
+                        class="group flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-all text-xs select-none relative"
+                      >
+                        <div class="flex items-center gap-2 truncate flex-1 min-w-0">
+                          <svg class="w-3.5 h-3.5 flex-shrink-0 text-zinc-600 dark:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="17" x2="12" y2="22"></line>
+                            <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>
+                          </svg>
+                          <span class="truncate">{{ conv.title }}</span>
+                        </div>
+                        <div class="flex items-center gap-1 flex-shrink-0">
+                          @if (chatState.isGenerating(conv.id)) {
+                            <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse flex-shrink-0"></span>
+                          }
+                          <!-- 3-Dot Action Button -->
+                          <button
+                            type="button"
+                            (click)="toggleActionMenu(conv, $event)"
+                            class="p-1 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/80 active:bg-zinc-200 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 dark:active:bg-zinc-700 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
+                            [class.opacity-100]="openActionMenuConvId === conv.id"
+                            [class.bg-zinc-200]="openActionMenuConvId === conv.id"
+                            [class.text-zinc-900]="openActionMenuConvId === conv.id"
+                            [class.dark:bg-zinc-800]="openActionMenuConvId === conv.id"
+                            [class.dark:text-white]="openActionMenuConvId === conv.id"
+                            title="Chat options"
+                            aria-label="Chat options"
+                          >
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                              <circle cx="12" cy="5" r="2"></circle>
+                              <circle cx="12" cy="12" r="2"></circle>
+                              <circle cx="12" cy="19" r="2"></circle>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+
+              <!-- Shared With You Section -->
+              @if (chatState.sharedConversations().length > 0) {
+                <div data-tour="shared-chats" class="space-y-1">
+                  <!-- Compact Shared With You Header Row -->
+                  <div
+                    (click)="toggleSharedSectionCollapse()"
+                    class="flex items-center justify-between px-2 py-1 text-xs select-none min-w-0 rounded-lg cursor-pointer text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors group"
+                    title="Toggle shared with you section"
+                  >
+                    <div class="flex items-center gap-1.5 min-w-0 flex-1 truncate">
+                      <svg
+                        class="w-3 h-3 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-transform flex-shrink-0"
+                        [ngClass]="isSharedGroupExpanded ? 'rotate-90 text-zinc-700 dark:text-zinc-300' : ''"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                      </svg>
+                      <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-[#71717a] group-hover:text-zinc-900 dark:group-hover:text-zinc-300 truncate">Shared With You</span>
+                      <span class="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono font-medium flex-shrink-0">({{ chatState.sharedConversations().length }})</span>
+                    </div>
+                  </div>
+
+                  <!-- Shared List (when group expanded) -->
+                  @if (isSharedGroupExpanded) {
+                    <div class="space-y-0.5">
+                      @for (shared of chatState.sharedConversations(); track shared.id) {
+                        <div
+                          [id]="'conv-item-' + shared.id"
+                          (click)="selectSharedConversation(shared)"
+                          [ngClass]="activeConversation?.id === shared.id ? 'bg-[#f0f1f3] text-zinc-900 font-medium border border-[#dcdde1] dark:bg-[#18181b] dark:text-white dark:border-[#3f3f46]' : 'text-zinc-500 hover:text-zinc-900 hover:bg-[#f0f1f3] dark:text-[#71717a] dark:hover:text-white dark:hover:bg-[#141417]'"
+                          class="group flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-all text-xs select-none relative"
+                        >
+                          <div class="flex items-center gap-2 truncate flex-1 min-w-0">
+                            <svg class="w-3.5 h-3.5 flex-shrink-0 text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            <span class="truncate">{{ shared.title }}</span>
+                          </div>
+
+                          <div class="flex items-center gap-1.5 flex-shrink-0">
+                            <span class="text-[9px] px-1.5 py-0.5 rounded font-mono font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-200/70 dark:bg-zinc-800">
+                              {{ shared.permission === 'contribute' ? 'edit' : 'view' }}
+                            </span>
+
+                            <button
+                              type="button"
+                              (click)="leaveSharedConversation(shared, $event)"
+                              class="p-1 rounded-md text-zinc-400 hover:text-rose-600 hover:bg-zinc-200/80 dark:hover:bg-zinc-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                              title="Leave shared chat"
+                            >
+                              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+
               <!-- Collections Section -->
               <div data-tour="collections-section" class="space-y-1">
                 <!-- Compact Collections Header Row -->
@@ -350,8 +496,12 @@ export interface IDynamicStarterCard {
                                   <button
                                     type="button"
                                     (click)="toggleActionMenu(conv, $event)"
-                                    class="p-1 rounded-md text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors opacity-0 group-hover/item:opacity-100 focus:opacity-100 flex-shrink-0"
+                                    class="p-1 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/80 active:bg-zinc-200 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 dark:active:bg-zinc-700 transition-colors opacity-0 group-hover/item:opacity-100 focus:opacity-100 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
                                     [class.opacity-100]="openActionMenuConvId === conv.id"
+                                    [class.bg-zinc-200]="openActionMenuConvId === conv.id"
+                                    [class.text-zinc-900]="openActionMenuConvId === conv.id"
+                                    [class.dark:bg-zinc-800]="openActionMenuConvId === conv.id"
+                                    [class.dark:text-white]="openActionMenuConvId === conv.id"
                                     title="Chat options"
                                     aria-label="Chat options"
                                   >
@@ -394,58 +544,6 @@ export interface IDynamicStarterCard {
                 }
               </div>
 
-              <!-- Pinned Chats Section -->
-              @if (getPinnedChats().length > 0) {
-                <div class="space-y-1">
-                  <div class="flex items-center justify-between px-2 py-1 text-xs select-none">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-[#71717a]">Pinned</span>
-                    <span class="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono font-medium">({{ getPinnedChats().length }})</span>
-                  </div>
-
-                  <div class="space-y-0.5">
-                    @for (conv of getPinnedChats(); track conv.id) {
-                      <div
-                        [id]="'conv-item-' + conv.id"
-                        (click)="selectConversation(conv)"
-                        draggable="true"
-                        (dragstart)="onDragStartChat(conv, $event)"
-                        (dragend)="onDragEndChat()"
-                        [ngClass]="activeConversation?.id === conv.id ? 'bg-[#f0f1f3] text-zinc-900 font-medium border border-[#dcdde1] dark:bg-[#18181b] dark:text-white dark:border-[#3f3f46]' : 'text-zinc-500 hover:text-zinc-900 hover:bg-[#f0f1f3] dark:text-[#71717a] dark:hover:text-white dark:hover:bg-[#141417]'"
-                        class="group flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-all text-xs select-none relative"
-                      >
-                        <div class="flex items-center gap-2 truncate flex-1 min-w-0">
-                          <svg class="w-3.5 h-3.5 flex-shrink-0 text-zinc-600 dark:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="17" x2="12" y2="22"></line>
-                            <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>
-                          </svg>
-                          <span class="truncate">{{ conv.title }}</span>
-                        </div>
-                        <div class="flex items-center gap-1 flex-shrink-0">
-                          @if (chatState.isGenerating(conv.id)) {
-                            <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse flex-shrink-0"></span>
-                          }
-                          <!-- 3-Dot Action Button -->
-                          <button
-                            type="button"
-                            (click)="toggleActionMenu(conv, $event)"
-                            class="p-1 rounded-md text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 flex-shrink-0"
-                            [class.opacity-100]="openActionMenuConvId === conv.id"
-                            title="Chat options"
-                            aria-label="Chat options"
-                          >
-                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                              <circle cx="12" cy="5" r="2"></circle>
-                              <circle cx="12" cy="12" r="2"></circle>
-                              <circle cx="12" cy="19" r="2"></circle>
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    }
-                  </div>
-                </div>
-              }
-
               <!-- Recent Chats / Uncollected Chats -->
               <div data-tour="recent-chats" class="space-y-1">
                 <div class="flex items-center justify-between px-2 py-1 text-xs select-none">
@@ -484,8 +582,12 @@ export interface IDynamicStarterCard {
                       <button
                         type="button"
                         (click)="toggleActionMenu(conv, $event)"
-                        class="p-1 rounded-md text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 flex-shrink-0"
+                        class="p-1 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/80 active:bg-zinc-200 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 dark:active:bg-zinc-700 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
                         [class.opacity-100]="openActionMenuConvId === conv.id"
+                        [class.bg-zinc-200]="openActionMenuConvId === conv.id"
+                        [class.text-zinc-900]="openActionMenuConvId === conv.id"
+                        [class.dark:bg-zinc-800]="openActionMenuConvId === conv.id"
+                        [class.dark:text-white]="openActionMenuConvId === conv.id"
                         title="Chat options"
                         aria-label="Chat options"
                       >
@@ -515,353 +617,814 @@ export interface IDynamicStarterCard {
       <div class="flex-1 flex flex-col h-full min-w-0 bg-[#f7f8fa] dark:bg-[#09090b] relative">
 
         <!-- Chat Header -->
-        <div class="h-12 border-b border-[#dcdde1] dark:border-[#27272a] px-3 sm:px-4 flex items-center justify-between flex-shrink-0 bg-white dark:bg-[#09090b]">
-          <div class="flex items-center gap-2 sm:gap-3 min-w-0">
-            @if (isConvCollapsed) {
-              <button
-                (click)="toggleConvCollapse()"
-                class="min-w-[36px] min-h-[36px] -ml-1 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#18181b] flex items-center justify-center transition-colors cursor-pointer"
-                title="Show sidebar"
-                aria-label="Show sidebar"
-              >
-                <svg class="w-4 h-4" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                </svg>
-              </button>
-              @if (!isArchivedView) {
+        <div class="h-14 border-b border-[#dcdde1] dark:border-[#27272a] px-3 sm:px-4 flex items-center justify-between flex-shrink-0 bg-white dark:bg-[#09090b]">
+          @if (isDirectMode && activeDirectPartner; as partner) {
+            <!-- Dedicated Direct Message Header -->
+            <div class="flex items-center gap-3 min-w-0">
+              @if (isConvCollapsed) {
                 <button
-                  (click)="createNewConversation()"
-                  class="min-w-[36px] min-h-[36px] rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#18181b] flex items-center justify-center transition-colors cursor-pointer"
-                  title="New Chat"
-                  aria-label="New Chat"
+                  (click)="toggleConvCollapse()"
+                  class="min-w-[34px] min-h-[34px] -ml-1 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#18181b] flex items-center justify-center transition-colors cursor-pointer"
+                  title="Show sidebar"
+                  aria-label="Show sidebar"
                 >
                   <svg class="w-4 h-4" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                   </svg>
                 </button>
               }
-            }
-            <div class="w-2 h-2 rounded-full flex-shrink-0" [ngClass]="isCurrentGenerating ? 'bg-zinc-900 dark:bg-zinc-300 animate-pulse' : 'bg-zinc-400 dark:bg-zinc-600'"></div>
-            <div class="flex items-center gap-2 truncate">
-              <h2 class="font-medium text-zinc-900 dark:text-white text-xs tracking-tight truncate max-w-[180px] sm:max-w-md">
-                {{ isTemporaryMode ? 'Temporary Chat' : (isArchivedView && !activeConversation ? 'Archived Chats' : (activeConversation?.title || 'New Workplace Session')) }}
-              </h2>
-              @if (activeConversation?.archived) {
-                <span class="text-[10px] font-mono text-zinc-500 dark:text-zinc-400">Archived</span>
-              }
-            </div>
-          </div>
 
-          <div class="flex items-center gap-2">
-            @if (activeConversation?.archived) {
+              <!-- Partner Avatar with Presence Indicator -->
+              <div
+                (click)="openDirectPartnerProfile(partner, $event)"
+                class="relative cursor-pointer flex-shrink-0 group overflow-visible"
+                title="View profile"
+              >
+                <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-zinc-200 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:text-white dark:border-zinc-700 font-semibold text-xs flex items-center justify-center shadow-xs ring-1 ring-black/5 dark:ring-white/10 group-hover:ring-zinc-400 transition-all select-none">
+                  {{ getPartnerInitials(partner) }}
+                </div>
+                <span
+                  class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-[#09090b] z-10"
+                  [ngClass]="partner.presence?.isOnline ? 'bg-emerald-500' : 'bg-zinc-400'"
+                ></span>
+              </div>
+
+              <!-- Partner Info (Name, Role, Presence, Email) -->
+              <div class="min-w-0 flex flex-col justify-center">
+                <div class="flex items-center gap-2">
+                  <span
+                    (click)="openDirectPartnerProfile(partner, $event)"
+                    class="font-semibold text-zinc-900 dark:text-white text-xs sm:text-sm tracking-tight truncate cursor-pointer hover:underline"
+                  >
+                    {{ partner.firstName }} {{ partner.lastName }}
+                  </span>
+                  @if (partner.role) {
+                    <span class="px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-zinc-800 text-[10px] font-mono text-zinc-700 dark:text-zinc-300 capitalize border border-zinc-200 dark:border-zinc-700">
+                      {{ partner.role }}
+                    </span>
+                  }
+                </div>
+                <div class="flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                  <span class="font-medium" [ngClass]="partner.presence?.isOnline ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-500 dark:text-zinc-400'">
+                    {{ partner.presence?.isOnline ? 'Active now' : 'Offline' }}
+                  </span>
+                  @if (partner.email) {
+                    <span class="text-zinc-300 dark:text-zinc-600">·</span>
+                    <span class="truncate hover:text-zinc-700 dark:hover:text-zinc-300 select-all" [title]="partner.email">
+                      {{ partner.email }}
+                    </span>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <!-- Header Actions -->
+            <div class="flex items-center gap-2">
               <button
                 type="button"
-                (click)="toggleArchive(activeConversation!)"
-                class="min-h-[30px] px-2.5 py-1 rounded-md text-xs border bg-white hover:bg-zinc-50 text-zinc-600 hover:text-zinc-900 dark:bg-[#18181b] dark:hover:bg-[#27272a] dark:text-[#a1a1aa] dark:hover:text-white border-[#dcdde1] dark:border-[#27272a] flex items-center gap-1.5 transition-colors cursor-pointer"
-                title="Unarchive chat"
+                (click)="openDirectPartnerProfile(partner, $event)"
+                class="min-h-[30px] px-2.5 py-1 rounded-md text-xs border bg-white hover:bg-zinc-50 text-zinc-700 hover:text-zinc-900 dark:bg-[#18181b] dark:hover:bg-[#27272a] dark:text-[#a1a1aa] dark:hover:text-white border-[#dcdde1] dark:border-[#27272a] flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="View partner details"
               >
                 <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                <span>Unarchive</span>
+                <span class="hidden sm:inline">Profile</span>
               </button>
-            }
-
-            @if (!isArchivedView) {
-              <!-- Temporary Chat Toggle -->
-              <button
-                type="button"
-                (click)="toggleTemporaryMode()"
-                [ngClass]="isTemporaryMode ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100 font-medium' : 'bg-white hover:bg-zinc-50 text-zinc-600 hover:text-zinc-900 dark:bg-[#18181b] dark:hover:bg-[#27272a] dark:text-[#a1a1aa] dark:hover:text-white border-[#dcdde1] dark:border-[#27272a]'"
-                class="min-h-[30px] px-2.5 py-1 rounded-md text-xs border flex items-center gap-2 transition-colors cursor-pointer"
-                [title]="isTemporaryMode ? 'Exit Temporary Chat' : 'Enable Temporary Chat'"
-                aria-label="Toggle temporary chat mode"
-              >
-                <span>Temporary Chat</span>
-                @if (!isTemporaryMode) {
-                  <!-- Empty dashed chat bubble icon (OFF) -->
-                  <svg class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path stroke-dasharray="4 3" d="M12 21a9 9 0 10-9-9c0 1.48.36 2.88 1 4.11L3 21l4.89-1c1.23.64 2.63 1 4.11 1z" />
+              @if (messages.length > 0) {
+                <button
+                  (click)="exportConversationPdf()"
+                  class="min-h-[30px] px-2.5 py-1 rounded-md text-xs border bg-white hover:bg-zinc-50 text-zinc-700 hover:text-zinc-900 dark:bg-[#18181b] dark:hover:bg-[#27272a] dark:text-[#a1a1aa] dark:hover:text-white border-[#dcdde1] dark:border-[#27272a] flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Export direct conversation as PDF"
+                >
+                  <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                } @else {
-                  <!-- Dashed chat bubble with checkmark icon (ON) -->
-                  <svg class="w-3.5 h-3.5 text-white dark:text-zinc-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path stroke-dasharray="4 3" d="M12 21a9 9 0 10-9-9c0 1.48.36 2.88 1 4.11L3 21l4.89-1c1.23.64 2.63 1 4.11 1z" />
-                    <path stroke-dasharray="none" stroke-width="2.5" d="M8.5 12l2.5 2.5 5-5" />
+                  <span class="hidden sm:inline">Export</span>
+                </button>
+              }
+            </div>
+          } @else {
+            <!-- Standard Workspace / AI Header -->
+            <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+              @if (isConvCollapsed) {
+                <button
+                  (click)="toggleConvCollapse()"
+                  class="min-w-[36px] min-h-[36px] -ml-1 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#18181b] flex items-center justify-center transition-colors cursor-pointer"
+                  title="Show sidebar"
+                  aria-label="Show sidebar"
+                >
+                  <svg class="w-4 h-4" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                   </svg>
+                </button>
+                @if (!isArchivedView) {
+                  <button
+                    (click)="createNewConversation()"
+                    class="min-w-[36px] min-h-[36px] rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-[#a1a1aa] dark:hover:text-white dark:hover:bg-[#18181b] flex items-center justify-center transition-colors cursor-pointer"
+                    title="New Chat"
+                    aria-label="New Chat"
+                  >
+                    <svg class="w-4 h-4" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
                 }
-              </button>
-            }
-
-            @if (chatState.activeGenerationsCount() > 0) {
-              <div class="flex items-center gap-1.5 text-[11px] font-mono text-zinc-600 dark:text-zinc-400">
-                <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
-                <span>{{ chatState.activeGenerationsCount() }}/2 Active Chats</span>
+              }
+              <div class="w-2 h-2 rounded-full flex-shrink-0" [ngClass]="isCurrentGenerating ? 'bg-zinc-900 dark:bg-zinc-300 animate-pulse' : 'bg-zinc-400 dark:bg-zinc-600'"></div>
+              <div class="flex items-center gap-2 truncate">
+                <h2 class="font-medium text-zinc-900 dark:text-white text-xs tracking-tight truncate max-w-[180px] sm:max-w-md">
+                  {{ isTemporaryMode ? 'Temporary Chat' : (isArchivedView && !activeConversation ? 'Archived Chats' : (activeConversation?.title || 'New Workplace Session')) }}
+                </h2>
+                @if (activeConversation?.archived) {
+                  <span class="text-[10px] font-mono text-zinc-500 dark:text-zinc-400">Archived</span>
+                }
+                @if (activeSharedConversationInfo?.owner; as owner) {
+                  <button
+                    type="button"
+                    (click)="openOwnerProfile(owner, $event)"
+                    class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-[11px] transition-colors"
+                    title="View owner profile and presence"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full" [ngClass]="owner.presence?.isOnline ? 'bg-emerald-500' : 'bg-zinc-400'"></span>
+                    <span>Shared by {{ owner.firstName }}</span>
+                    <span class="text-[9px] font-mono uppercase text-zinc-500">({{ activeSharedConversationInfo?.permission === 'contribute' ? 'Contribute' : 'View Only' }})</span>
+                  </button>
+                }
               </div>
-            }
-            @if (messages.length > 0) {
-              <button
-                (click)="exportConversationPdf()"
-                class="min-h-[36px] px-2.5 py-1 rounded-lg bg-white hover:bg-zinc-100 text-zinc-700 hover:text-zinc-900 dark:bg-[#18181b] dark:hover:bg-[#27272a] text-xs font-medium border border-[#dcdde1] dark:border-[#27272a] dark:text-[#a1a1aa] dark:hover:text-white flex items-center gap-1.5 transition-colors"
-                title="Export as PDF"
-              >
-                <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span class="hidden sm:inline">Export PDF</span>
-              </button>
-            }
-          </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              @if (activeConversation && !isTemporaryMode && !isArchivedView) {
+                <button
+                  type="button"
+                  (click)="handleHeaderShare($event)"
+                  class="min-h-[30px] px-2.5 py-1 rounded-md text-xs border bg-white hover:bg-zinc-50 text-zinc-700 hover:text-zinc-900 dark:bg-[#18181b] dark:hover:bg-[#27272a] dark:text-[#a1a1aa] dark:hover:text-white border-[#dcdde1] dark:border-[#27272a] flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Share this conversation with team members"
+                >
+                  <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  <span class="hidden sm:inline">Share</span>
+                </button>
+              }
+
+              @if (activeConversation?.archived) {
+                <button
+                  type="button"
+                  (click)="toggleArchive(activeConversation!)"
+                  class="min-h-[30px] px-2.5 py-1 rounded-md text-xs border bg-white hover:bg-zinc-50 text-zinc-600 hover:text-zinc-900 dark:bg-[#18181b] dark:hover:bg-[#27272a] dark:text-[#a1a1aa] dark:hover:text-white border-[#dcdde1] dark:border-[#27272a] flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Unarchive chat"
+                >
+                  <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                  <span>Unarchive</span>
+                </button>
+              }
+
+              @if (!isArchivedView) {
+                <!-- Temporary Chat Toggle -->
+                <button
+                  type="button"
+                  (click)="toggleTemporaryMode()"
+                  [ngClass]="isTemporaryMode ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100 font-medium' : 'bg-white hover:bg-zinc-50 text-zinc-600 hover:text-zinc-900 dark:bg-[#18181b] dark:hover:bg-[#27272a] dark:text-[#a1a1aa] dark:hover:text-white border-[#dcdde1] dark:border-[#27272a]'"
+                  class="min-h-[30px] px-2.5 py-1 rounded-md text-xs border flex items-center gap-2 transition-colors cursor-pointer"
+                  [title]="isTemporaryMode ? 'Exit Temporary Chat' : 'Enable Temporary Chat'"
+                  aria-label="Toggle temporary chat mode"
+                >
+                  <span>Temporary Chat</span>
+                  @if (!isTemporaryMode) {
+                    <svg class="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path stroke-dasharray="4 3" d="M12 21a9 9 0 10-9-9c0 1.48.36 2.88 1 4.11L3 21l4.89-1c1.23.64 2.63 1 4.11 1z" />
+                    </svg>
+                  } @else {
+                    <svg class="w-3.5 h-3.5 text-white dark:text-zinc-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path stroke-dasharray="4 3" d="M12 21a9 9 0 10-9-9c0 1.48.36 2.88 1 4.11L3 21l4.89-1c1.23.64 2.63 1 4.11 1z" />
+                      <path stroke-dasharray="none" stroke-width="2.5" d="M8.5 12l2.5 2.5 5-5" />
+                    </svg>
+                  }
+                </button>
+              }
+
+              @if (chatState.activeGenerationsCount() > 0) {
+                <div class="flex items-center gap-1.5 text-[11px] font-mono text-zinc-600 dark:text-zinc-400">
+                  <span class="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
+                  <span>{{ chatState.activeGenerationsCount() }}/2 Active Chats</span>
+                </div>
+              }
+              @if (messages.length > 0) {
+                <button
+                  (click)="exportConversationPdf()"
+                  class="min-h-[36px] px-2.5 py-1 rounded-lg bg-white hover:bg-zinc-100 text-zinc-700 hover:text-zinc-900 dark:bg-[#18181b] dark:hover:bg-[#27272a] text-xs font-medium border border-[#dcdde1] dark:border-[#27272a] dark:text-[#a1a1aa] dark:hover:text-white flex items-center gap-1.5 transition-colors"
+                  title="Export as PDF"
+                >
+                  <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span class="hidden sm:inline">Export PDF</span>
+                </button>
+              }
+            </div>
+          }
         </div>
 
         <!-- Messages Thread -->
-        <div #scrollContainer class="flex-1 overflow-y-auto px-2.5 sm:px-6 lg:px-8 pt-3 pb-12 sm:pt-4 sm:pb-16 space-y-2.5 sm:space-y-4 max-w-4xl mx-auto w-full min-h-0">
-          <!-- Temporary Mode Notice Banner -->
-          @if (isTemporaryMode && !isTemporaryNoticeDismissed) {
-            <div class="px-3 py-2 rounded-lg bg-zinc-100/80 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs flex items-center justify-between animate-fade-in mb-3">
-              <div class="flex items-center gap-2">
-                <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>Messages from this session aren't saved to chat history.</span>
-              </div>
-              <button
-                type="button"
-                (click)="dismissTemporaryNotice()"
-                class="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer ml-3 flex-shrink-0"
-                title="Dismiss message"
-                aria-label="Dismiss message"
-              >
-                Dismiss
-              </button>
-            </div>
-          }
-
-          @if (isArchivedView && !activeConversation) {
-            <div class="h-full flex flex-col items-center justify-center text-center space-y-4 py-12 animate-fade-in my-auto">
-              <div class="w-12 h-12 rounded-2xl bg-white dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] flex items-center justify-center p-2.5 text-zinc-400">
-                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                </svg>
-              </div>
-              <div class="space-y-1.5">
-                <h3 class="text-base font-semibold text-zinc-900 dark:text-white">Archived Conversations</h3>
-                <p class="text-xs text-zinc-500 dark:text-[#a1a1aa] leading-relaxed max-w-md mx-auto">
-                  Select an archived conversation from the sidebar to view its message history, citations, and analytical insights.
-                </p>
-              </div>
-            </div>
-          } @else if (messages.length === 0 && !isCurrentGenerating) {
-            <div class="h-full flex flex-col items-center justify-center text-center space-y-6 py-12 animate-fade-in my-auto">
-              <div class="w-12 h-12 rounded-2xl bg-white dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] flex items-center justify-center p-2.5">
-                <img src="/logo-icon.svg" alt="Syntra" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
-              </div>
-              <div class="space-y-1.5">
-                <h3 class="text-base font-semibold text-zinc-900 dark:text-white">Syntra Chat AI Assistant</h3>
-                <p class="text-xs text-zinc-500 dark:text-[#a1a1aa] leading-relaxed max-w-md mx-auto">
-                  Ask questions, summarize documents, analyze spreadsheets and datasets, or mention specific files with <span class="text-zinc-900 dark:text-white font-mono bg-[#f0f1f3] dark:bg-[#18181b] px-1.5 py-0.5 rounded border border-[#dcdde1] dark:border-[#27272a]">&#64;</span>.
-                </p>
-              </div>
-
-              <!-- Quick Prompt Starters (Dynamic Workspace Cards) -->
-              @if (dynamicStarters.length > 0) {
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 w-full text-left pt-2">
-                  @for (card of dynamicStarters; track card.title) {
-                    <button
-                      (click)="sendQuickPrompt(card.promptText, card.resource)"
-                      class="p-3 rounded-xl bg-white hover:bg-[#f8f9fa] dark:bg-[#111114] dark:hover:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] hover:border-zinc-400 dark:hover:border-[#3f3f46] transition-all text-xs space-y-1 group"
-                    >
-                      <div class="font-medium text-zinc-900 dark:text-white flex items-center gap-1.5 truncate">
-                        <span class="text-sm flex-shrink-0">{{ card.icon }}</span>
-                        <span class="truncate font-semibold text-zinc-900 dark:text-zinc-100">{{ card.title }}</span>
-                      </div>
-                      <div class="text-zinc-500 dark:text-[#71717a] text-[11px] truncate group-hover:text-zinc-700 dark:group-hover:text-[#a1a1aa] transition-colors">
-                        {{ card.subtitle }}
-                      </div>
-                    </button>
-                  }
+        <div #scrollContainer (scroll)="onScrollContainerScrolled()" class="flex-1 overflow-y-auto px-2.5 sm:px-6 lg:px-8 pt-3 pb-12 sm:pt-4 sm:pb-16 max-w-4xl mx-auto w-full min-h-0 relative" [ngClass]="isDirectMode ? 'space-y-1.5' : 'space-y-2.5 sm:space-y-4'">
+          @if (isDirectMode) {
+            <!-- Direct Message Thread View -->
+            @if (messages.length === 0) {
+              <!-- Empty Direct Message Partner Welcome Card -->
+              <div class="h-full flex flex-col items-center justify-center text-center space-y-4 py-12 animate-fade-in my-auto select-none">
+                <div class="relative">
+                  <div class="w-16 h-16 rounded-full bg-zinc-200 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:text-white dark:border-zinc-700 font-bold text-xl flex items-center justify-center shadow-lg ring-4 ring-zinc-100 dark:ring-zinc-800 transition-colors">
+                    {{ getPartnerInitials(activeDirectPartner) }}
+                  </div>
+                  <span
+                    class="absolute bottom-0 right-0 w-4 h-4 rounded-full ring-2 ring-white dark:ring-[#09090b] z-10"
+                    [ngClass]="activeDirectPartner?.presence?.isOnline ? 'bg-emerald-500' : 'bg-zinc-400'"
+                  ></span>
                 </div>
-              }
-            </div>
-          }
-
-          @for (msg of messages; track $index; let msgIdx = $index) {
-            @if (msg.role === 'user' || (msg.content && msg.content.length > 0) || msg.generatedChart || (msg.generatedCharts && msg.generatedCharts.length > 0) || msg.generatedTable || msg.pythonCode || getDisplayChart(msg)) {
-              <div
-                [ngClass]="msg.role === 'user' ? 'justify-end' : 'justify-start'"
-                class="flex gap-2 sm:gap-3 animate-fade-in"
-              >
-                @if (msg.role !== 'user') {
-                  <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-white dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] flex items-center justify-center flex-shrink-0 p-0.5 sm:p-1 mt-0.5 shadow-xs">
-                    <img src="/logo-icon.svg" alt="Syntra" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
-                  </div>
-                }
-
-                <div
-                  [ngClass]="msg.role === 'user' ? 'bg-[#eceef1] text-[#17191c] border border-[#dcdde1] dark:border-transparent dark:bg-[#212124] dark:text-white rounded-2xl rounded-tr-sm px-3 py-2 sm:px-4 sm:py-3 shadow-xs dark:shadow-[0_1px_3px_rgba(0,0,0,0.35)] max-w-[90%] sm:max-w-[85%]' : 'bg-transparent text-zinc-900 dark:text-white max-w-full'"
-                  class="text-sm leading-relaxed group relative min-w-0"
-                >
-                  <!-- Rendered Rich Markdown Content -->
-                  @if (msg.role === 'user') {
-                    @if (msg.referencedResourceIds && msg.referencedResourceIds.length > 0) {
-                      <div class="flex flex-wrap items-center gap-1.5 mb-2.5">
-                        @for (rId of msg.referencedResourceIds; track rId) {
-                          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/95 dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#38383c] text-zinc-800 dark:text-zinc-200 text-xs font-mono shadow-2xs">
-                            <span class="text-rose-600 dark:text-rose-400 font-bold">&#64;</span>
-                            <span class="font-medium truncate max-w-[280px]">{{ getResourceDisplayName(rId) }}</span>
-                          </span>
-                        }
-                      </div>
-                    }
-                    <div class="whitespace-pre-wrap text-sm">{{ msg.content }}</div>
-                  } @else {
-                    <div class="prose-ai" [innerHTML]="getDisplayContent(msg) | markdown"></div>
-                  }
-
-                  <!-- Python Execution Code Viewer Accordion -->
-                  @if (msg.pythonCode) {
-                    <details class="mt-3 text-xs border border-[#dcdde1] dark:border-[#27272a] rounded-xl overflow-hidden bg-white dark:bg-black shadow-sm dark:shadow-xl">
-                      <summary class="px-3.5 py-2 cursor-pointer text-zinc-700 hover:text-zinc-900 dark:text-[#a1a1aa] dark:hover:text-white font-mono font-medium flex items-center justify-between bg-[#f8f9fa] dark:bg-[#0a0a0c] border-b border-[#dcdde1] dark:border-[#27272a]/70 select-none">
-                        <span class="flex items-center gap-2">
-                          <svg class="w-3.5 h-3.5 text-[#3b82f6]" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                          </svg>
-                          <span class="text-zinc-800 dark:text-zinc-300 font-semibold">Python Calculation Script</span>
-                        </span>
-                        <div class="flex items-center gap-2.5">
-                          <span class="text-[10px] text-zinc-500 font-mono">Python 3.11</span>
-                          <button type="button" class="copy-code-btn inline-flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white px-2 py-0.5 rounded hover:bg-zinc-200/60 dark:hover:bg-zinc-800 transition-all cursor-pointer select-none active:scale-95" (click)="$event.stopPropagation(); copyDirectText(msg.pythonCode, $event)" title="Copy Python script">
-                            <svg class="copy-icon w-3.5 h-3.5" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                            <span class="copy-text font-sans">Copy</span>
-                          </button>
-                        </div>
-                      </summary>
-                      <div class="p-3.5 bg-[#f8f9fa] dark:bg-black font-mono text-[12px] overflow-x-auto overflow-y-auto max-h-80 leading-relaxed">
-                        <pre class="hljs-vscode-dark m-0"><code class="hljs language-python" [innerHTML]="highlightCode(msg.pythonCode, 'python')"></code></pre>
-                      </div>
-                    </details>
-                  }
-
-                  <!-- Generated Table (if available) -->
-                  @if (msg.generatedTable) {
-                    <app-table-viewer [table]="msg.generatedTable"></app-table-viewer>
-                  }
-
-                  <!-- Generated Charts (Single, Multiple, or Embedded JSON) -->
-                  <div data-tour="chat-charts">
-                    @if (msg.generatedCharts && msg.generatedCharts.length > 0) {
-                      @for (chart of msg.generatedCharts; track $index) {
-                        <app-chart-viewer [chartSpec]="chart"></app-chart-viewer>
-                      }
-                    } @else if (getDisplayChart(msg)) {
-                      <app-chart-viewer [chartSpec]="getDisplayChart(msg)!"></app-chart-viewer>
+                <div class="space-y-1 max-w-sm">
+                  <div class="flex items-center justify-center gap-2">
+                    <h3 class="text-base font-semibold text-zinc-900 dark:text-white">
+                      {{ activeDirectPartner?.firstName }} {{ activeDirectPartner?.lastName }}
+                    </h3>
+                    @if (activeDirectPartner?.role) {
+                      <span class="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-[10px] font-mono text-zinc-600 dark:text-zinc-400 capitalize border border-zinc-200 dark:border-zinc-700">
+                        {{ activeDirectPartner.role }}
+                      </span>
                     }
                   </div>
-
-                  <!-- Direct Downloadable File Attachment Preview (if any) -->
-                  @if (msg.downloadableFile) {
-                    <div class="mt-3 flex items-center">
-                      <div
-                        (click)="downloadChatFile(msg.downloadableFile)"
-                        class="group/file-card inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-[#f0f1f3] hover:bg-[#e4e6ea] dark:bg-[#212124] dark:hover:bg-[#28282c] border border-[#dcdde1] dark:border-transparent cursor-pointer transition-all shadow-xs dark:shadow-[0_1px_3px_rgba(0,0,0,0.35)] max-w-sm"
-                        [class.opacity-75]="isDownloadingFile(msg.downloadableFile.documentId)"
-                        role="button"
-                        tabindex="0"
-                        [title]="'Click to download ' + msg.downloadableFile.fileName"
-                      >
-                        <!-- Left: Compact File Type + Filename -->
-                        <div class="flex items-center gap-2 min-w-0">
-                          <span class="flex-shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/20">
-                            {{ (msg.downloadableFile.fileName.split('.').pop() || 'FILE').toUpperCase() }}
-                          </span>
-                          <span class="text-xs font-medium text-zinc-900 group-hover/file-card:text-black dark:text-zinc-100 dark:group-hover/file-card:text-white truncate max-w-[220px]" [title]="msg.downloadableFile.fileName">
-                            {{ msg.downloadableFile.fileName }}
-                          </span>
-                        </div>
-
-                        <!-- Right: Compact Download Icon Button -->
-                        <button
-                          type="button"
-                          (click)="$event.stopPropagation(); downloadChatFile(msg.downloadableFile)"
-                          [disabled]="isDownloadingFile(msg.downloadableFile.documentId)"
-                          class="flex-shrink-0 w-6 h-6 rounded-lg bg-black/5 hover:bg-black/10 active:bg-black/20 text-zinc-700 hover:text-black dark:bg-white/5 dark:hover:bg-white/10 dark:active:bg-white/20 dark:text-zinc-300 dark:hover:text-white flex items-center justify-center transition-colors focus:outline-none ml-0.5"
-                          title="Download file"
-                          aria-label="Download file"
-                        >
-                          @if (isDownloadingFile(msg.downloadableFile.documentId)) {
-                            <svg class="w-3.5 h-3.5 animate-spin text-zinc-900 dark:text-white" fill="none" viewBox="0 0 24 24">
-                              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                          } @else {
-                            <svg class="w-3.5 h-3.5 text-zinc-600 group-hover/file-card:text-black dark:text-zinc-300 dark:group-hover/file-card:text-white transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                            </svg>
-                          }
-                        </button>
-                      </div>
-                    </div>
-                  }
-
-                  <!-- Sources & Citations (if available) -->
-                  @if (msg.citations && msg.citations.length > 0) {
-                    <div data-tour="chat-citations">
-                      <app-citation-badge [citations]="msg.citations"></app-citation-badge>
-                    </div>
-                  }
-
-                  <!-- Action Toolbar for Assistant Message -->
-                  @if (msg.role !== 'user' && msg.content && msg.content.trim().length > 0) {
-                    <div class="flex items-center justify-start gap-1.5 pt-1.5 mt-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                      <button
-                        (click)="copyMessageText(msg.content, msgIdx)"
-                        class="text-[11px] flex items-center gap-1 transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-[#18181b] border border-transparent hover:border-zinc-300 dark:hover:border-zinc-800"
-                        [ngClass]="copiedMessageIdx === msgIdx ? 'text-zinc-900 font-medium bg-zinc-100 border-zinc-300 dark:text-white dark:bg-[#18181b] dark:border-zinc-700' : 'text-zinc-500 hover:text-zinc-900 dark:text-[#71717a] dark:hover:text-white'"
-                        [title]="copiedMessageIdx === msgIdx ? 'Copied to clipboard' : 'Copy response'"
-                      >
-                        @if (copiedMessageIdx === msgIdx) {
-                          <svg class="w-3.5 h-3.5 text-zinc-900 dark:text-white" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span>Copied</span>
-                        } @else {
-                          <svg class="w-3.5 h-3.5" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                          <span>Copy</span>
-                        }
-                      </button>
-
-                      <button
-                        (click)="exportMessagePdf(msg, $event)"
-                        class="text-[11px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white flex items-center gap-1.5 transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-[#18181b] border border-transparent hover:border-zinc-300 dark:hover:border-zinc-700 font-medium"
-                        title="Export this calculation or analysis as a branded PDF report"
-                      >
-                        <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                        <span>Export as PDF Report</span>
-                      </button>
-                    </div>
-                  }
+                  <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                    {{ activeDirectPartner?.email }}
+                  </p>
+                  <p class="text-xs text-zinc-600 dark:text-zinc-400 pt-2 leading-relaxed">
+                    This is the start of your direct conversation with <span class="font-medium text-zinc-900 dark:text-white">{{ activeDirectPartner?.firstName }}</span>. Send a message to get started, or mention <span class="font-mono font-semibold text-rose-600 dark:text-rose-400">&#64;Syntra</span> to consult AI together.
+                  </p>
                 </div>
               </div>
             }
-          }
 
-          <!-- Live Reasoning Animation for THIS specific conversation -->
-          @if (isCurrentGenerating) {
-            <div class="flex gap-3 justify-start animate-fade-in">
-              <div class="w-7 h-7 rounded-lg bg-white dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] flex items-center justify-center flex-shrink-0 p-1 mt-0.5 shadow-xs">
-                <img src="/logo-icon.svg" alt="Syntra" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
+            @for (msg of messages; track $index; let msgIdx = $index) {
+              <!-- Date Divider -->
+              @if (getDateDivider(messages[msgIdx - 1], msg); as dateLabel) {
+                <div class="flex items-center justify-center my-3 select-none">
+                  <span class="px-3 py-0.5 rounded-full text-[10px] font-medium bg-zinc-200/70 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-400 shadow-2xs">
+                    {{ dateLabel }}
+                  </span>
+                </div>
+              }
+
+              <!-- Direct Message Row (Aligned strictly by ownership) -->
+              <div
+                [ngClass]="[
+                  isOwnMessage(msg) ? 'justify-end' : 'justify-start',
+                  isConsecutiveMessage(messages[msgIdx - 1], msg) ? 'mt-0.5' : 'mt-3'
+                ]"
+                class="flex items-center gap-2 group relative"
+              >
+                <!-- Partner Avatar (Left Side only, when not consecutive or first in block) -->
+                @if (!isOwnMessage(msg)) {
+                  <div class="w-7 h-7 flex-shrink-0 self-end mb-0.5">
+                    @if (!isConsecutiveMessage(messages[msgIdx - 1], msg)) {
+                      <div
+                        (click)="openDirectPartnerProfile(activeDirectPartner, $event)"
+                        class="w-7 h-7 rounded-full bg-zinc-200 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:text-white dark:border-zinc-700 font-semibold text-[10px] flex items-center justify-center shadow-2xs cursor-pointer select-none transition-colors"
+                        [title]="getSenderName(msg)"
+                      >
+                        {{ getPartnerInitials(msg.author || activeDirectPartner) }}
+                      </div>
+                    }
+                  </div>
+                }
+
+                <!-- Hover Action Toolbar for Sender (Appears on the LEFT of the sender bubble) -->
+                @if (isOwnMessage(msg)) {
+                  <div
+                    class="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 select-none pointer-events-none group-hover:pointer-events-auto flex-shrink-0"
+                  >
+                    @if (msg.createdAt) {
+                      <span class="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 whitespace-nowrap select-none font-medium">
+                        {{ msg.createdAt | date:'shortTime' }}
+                      </span>
+                    }
+
+                    <div class="flex items-center gap-1">
+                      <button
+                        type="button"
+                        (click)="setReplyToMessage(msg)"
+                        class="w-6 h-6 rounded-md bg-white dark:bg-[#202024] hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white border border-zinc-200 dark:border-zinc-700 shadow-xs flex items-center justify-center transition-colors cursor-pointer"
+                        title="Reply"
+                      >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a5 5 0 015 5v3M3 10l6-6M3 10l6 6" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        (click)="copyMessageText(msg.content, msgIdx)"
+                        class="w-6 h-6 rounded-md bg-white dark:bg-[#202024] hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white border border-zinc-200 dark:border-zinc-700 shadow-xs flex items-center justify-center transition-colors cursor-pointer"
+                        title="Copy text"
+                      >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        (click)="openShareMessageModal(msg, $event)"
+                        class="w-6 h-6 rounded-md bg-white dark:bg-[#202024] hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white border border-zinc-200 dark:border-zinc-700 shadow-xs flex items-center justify-center transition-colors cursor-pointer"
+                        title="Share message"
+                      >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                }
+
+                <!-- Message Bubble Container -->
+                <div
+                  [ngClass]="[
+                    isOwnMessage(msg) ? 'items-end' : 'items-start',
+                    msg.role === 'assistant' ? 'max-w-[85%] sm:max-w-[75%]' : 'max-w-[75%] sm:max-w-[65%]'
+                  ]"
+                  class="flex flex-col relative w-fit"
+                >
+                  <!-- Sender Name for Partner's first message in group -->
+                  @if (!isOwnMessage(msg) && !isConsecutiveMessage(messages[msgIdx - 1], msg) && msg.role !== 'assistant') {
+                    <span class="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 px-1 mb-0.5 select-none">
+                      {{ getSenderName(msg) }}
+                    </span>
+                  }
+
+                  <!-- AI Invocation Pill (when assistant responds inside direct message) -->
+                  @if (msg.role === 'assistant') {
+                    <div [id]="'msg-bubble-' + msg.id" class="w-full bg-zinc-50 dark:bg-[#121215] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-3.5 shadow-xs text-xs leading-relaxed text-zinc-900 dark:text-zinc-100 transition-all">
+                      <div class="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-zinc-200 dark:border-zinc-800/80">
+                        <div class="flex items-center gap-1.5 font-semibold text-xs text-zinc-900 dark:text-white">
+                          <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                          <span>&#64;Syntra AI</span>
+                          <span class="text-[10px] font-normal text-zinc-500 dark:text-zinc-400 font-sans">
+                            · requested by {{ isOwnMessage(msg) ? 'you' : (activeDirectPartner?.firstName || 'Colleague') }}
+                          </span>
+                        </div>
+                      </div>
+
+                      @if (!msg.content) {
+                        <div class="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 text-xs py-1">
+                          <div class="flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-bounce" style="animation-delay: 0ms"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-bounce" style="animation-delay: 150ms"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-bounce" style="animation-delay: 300ms"></span>
+                          </div>
+                          <span class="font-mono text-[11px]">Syntra AI is thinking...</span>
+                        </div>
+                      } @else {
+                        <div class="prose-ai text-xs" [innerHTML]="getDisplayContent(msg) | markdown"></div>
+                      }
+
+                      <!-- Python Execution Code Viewer Accordion -->
+                      @if (msg.pythonCode) {
+                        <details class="mt-2.5 text-xs border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-white dark:bg-black">
+                          <summary class="px-3 py-1.5 cursor-pointer text-zinc-700 dark:text-zinc-300 font-mono text-[11px] flex items-center justify-between bg-zinc-100/60 dark:bg-zinc-900 select-none">
+                            <span>Python Script</span>
+                            <span class="text-[10px] text-zinc-500">Python 3.11</span>
+                          </summary>
+                          <div class="p-2.5 bg-zinc-50 dark:bg-black font-mono text-[11px] overflow-x-auto max-h-60">
+                            <pre class="m-0"><code class="language-python" [innerHTML]="highlightCode(msg.pythonCode, 'python')"></code></pre>
+                          </div>
+                        </details>
+                      }
+
+                      <!-- Generated Table -->
+                      @if (msg.generatedTable) {
+                        <div class="mt-2">
+                          <app-table-viewer [table]="msg.generatedTable"></app-table-viewer>
+                        </div>
+                      }
+
+                      <!-- Generated Charts -->
+                      @if (msg.generatedCharts && msg.generatedCharts.length > 0) {
+                        @for (chart of msg.generatedCharts; track $index) {
+                          <div class="mt-2">
+                            <app-chart-viewer [chartSpec]="chart"></app-chart-viewer>
+                          </div>
+                        }
+                      } @else if (getDisplayChart(msg)) {
+                        <div class="mt-2">
+                          <app-chart-viewer [chartSpec]="getDisplayChart(msg)!"></app-chart-viewer>
+                        </div>
+                      }
+
+                      <!-- Citations -->
+                      @if (msg.citations && msg.citations.length > 0) {
+                        <div class="mt-2">
+                          <app-citation-badge [citations]="msg.citations"></app-citation-badge>
+                        </div>
+                      }
+
+                      <!-- Downloadable file -->
+                      @if (msg.downloadableFile) {
+                        <div class="mt-2">
+                          <div
+                            (click)="downloadChatFile(msg.downloadableFile)"
+                            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700 text-xs transition-colors"
+                          >
+                            <span class="font-mono text-[10px] font-bold uppercase text-rose-600 dark:text-rose-400">FILE</span>
+                            <span class="font-medium text-zinc-800 dark:text-zinc-200 truncate max-w-[180px]">{{ msg.downloadableFile.fileName }}</span>
+                            <svg class="w-3.5 h-3.5 text-zinc-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  } @else {
+                    <!-- Human Message Bubble (Pure Message Content - Zero Permanent Metadata) -->
+                    <div
+                      [id]="'msg-bubble-' + msg.id"
+                      (click)="toggleMessageTimestamp(msg.id, $event)"
+                      [ngClass]="[
+                        isOwnMessage(msg)
+                          ? 'bg-zinc-900 text-white dark:bg-[#27272a] dark:text-zinc-100 dark:border dark:border-zinc-700/60 rounded-2xl ' + (isConsecutiveMessage(messages[msgIdx - 1], msg) ? '' : 'rounded-tr-xs')
+                          : 'bg-[#eaebef] text-zinc-900 border border-[#d0d3d9] dark:bg-[#18181b] dark:text-zinc-100 dark:border-zinc-800 rounded-2xl ' + (isConsecutiveMessage(messages[msgIdx - 1], msg) ? '' : 'rounded-tl-xs')
+                      ]"
+                      class="px-3.5 py-2 text-xs sm:text-sm leading-relaxed shadow-2xs select-text relative break-words inline-block w-fit cursor-pointer sm:cursor-text transition-all"
+                    >
+                      <!-- Structured Quoted Reply Header -->
+                      @if (msg.replyTo) {
+                        <div
+                          (click)="scrollToOriginalMessage(msg.replyTo.id, $event)"
+                          [ngClass]="isOwnMessage(msg) ? 'bg-white/10 hover:bg-white/15 border-white/50 text-white' : 'bg-black/5 hover:bg-black/10 border-zinc-500 dark:border-zinc-400 dark:bg-white/5 dark:hover:bg-white/10 text-zinc-800 dark:text-zinc-200'"
+                          class="border-l-[3px] pl-2 py-1 pr-2.5 mb-1.5 rounded text-[11px] cursor-pointer transition-colors max-w-full overflow-hidden select-none"
+                          title="Click to jump to original message"
+                        >
+                          <div class="font-semibold text-[11px] leading-tight opacity-90 truncate">
+                            {{ msg.replyTo.senderName }}
+                          </div>
+                          <div class="opacity-75 italic text-[10px] truncate leading-tight mt-0.5">
+                            {{ msg.replyTo.content }}
+                          </div>
+                        </div>
+                      } @else if (msg.content.startsWith('> ')) {
+                        <!-- Legacy backwards compatibility for previously saved quote messages -->
+                        <div class="border-l-2 border-zinc-400/80 dark:border-zinc-500/80 bg-black/5 dark:bg-white/5 pl-2 py-0.5 pr-2 mb-1.5 rounded text-[11px] opacity-85 italic truncate">
+                          {{ msg.content.split('\n\n')[0].replace('> ', '') }}
+                        </div>
+                      }
+
+                      <!-- Message Text Content -->
+                      <div class="whitespace-pre-wrap leading-snug">
+                        {{ (!msg.replyTo && msg.content.startsWith('> ') && msg.content.includes('\n\n')) ? msg.content.slice(msg.content.indexOf('\n\n') + 2) : msg.content }}
+                      </div>
+
+                      <!-- Direct Downloadable File Attachment Preview (if any) -->
+                      @if (msg.downloadableFile) {
+                        <div class="mt-2">
+                          <div
+                            (click)="downloadChatFile(msg.downloadableFile)"
+                            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/10 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/15 cursor-pointer text-xs transition-colors"
+                          >
+                            <span class="font-mono text-[10px] font-bold uppercase">{{ (msg.downloadableFile.fileName.split('.').pop() || 'FILE').toUpperCase() }}</span>
+                            <span class="font-medium truncate max-w-[180px]">{{ msg.downloadableFile.fileName }}</span>
+                            <svg class="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+
+                <!-- Hover Action Toolbar for Receiver / Partner (Appears on the RIGHT of partner bubble) -->
+                @if (!isOwnMessage(msg)) {
+                  <div
+                    class="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 select-none pointer-events-none group-hover:pointer-events-auto flex-shrink-0"
+                  >
+                    <div class="flex items-center gap-1">
+                      <button
+                        type="button"
+                        (click)="setReplyToMessage(msg)"
+                        class="w-6 h-6 rounded-md bg-white dark:bg-[#202024] hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white border border-zinc-200 dark:border-zinc-700 shadow-xs flex items-center justify-center transition-colors cursor-pointer"
+                        title="Reply"
+                      >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a5 5 0 015 5v3M3 10l6-6M3 10l6 6" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        (click)="copyMessageText(msg.content, msgIdx)"
+                        class="w-6 h-6 rounded-md bg-white dark:bg-[#202024] hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white border border-zinc-200 dark:border-zinc-700 shadow-xs flex items-center justify-center transition-colors cursor-pointer"
+                        title="Copy text"
+                      >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        (click)="openShareMessageModal(msg, $event)"
+                        class="w-6 h-6 rounded-md bg-white dark:bg-[#202024] hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white border border-zinc-200 dark:border-zinc-700 shadow-xs flex items-center justify-center transition-colors cursor-pointer"
+                        title="Share message"
+                      >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    @if (msg.createdAt) {
+                      <!-- Timestamp for Receiver (Right of Action Buttons) -->
+                      <span class="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 whitespace-nowrap select-none font-medium">
+                        {{ msg.createdAt | date:'shortTime' }}
+                      </span>
+                    }
+                  </div>
+                }
               </div>
-              <div class="bg-white dark:bg-[#111114] border border-[#dcdde1] dark:border-[#27272a] rounded-xl px-4 py-2.5 text-xs flex items-center gap-2.5 text-zinc-800 dark:text-white shadow-xs">
-                <span class="w-2 h-2 rounded-full bg-zinc-700 dark:bg-zinc-300 animate-pulse"></span>
-                <span class="font-mono text-zinc-600 dark:text-[#a1a1aa] transition-all duration-300">{{ currentGeneratingStatus }}</span>
+            }
+
+            @if (isUploadingDmFile) {
+              <div class="flex justify-end animate-fade-in">
+                <div class="bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950 rounded-2xl px-4 py-2 text-xs flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-white dark:bg-zinc-950 animate-pulse"></span>
+                  <span>Uploading attachment...</span>
+                </div>
               </div>
-            </div>
+            }
+          } @else {
+            <!-- Standard Workspace / AI Messages Loop -->
+            <!-- Temporary Mode Notice Banner -->
+            @if (isTemporaryMode && !isTemporaryNoticeDismissed) {
+              <div class="px-3 py-2 rounded-lg bg-zinc-100/80 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs flex items-center justify-between animate-fade-in mb-3">
+                <div class="flex items-center gap-2">
+                  <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Messages from this session aren't saved to chat history.</span>
+                </div>
+                <button
+                  type="button"
+                  (click)="dismissTemporaryNotice()"
+                  class="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer ml-3 flex-shrink-0"
+                  title="Dismiss message"
+                  aria-label="Dismiss message"
+                >
+                  Dismiss
+                </button>
+              </div>
+            }
+
+            @if (isArchivedView && !activeConversation) {
+              <div class="h-full flex flex-col items-center justify-center text-center space-y-4 py-12 animate-fade-in my-auto">
+                <div class="w-12 h-12 rounded-2xl bg-white dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] flex items-center justify-center p-2.5 text-zinc-400">
+                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                </div>
+                <div class="space-y-1.5">
+                  <h3 class="text-base font-semibold text-zinc-900 dark:text-white">Archived Conversations</h3>
+                  <p class="text-xs text-zinc-500 dark:text-[#a1a1aa] leading-relaxed max-w-md mx-auto">
+                    Select an archived conversation from the sidebar to view its message history, citations, and analytical insights.
+                  </p>
+                </div>
+              </div>
+            } @else if (messages.length === 0 && !isCurrentGenerating) {
+              <div class="h-full flex flex-col items-center justify-center text-center space-y-6 py-12 animate-fade-in my-auto">
+                <div class="w-12 h-12 rounded-2xl bg-white dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] flex items-center justify-center p-2.5">
+                  <img src="/logo-icon.svg" alt="Syntra" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
+                </div>
+                <div class="space-y-1.5">
+                  <h3 class="text-base font-semibold text-zinc-900 dark:text-white">Syntra Chat AI Assistant</h3>
+                  <p class="text-xs text-zinc-500 dark:text-[#a1a1aa] leading-relaxed max-w-md mx-auto">
+                    Ask questions, summarize documents, analyze spreadsheets and datasets, or mention specific files with <span class="text-zinc-900 dark:text-white font-mono bg-[#f0f1f3] dark:bg-[#18181b] px-1.5 py-0.5 rounded border border-[#dcdde1] dark:border-[#27272a]">&#64;</span>.
+                  </p>
+                </div>
+
+                <!-- Quick Prompt Starters (Dynamic Workspace Cards) -->
+                @if (dynamicStarters.length > 0) {
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 w-full text-left pt-2">
+                    @for (card of dynamicStarters; track card.title) {
+                      <button
+                        (click)="sendQuickPrompt(card.promptText, card.resource)"
+                        class="p-3 rounded-xl bg-white hover:bg-[#f8f9fa] dark:bg-[#111114] dark:hover:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] hover:border-zinc-400 dark:hover:border-[#3f3f46] transition-all text-xs space-y-1 group"
+                      >
+                        <div class="font-medium text-zinc-900 dark:text-white flex items-center gap-1.5 truncate">
+                          <span class="text-sm flex-shrink-0">{{ card.icon }}</span>
+                          <span class="truncate font-semibold text-zinc-900 dark:text-zinc-100">{{ card.title }}</span>
+                        </div>
+                        <div class="text-zinc-500 dark:text-[#71717a] text-[11px] truncate group-hover:text-zinc-700 dark:group-hover:text-[#a1a1aa] transition-colors">
+                          {{ card.subtitle }}
+                        </div>
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+            }
+
+            @for (msg of messages; track $index; let msgIdx = $index) {
+              @if (msg.role === 'user' || (msg.content && msg.content.length > 0) || msg.generatedChart || (msg.generatedCharts && msg.generatedCharts.length > 0) || msg.generatedTable || msg.pythonCode || getDisplayChart(msg)) {
+                <div
+                  [ngClass]="msg.role === 'user' ? 'justify-end' : 'justify-start'"
+                  class="flex gap-2 sm:gap-3 animate-fade-in"
+                >
+                  @if (msg.role !== 'user') {
+                    <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-white dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] flex items-center justify-center flex-shrink-0 p-0.5 sm:p-1 mt-0.5 shadow-xs">
+                      <img src="/logo-icon.svg" alt="Syntra" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
+                    </div>
+                  }
+
+                  <div
+                    [ngClass]="msg.role === 'user' ? 'bg-[#eceef1] text-[#17191c] border border-[#dcdde1] dark:border-transparent dark:bg-[#212124] dark:text-white rounded-2xl rounded-tr-sm px-3 py-2 sm:px-4 sm:py-3 shadow-xs dark:shadow-[0_1px_3px_rgba(0,0,0,0.35)] max-w-[90%] sm:max-w-[85%]' : 'bg-transparent text-zinc-900 dark:text-white max-w-full'"
+                    class="text-sm leading-relaxed group relative min-w-0"
+                  >
+                    <!-- Rendered Rich Markdown Content -->
+                    @if (msg.role === 'user') {
+                      @if (msg.author && msg.author.id !== currentUserId) {
+                        <div class="flex items-center gap-1.5 text-[11px] font-medium text-zinc-600 dark:text-zinc-300 mb-1.5 pb-1 border-b border-zinc-300/60 dark:border-zinc-700/60">
+                          <span class="font-semibold">{{ msg.author.firstName }} {{ msg.author.lastName }}</span>
+                          @if (msg.createdAt) {
+                            <span class="text-[10px] text-zinc-500 font-mono">· {{ msg.createdAt | date:'shortTime' }}</span>
+                          }
+                        </div>
+                      }
+                      @if (msg.referencedResourceIds && msg.referencedResourceIds.length > 0) {
+                        <div class="flex flex-wrap items-center gap-1.5 mb-2.5">
+                          @for (rId of msg.referencedResourceIds; track rId) {
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/95 dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#38383c] text-zinc-800 dark:text-zinc-200 text-xs font-mono shadow-2xs">
+                              <span class="text-rose-600 dark:text-rose-400 font-bold">&#64;</span>
+                              <span class="font-medium truncate max-w-[280px]">{{ getResourceDisplayName(rId) }}</span>
+                            </span>
+                          }
+                        </div>
+                      }
+                      <div class="whitespace-pre-wrap text-sm">{{ msg.content }}</div>
+                    } @else {
+                      <div class="prose-ai" [innerHTML]="getDisplayContent(msg) | markdown"></div>
+                    }
+
+                    <!-- Python Execution Code Viewer Accordion -->
+                    @if (msg.pythonCode) {
+                      <details class="mt-3 text-xs border border-[#dcdde1] dark:border-[#27272a] rounded-xl overflow-hidden bg-white dark:bg-black shadow-sm dark:shadow-xl">
+                        <summary class="px-3.5 py-2 cursor-pointer text-zinc-700 hover:text-zinc-900 dark:text-[#a1a1aa] dark:hover:text-white font-mono font-medium flex items-center justify-between bg-[#f8f9fa] dark:bg-[#0a0a0c] border-b border-[#dcdde1] dark:border-[#27272a]/70 select-none">
+                          <span class="flex items-center gap-2">
+                            <svg class="w-3.5 h-3.5 text-[#3b82f6]" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                            </svg>
+                            <span class="text-zinc-800 dark:text-zinc-300 font-semibold">Python Calculation Script</span>
+                          </span>
+                          <div class="flex items-center gap-2.5">
+                            <span class="text-[10px] text-zinc-500 font-mono">Python 3.11</span>
+                            <button type="button" class="copy-code-btn inline-flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white px-2 py-0.5 rounded hover:bg-zinc-200/60 dark:hover:bg-zinc-800 transition-all cursor-pointer select-none active:scale-95" (click)="$event.stopPropagation(); copyDirectText(msg.pythonCode, $event)" title="Copy Python script">
+                              <svg class="copy-icon w-3.5 h-3.5" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                              </svg>
+                              <span class="copy-text font-sans">Copy</span>
+                            </button>
+                          </div>
+                        </summary>
+                        <div class="p-3.5 bg-[#f8f9fa] dark:bg-black font-mono text-[12px] overflow-x-auto overflow-y-auto max-h-80 leading-relaxed">
+                          <pre class="hljs-vscode-dark m-0"><code class="hljs language-python" [innerHTML]="highlightCode(msg.pythonCode, 'python')"></code></pre>
+                        </div>
+                      </details>
+                    }
+
+                    <!-- Generated Table (if available) -->
+                    @if (msg.generatedTable) {
+                      <app-table-viewer [table]="msg.generatedTable"></app-table-viewer>
+                    }
+
+                    <!-- Generated Charts (Single, Multiple, or Embedded JSON) -->
+                    <div data-tour="chat-charts">
+                      @if (msg.generatedCharts && msg.generatedCharts.length > 0) {
+                        @for (chart of msg.generatedCharts; track $index) {
+                          <app-chart-viewer [chartSpec]="chart"></app-chart-viewer>
+                        }
+                      } @else if (getDisplayChart(msg)) {
+                        <app-chart-viewer [chartSpec]="getDisplayChart(msg)!"></app-chart-viewer>
+                      }
+                    </div>
+
+                    <!-- Direct Downloadable File Attachment Preview (if any) -->
+                    @if (msg.downloadableFile) {
+                      <div class="mt-3 flex items-center">
+                        <div
+                          (click)="downloadChatFile(msg.downloadableFile)"
+                          class="group/file-card inline-flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-[#f0f1f3] hover:bg-[#e4e6ea] dark:bg-[#212124] dark:hover:bg-[#28282c] border border-[#dcdde1] dark:border-transparent cursor-pointer transition-all shadow-xs dark:shadow-[0_1px_3px_rgba(0,0,0,0.35)] max-w-sm"
+                          [class.opacity-75]="isDownloadingFile(msg.downloadableFile.documentId)"
+                          role="button"
+                          tabindex="0"
+                          [title]="'Click to download ' + msg.downloadableFile.fileName"
+                        >
+                          <!-- Left: Compact File Type + Filename -->
+                          <div class="flex items-center gap-2 min-w-0">
+                            <span class="flex-shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-500/20">
+                              {{ (msg.downloadableFile.fileName.split('.').pop() || 'FILE').toUpperCase() }}
+                            </span>
+                            <span class="text-xs font-medium text-zinc-900 group-hover/file-card:text-black dark:text-zinc-100 dark:group-hover/file-card:text-white truncate max-w-[220px]" [title]="msg.downloadableFile.fileName">
+                              {{ msg.downloadableFile.fileName }}
+                            </span>
+                          </div>
+
+                          <!-- Right: Compact Download Icon Button -->
+                          <button
+                            type="button"
+                            (click)="$event.stopPropagation(); downloadChatFile(msg.downloadableFile)"
+                            [disabled]="isDownloadingFile(msg.downloadableFile.documentId)"
+                            class="flex-shrink-0 w-6 h-6 rounded-lg bg-black/5 hover:bg-black/10 active:bg-black/20 text-zinc-700 hover:text-black dark:bg-white/5 dark:hover:bg-white/10 dark:active:bg-white/20 dark:text-zinc-300 dark:hover:text-white flex items-center justify-center transition-colors focus:outline-none ml-0.5"
+                            title="Download file"
+                            aria-label="Download file"
+                          >
+                            @if (isDownloadingFile(msg.downloadableFile.documentId)) {
+                              <svg class="w-3.5 h-3.5 animate-spin text-zinc-900 dark:text-white" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                            } @else {
+                              <svg class="w-3.5 h-3.5 text-zinc-600 group-hover/file-card:text-black dark:text-zinc-300 dark:group-hover/file-card:text-white transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              </svg>
+                            }
+                          </button>
+                        </div>
+                      </div>
+                    }
+
+                    <!-- Sources & Citations (if available) -->
+                    @if (msg.citations && msg.citations.length > 0) {
+                      <div data-tour="chat-citations">
+                        <app-citation-badge [citations]="msg.citations"></app-citation-badge>
+                      </div>
+                    }
+
+                    <!-- Action Toolbar for Assistant Message -->
+                    @if (msg.role !== 'user' && msg.content && msg.content.trim().length > 0) {
+                      <div class="flex items-center justify-start gap-1.5 pt-1.5 mt-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        <button
+                          (click)="copyMessageText(msg.content, msgIdx)"
+                          class="text-[11px] flex items-center gap-1 transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-[#18181b] border border-transparent hover:border-zinc-300 dark:hover:border-zinc-800"
+                          [ngClass]="copiedMessageIdx === msgIdx ? 'text-zinc-900 font-medium bg-zinc-100 border-zinc-300 dark:text-white dark:bg-[#18181b] dark:border-zinc-700' : 'text-zinc-500 hover:text-zinc-900 dark:text-[#71717a] dark:hover:text-white'"
+                          [title]="copiedMessageIdx === msgIdx ? 'Copied to clipboard' : 'Copy response'"
+                        >
+                          @if (copiedMessageIdx === msgIdx) {
+                            <svg class="w-3.5 h-3.5 text-zinc-900 dark:text-white" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Copied</span>
+                          } @else {
+                            <svg class="w-3.5 h-3.5" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            <span>Copy</span>
+                          }
+                        </button>
+
+                        <button
+                          (click)="exportMessagePdf(msg, $event)"
+                          class="text-[11px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white flex items-center gap-1.5 transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-[#18181b] border border-transparent hover:border-zinc-300 dark:hover:border-zinc-700 font-medium"
+                          title="Export this calculation or analysis as a branded PDF report"
+                        >
+                          <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                          <span>Export PDF</span>
+                        </button>
+
+                        <button
+                          (click)="openShareMessageModal(msg, $event)"
+                          class="text-[11px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white flex items-center gap-1.5 transition-colors px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-[#18181b] border border-transparent hover:border-zinc-300 dark:hover:border-zinc-700 font-medium"
+                          title="Share this message with team members"
+                        >
+                          <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                          </svg>
+                          <span>Share</span>
+                        </button>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            }
+
+            <!-- Live Reasoning Animation for THIS specific conversation -->
+            @if (isCurrentGenerating) {
+              <div class="flex gap-3 justify-start animate-fade-in">
+                <div class="w-7 h-7 rounded-lg bg-white dark:bg-[#18181b] border border-[#dcdde1] dark:border-[#27272a] flex items-center justify-center flex-shrink-0 p-1 mt-0.5 shadow-xs">
+                  <img src="/logo-icon.svg" alt="Syntra" class="w-full h-full object-contain" onerror="this.src='/logo-icon.png'" />
+                </div>
+                <div class="bg-white dark:bg-[#111114] border border-[#dcdde1] dark:border-[#27272a] rounded-xl px-4 py-2.5 text-xs flex items-center gap-2.5 text-zinc-800 dark:text-white shadow-xs">
+                  <span class="w-2 h-2 rounded-full bg-zinc-700 dark:bg-zinc-300 animate-pulse"></span>
+                  <span class="font-mono text-zinc-600 dark:text-[#a1a1aa] transition-all duration-300">{{ currentGeneratingStatus }}</span>
+                </div>
+              </div>
+            }
           }
 
           <!-- Per-Chat or Global Concurrency Error Banner -->
@@ -876,6 +1439,22 @@ export interface IDynamicStarterCard {
         <!-- Input Box & Mention Autocomplete -->
         @if (!isArchivedView || activeConversation) {
           <div class="p-2 sm:p-4 border-t border-zinc-200 dark:border-[#27272a] bg-[#f7f8fa] dark:bg-[#09090b] relative flex-shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+            <!-- Floating "New messages ↓" Pill -->
+            @if (hasUnseenNewMessages) {
+              <div class="absolute -top-11 left-1/2 -translate-x-1/2 z-30 animate-bounce pointer-events-auto">
+                <button
+                  type="button"
+                  (click)="scrollToBottomSmooth(); hasUnseenNewMessages = false"
+                  class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 font-medium text-xs shadow-lg hover:shadow-xl transition-all cursor-pointer select-none border border-zinc-700/40 dark:border-zinc-300"
+                >
+                  <span>New messages</span>
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  </svg>
+                </button>
+              </div>
+            }
+
             <div class="max-w-4xl mx-auto relative">
               <!-- Autocomplete Dropdown Component -->
               <app-mention-autocomplete
@@ -885,48 +1464,74 @@ export interface IDynamicStarterCard {
                 (closed)="isMentionOpen = false"
               ></app-mention-autocomplete>
 
-              <!-- Attached Mention Chips -->
-              @if (attachedResources.length > 0) {
-                <div class="flex flex-wrap gap-2 mb-2">
-                  @for (res of attachedResources; track res.id) {
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-[#3f3f46] text-zinc-800 dark:text-white text-xs font-mono shadow-2xs">
-                      <span class="text-rose-600 dark:text-rose-400 font-bold">&#64;</span>
-                      <span>{{ res.name }}</span>
-                      <button (click)="removeAttachedResource(res.id)" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white ml-1">×</button>
-                    </span>
-                  }
-                </div>
-              }
+              @if (isDirectMode) {
+                <!-- Direct Mode Quoted Reply Banner -->
+                @if (replyingToMessage) {
+                  <div class="flex items-center justify-between px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800/90 rounded-t-xl text-xs border border-b-0 border-zinc-200 dark:border-zinc-700 animate-fade-in">
+                    <div class="flex items-center gap-2 truncate text-zinc-700 dark:text-zinc-300 min-w-0">
+                      <svg class="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v3M3 10l6-6M3 10l6 6" />
+                      </svg>
+                      <span class="font-semibold truncate">Replying to {{ replyingToMessage.role === 'assistant' ? 'Syntra AI' : getSenderName(replyingToMessage) }}:</span>
+                      <span class="truncate italic text-zinc-500 dark:text-zinc-400">
+                        "{{ replyingToMessage.downloadableFile ? ('Shared file: ' + replyingToMessage.downloadableFile.fileName) : (replyingToMessage.content | slice:0:80) }}"
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      (click)="cancelReply()"
+                      class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 font-bold ml-2 p-0.5 rounded cursor-pointer"
+                      title="Cancel reply"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                }
 
-              <!-- Concurrency Notice when limit is reached -->
-              @if (isMaxGenerationsReached) {
-                <div class="mb-2 px-3 py-1.5 rounded-lg bg-zinc-100 border border-zinc-300 dark:bg-zinc-900 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[11px] flex items-center gap-2">
-                  <span class="w-2 h-2 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
-                  <span>2 chats are currently generating in the background. Please wait for one to complete.</span>
-                </div>
-              }
+                <!-- Hidden file input for DM attachments -->
+                <input
+                  type="file"
+                  id="dm-file-upload-input"
+                  (change)="onDmFileSelected($event)"
+                  class="hidden"
+                />
 
-              <!-- Floating Prompt Container (Clean Coherent Light/Dark Card) -->
-              <div data-tour="chat-input-area" class="relative rounded-2xl bg-white dark:bg-[#121215] border border-zinc-200 dark:border-[#27272a] focus-within:border-zinc-400 dark:focus-within:border-zinc-500 p-2.5 sm:p-3 transition-all shadow-xs dark:shadow-none">
-                <div class="flex items-start gap-1">
+                <!-- Clean Direct Messaging Input Card -->
+                <div
+                  class="relative bg-white dark:bg-[#121215] border border-zinc-200 dark:border-[#27272a] focus-within:border-zinc-400 dark:focus-within:border-zinc-500 p-2 sm:p-2.5 transition-all shadow-xs dark:shadow-none flex items-center gap-2"
+                  [ngClass]="replyingToMessage ? 'rounded-b-2xl' : 'rounded-2xl'"
+                >
+                  <!-- Attachment Clip Button -->
+                  <button
+                    type="button"
+                    (click)="triggerDmFileUpload()"
+                    [disabled]="isUploadingDmFile"
+                    class="p-2 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1f1f23] transition-colors flex-shrink-0 cursor-pointer disabled:opacity-40"
+                    title="Attach a file to send"
+                    aria-label="Attach file"
+                  >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                  </button>
+
+                  <!-- Direct Text Input Area -->
                   <textarea
                     #inputArea
                     [(ngModel)]="inputText"
                     (input)="onInputChange($event)"
                     (keydown)="onKeyDown($event)"
-                    placeholder="Ask anything or type @ to mention files..."
-                    [disabled]="isCurrentGenerating || isMaxGenerationsReached"
+                    placeholder="Type a message... (use @Syntra for AI)"
                     rows="1"
-                    class="chat-composer-textarea w-full bg-transparent border-0 text-zinc-900 dark:text-zinc-100 text-sm px-1.5 py-1 focus:outline-none focus:ring-0 resize-none max-h-36 sm:max-h-60 overflow-y-auto leading-relaxed disabled:opacity-50 transition-[height] duration-150 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                    class="chat-composer-textarea w-full bg-transparent border-0 text-zinc-900 dark:text-zinc-100 text-sm px-1 py-1 focus:outline-none focus:ring-0 resize-none max-h-36 sm:max-h-48 overflow-y-auto leading-relaxed placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                   ></textarea>
 
-                  <!-- Voice / Microphone Button in Top-Right of Input Box -->
+                  <!-- Voice Mic Button -->
                   <button
                     type="button"
                     (click)="toggleVoiceInput()"
-                    [disabled]="isCurrentGenerating || isMaxGenerationsReached"
                     [ngClass]="voiceService.isListening ? 'bg-rose-600 text-white font-semibold' : 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1f1f23]'"
-                    class="min-w-[32px] min-h-[32px] p-1.5 rounded-xl text-xs flex items-center justify-center transition-all flex-shrink-0"
+                    class="p-2 rounded-xl text-xs flex items-center justify-center transition-all flex-shrink-0 cursor-pointer"
                     [title]="voiceService.isListening ? 'Listening... Click to stop recording' : 'Voice input (Click to speak)'"
                     aria-label="Voice input"
                   >
@@ -934,42 +1539,123 @@ export interface IDynamicStarterCard {
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                     </svg>
                   </button>
-                </div>
 
-                <div class="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800/80 mt-1">
-                  <div class="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      (click)="triggerMentionMenu($event)"
-                      data-tour="chat-mention-btn"
-                      [disabled]="isCurrentGenerating || isMaxGenerationsReached"
-                      class="min-h-[30px] px-2.5 py-1 rounded-xl text-zinc-700 hover:text-zinc-900 bg-zinc-50 hover:bg-zinc-100 dark:text-[#d4d4d8] dark:hover:text-white dark:bg-[#1f1f23] dark:hover:bg-[#28282d] border border-zinc-200/80 dark:border-[#2e2e33] text-xs flex items-center gap-1.5 transition-all shadow-2xs disabled:opacity-40"
-                      title="Attach & mention document or dataset"
-                    >
-                      <span class="text-rose-600 dark:text-rose-400 font-bold">&#64;</span>
-                      <span class="font-medium">Mention</span>
-                    </button>
-                    <span class="text-xs text-zinc-500 dark:text-zinc-400 hidden sm:inline font-sans">Folder & File Scoped AI</span>
-                  </div>
-
+                  <!-- Send Button -->
                   <button
                     (click)="sendUserMessage()"
-                    [disabled]="isCurrentGenerating || isMaxGenerationsReached || (!inputText.trim() && attachedResources.length === 0)"
-                    class="min-h-[30px] px-3.5 sm:px-4 py-1 rounded-xl bg-zinc-900 hover:bg-black text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-all disabled:bg-zinc-100 disabled:text-zinc-400 disabled:border disabled:border-zinc-200 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600 dark:disabled:border-transparent disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0 shadow-2xs active:scale-95"
-                    title="Send (Enter)"
+                    [disabled]="!inputText.trim()"
+                    class="p-2 rounded-xl bg-zinc-900 hover:bg-black text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-all disabled:bg-zinc-100 disabled:text-zinc-400 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 shadow-2xs active:scale-95 cursor-pointer"
+                    title="Send message (Enter)"
+                    aria-label="Send message"
                   >
-                    <span>Send</span>
-                    <svg class="w-3.5 h-3.5" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                     </svg>
                   </button>
                 </div>
-              </div>
 
-              <div class="hidden sm:flex items-center justify-between mt-2 px-1 text-[11px] text-zinc-400 dark:text-zinc-500">
-                <span>Press <kbd class="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-[#18181b] dark:text-zinc-400 dark:border-zinc-800 font-mono text-[10px]">Enter</kbd> to send, <kbd class="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-[#18181b] dark:text-zinc-400 dark:border-zinc-800 font-mono text-[10px]">Shift + Enter</kbd> for a new line</span>
-                <span>AI can make mistakes. Verify critical facts.</span>
-              </div>
+                <div class="hidden sm:flex items-center justify-between mt-1.5 px-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+                  <span>Press <kbd class="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-[#18181b] dark:text-zinc-400 dark:border-zinc-800 font-mono text-[10px]">Enter</kbd> to send, <kbd class="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-[#18181b] dark:text-zinc-400 dark:border-zinc-800 font-mono text-[10px]">Shift + Enter</kbd> for a new line</span>
+                  <span>Type <span class="font-mono font-medium text-rose-600 dark:text-rose-400">&#64;Syntra</span> to ask AI</span>
+                </div>
+              } @else {
+                <!-- Standard Workspace AI Composer -->
+                <!-- Attached Mention Chips -->
+                @if (attachedResources.length > 0) {
+                  <div class="flex flex-wrap gap-2 mb-2">
+                    @for (res of attachedResources; track res.id) {
+                      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-[#3f3f46] text-zinc-800 dark:text-white text-xs font-mono shadow-2xs">
+                        <span class="text-rose-600 dark:text-rose-400 font-bold">&#64;</span>
+                        <span>{{ res.name }}</span>
+                        <button (click)="removeAttachedResource(res.id)" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white ml-1">×</button>
+                      </span>
+                    }
+                  </div>
+                }
+
+                <!-- Concurrency Notice when limit is reached -->
+                @if (isMaxGenerationsReached) {
+                  <div class="mb-2 px-3 py-1.5 rounded-lg bg-zinc-100 border border-zinc-300 dark:bg-zinc-900 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[11px] flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-zinc-900 dark:bg-white animate-pulse"></span>
+                    <span>2 chats are currently generating in the background. Please wait for one to complete.</span>
+                  </div>
+                }
+
+                <!-- View-Only Collaborator Notice Banner -->
+                @if (isViewOnlyCollaborator) {
+                  <div class="mb-2 px-3.5 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs flex items-center gap-2.5 animate-fade-in">
+                    <svg class="w-4 h-4 text-zinc-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span>You have view-only access to this conversation. Only contributors can send prompts and interact.</span>
+                  </div>
+                }
+
+                <!-- Floating Prompt Container (Clean Coherent Light/Dark Card) -->
+                <div data-tour="chat-input-area" class="relative rounded-2xl bg-white dark:bg-[#121215] border border-zinc-200 dark:border-[#27272a] focus-within:border-zinc-400 dark:focus-within:border-zinc-500 p-2.5 sm:p-3 transition-all shadow-xs dark:shadow-none" [class.opacity-60]="isViewOnlyCollaborator">
+                  <div class="flex items-start gap-1">
+                    <textarea
+                      #inputArea
+                      [(ngModel)]="inputText"
+                      (input)="onInputChange($event)"
+                      (keydown)="onKeyDown($event)"
+                      [placeholder]="isViewOnlyCollaborator ? 'View-only mode (Cannot send messages)' : 'Ask anything or type @ to mention files...'"
+                      [disabled]="isCurrentGenerating || isMaxGenerationsReached || isViewOnlyCollaborator"
+                      rows="1"
+                      class="chat-composer-textarea w-full bg-transparent border-0 text-zinc-900 dark:text-zinc-100 text-sm px-1.5 py-1 focus:outline-none focus:ring-0 resize-none max-h-36 sm:max-h-60 overflow-y-auto leading-relaxed disabled:opacity-50 transition-[height] duration-150 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                    ></textarea>
+
+                    <!-- Voice / Microphone Button in Top-Right of Input Box -->
+                    <button
+                      type="button"
+                      (click)="toggleVoiceInput()"
+                      [disabled]="isCurrentGenerating || isMaxGenerationsReached || isViewOnlyCollaborator"
+                      [ngClass]="voiceService.isListening ? 'bg-rose-600 text-white font-semibold' : 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-[#1f1f23]'"
+                      class="min-w-[32px] min-h-[32px] p-1.5 rounded-xl text-xs flex items-center justify-center transition-all flex-shrink-0 disabled:opacity-40"
+                      [title]="voiceService.isListening ? 'Listening... Click to stop recording' : 'Voice input (Click to speak)'"
+                      aria-label="Voice input"
+                    >
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div class="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800/80 mt-1">
+                    <div class="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        (click)="triggerMentionMenu($event)"
+                        data-tour="chat-mention-btn"
+                        [disabled]="isCurrentGenerating || isMaxGenerationsReached || isViewOnlyCollaborator"
+                        class="min-h-[30px] px-2.5 py-1 rounded-xl text-zinc-700 hover:text-zinc-900 bg-zinc-50 hover:bg-zinc-100 dark:text-[#d4d4d8] dark:hover:text-white dark:bg-[#1f1f23] dark:hover:bg-[#28282d] border border-zinc-200/80 dark:border-[#2e2e33] text-xs flex items-center gap-1.5 transition-all shadow-2xs disabled:opacity-40"
+                        title="Attach & mention document or dataset"
+                      >
+                        <span class="text-rose-600 dark:text-rose-400 font-bold">&#64;</span>
+                        <span class="font-medium">Mention</span>
+                      </button>
+                      <span class="text-xs text-zinc-500 dark:text-zinc-400 hidden sm:inline font-sans">Folder & File Scoped AI</span>
+                    </div>
+
+                    <button
+                      (click)="sendUserMessage()"
+                      [disabled]="isCurrentGenerating || isMaxGenerationsReached || isViewOnlyCollaborator || (!inputText.trim() && attachedResources.length === 0)"
+                      class="min-h-[30px] px-3.5 sm:px-4 py-1 rounded-xl bg-zinc-900 hover:bg-black text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-semibold text-xs transition-all disabled:bg-zinc-100 disabled:text-zinc-400 disabled:border disabled:border-zinc-200 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-600 dark:disabled:border-transparent disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0 shadow-2xs active:scale-95"
+                      title="Send (Enter)"
+                    >
+                      <span>Send</span>
+                      <svg class="w-3.5 h-3.5" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="hidden sm:flex items-center justify-between mt-2 px-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+                  <span>Press <kbd class="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-[#18181b] dark:text-zinc-400 dark:border-zinc-800 font-mono text-[10px]">Enter</kbd> to send, <kbd class="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-[#18181b] dark:text-zinc-400 dark:border-zinc-800 font-mono text-[10px]">Shift + Enter</kbd> for a new line</span>
+                  <span>AI can make mistakes. Verify critical facts.</span>
+                </div>
+              }
             </div>
           </div>
         }
@@ -1005,6 +1691,19 @@ export interface IDynamicStarterCard {
                 <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>
               </svg>
               <span>{{ openActionMenuConv.pinned ? 'Unpin chat' : 'Pin chat' }}</span>
+            </button>
+
+            <!-- Share -->
+            <button
+              type="button"
+              (mouseenter)="onOtherMenuItemMouseEnter()"
+              (click)="handleMenuShare(openActionMenuConv, $event)"
+              class="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-zinc-100 dark:hover:bg-[#27272a] transition-colors text-left"
+            >
+              <svg class="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              <span>Share chat</span>
             </button>
 
             <!-- Archive -->
@@ -1140,6 +1839,88 @@ export interface IDynamicStarterCard {
           <button (click)="fileDownloadError = null" class="ml-2 text-red-300 hover:text-white">&times;</button>
         </div>
       }
+
+      <!-- Share Conversation Modal -->
+      @if (isShareConvModalOpen && activeConversation) {
+        <app-share-conversation-modal
+          [isOpen]="isShareConvModalOpen"
+          [conversation]="activeConversation"
+          [isOwner]="!isViewOnlyCollaborator"
+          (closed)="isShareConvModalOpen = false"
+          (sharesUpdated)="chatState.loadSharedConversations()"
+        ></app-share-conversation-modal>
+      }
+
+      <!-- Share Message Modal -->
+      @if (isShareMessageModalOpen && shareModalMessage) {
+        <app-share-message-modal
+          [isOpen]="isShareMessageModalOpen"
+          [message]="shareModalMessage"
+          (closed)="isShareMessageModalOpen = false"
+        ></app-share-message-modal>
+      }
+
+      <!-- Shared Message Viewer Modal -->
+      @if (isSharedMessageViewerOpen && sharedMessageToView) {
+        <app-shared-message-viewer-modal
+          [isOpen]="isSharedMessageViewerOpen"
+          [shareData]="sharedMessageToView"
+          (closed)="isSharedMessageViewerOpen = false"
+        ></app-shared-message-viewer-modal>
+      }
+
+      <!-- User Profile Popover -->
+      @if (isProfilePopoverOpen && profileUser) {
+        <app-user-profile-popover
+          [isOpen]="isProfilePopoverOpen"
+          [user]="profileUser"
+          (closed)="isProfilePopoverOpen = false"
+        ></app-user-profile-popover>
+      }
+
+      <!-- Organization Directory Modal -->
+      @if (isOrgDirectoryOpen) {
+        <app-org-directory-modal
+          [isOpen]="isOrgDirectoryOpen"
+          (closed)="isOrgDirectoryOpen = false"
+          (messageMember)="onStartDirectMessage($event)"
+        ></app-org-directory-modal>
+      }
+
+      <!-- Realtime Notification Toast -->
+      @if (notificationService.activeToast(); as toast) {
+        <div class="fixed bottom-6 right-6 z-50 max-w-sm w-full bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-700/80 rounded-xl shadow-2xl p-4 text-xs animate-fade-in flex items-start justify-between gap-3">
+          <div class="flex items-start gap-2.5 min-w-0">
+            <div class="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center flex-shrink-0 text-zinc-700 dark:text-zinc-300">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+            </div>
+            <div class="min-w-0 space-y-1">
+              <p class="font-semibold text-zinc-900 dark:text-zinc-100 truncate">{{ toast.title }}</p>
+              <p class="text-zinc-600 dark:text-zinc-400 line-clamp-2">{{ toast.message }}</p>
+              <div class="pt-1 flex items-center gap-2">
+                @if (toast.resourceId) {
+                  <button
+                    type="button"
+                    (click)="handleToastAction(toast)"
+                    class="font-semibold text-zinc-900 hover:text-black dark:text-white dark:hover:text-zinc-200 underline underline-offset-2"
+                  >
+                    Open
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            (click)="notificationService.dismissToast()"
+            class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-1 rounded-md"
+          >
+            &times;
+          </button>
+        </div>
+      }
     </div>
   `,
   styles: [
@@ -1173,6 +1954,15 @@ export interface IDynamicStarterCard {
       .custom-sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
         background: #3f3f46;
       }
+      @keyframes replyPulse {
+        0% { transform: scale(1); filter: brightness(1); }
+        50% { transform: scale(1.02); filter: brightness(1.25); }
+        100% { transform: scale(1); filter: brightness(1); }
+      }
+      .reply-highlight-pulse {
+        animation: replyPulse 1.2s ease-in-out;
+        box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.4) !important;
+      }
     `,
   ],
 })
@@ -1188,10 +1978,17 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   private pdfReportService = inject(PdfReportService);
   private readonly walkthroughService = inject(WalkthroughService);
   voiceService = inject(VoiceRecognitionService);
+  presenceService = inject(PresenceService);
+  notificationService = inject(NotificationService);
+  sharingService = inject(SharingService);
+  soundService = inject(SoundService);
   private voiceSub?: Subscription;
   private voiceErrorSub?: Subscription;
   private routeSub?: Subscription;
   private queryParamsSub?: Subscription;
+  private incomingMsgSub?: Subscription;
+
+  hasUnseenNewMessages = false;
 
   @ViewChild('scrollContainer') scrollContainer?: ElementRef<HTMLDivElement>;
   @ViewChild('convScrollContainer') convScrollContainer?: ElementRef<HTMLDivElement>;
@@ -1201,6 +1998,215 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   filteredConversations: IConversation[] = [];
   activeConversation: IConversation | null = null;
   searchQuery = '';
+
+  // Sharing & Presence modal state
+  isShareConvModalOpen = false;
+  shareModalConvId = '';
+  shareModalConvTitle = '';
+  isShareMessageModalOpen = false;
+  shareModalMessage: IMessage | null = null;
+  isSharedMessageViewerOpen = false;
+  sharedMessageToView: IMessageShare | null = null;
+  isProfilePopoverOpen = false;
+  profileUser: IOrgMember | null = null;
+  profilePosition = { top: 0, left: 0 };
+  isOrgDirectoryOpen = false;
+
+  // Direct Messaging State
+  replyingToMessage: IMessage | null = null;
+  isUploadingDmFile = false;
+  selectedTimestampMsgId: string | null = null;
+
+  toggleMessageTimestamp(msgId: string, event?: Event): void {
+    if (event) event.stopPropagation();
+    if (this.selectedTimestampMsgId === msgId) {
+      this.selectedTimestampMsgId = null;
+    } else {
+      this.selectedTimestampMsgId = msgId;
+    }
+  }
+
+  get isDirectMode(): boolean {
+    return this.activeConversation?.type === 'direct';
+  }
+
+  get activeDirectPartner(): any {
+    if (!this.isDirectMode) return null;
+    let basePartner = null;
+    if (this.activeConversation?.partner) {
+      basePartner = this.activeConversation.partner;
+    } else {
+      const dm = this.activeDirectConversationInfo;
+      if (dm?.partner) basePartner = dm.partner;
+    }
+    if (!basePartner) return null;
+
+    const partnerId = basePartner.id || (basePartner as any)._id;
+    const realTimePres = this.presenceService.getPresence(partnerId);
+    if (realTimePres) {
+      return {
+        ...basePartner,
+        presence: {
+          ...basePartner.presence,
+          ...realTimePres,
+        },
+      };
+    }
+    return basePartner;
+  }
+
+  isOwnMessage(msg: IMessage): boolean {
+    const myId = this.currentUserId;
+    if (!myId) return false;
+    if (msg.role === 'assistant') {
+      // AI responses inside DM belong to the user who requested the AI generation (msg.userId)
+      return msg.userId === myId;
+    }
+    return (msg.userId === myId) || (msg.author?.id === myId);
+  }
+
+  getSenderName(msg: IMessage | null): string {
+    if (!msg) return '';
+    if (this.isOwnMessage(msg)) return 'You';
+    if (msg.author) return `${msg.author.firstName || ''} ${msg.author.lastName || ''}`.trim() || 'Colleague';
+    const partner = this.activeDirectPartner;
+    if (partner) return `${partner.firstName || ''} ${partner.lastName || ''}`.trim() || 'Colleague';
+    return 'Colleague';
+  }
+
+  getPartnerInitials(partner?: any): string {
+    if (!partner) return 'U';
+    const f = (partner.firstName || '').charAt(0).toUpperCase();
+    const l = (partner.lastName || '').charAt(0).toUpperCase();
+    return (f + l) || 'U';
+  }
+
+  isConsecutiveMessage(prevMsg: IMessage | undefined, currMsg: IMessage): boolean {
+    if (!prevMsg) return false;
+    if (this.isOwnMessage(prevMsg) !== this.isOwnMessage(currMsg)) return false;
+    if (prevMsg.role !== currMsg.role) return false;
+    if (!prevMsg.createdAt || !currMsg.createdAt) return false;
+    const diffMs = Math.abs(new Date(currMsg.createdAt).getTime() - new Date(prevMsg.createdAt).getTime());
+    return diffMs < 3 * 60 * 1000;
+  }
+
+  getDateDivider(prevMsg: IMessage | undefined, currMsg: IMessage): string | null {
+    if (!currMsg.createdAt) return null;
+    const currDate = new Date(currMsg.createdAt);
+    if (!prevMsg || !prevMsg.createdAt) {
+      return this.formatDateDivider(currDate);
+    }
+    const prevDate = new Date(prevMsg.createdAt);
+    if (
+      currDate.getFullYear() !== prevDate.getFullYear() ||
+      currDate.getMonth() !== prevDate.getMonth() ||
+      currDate.getDate() !== prevDate.getDate()
+    ) {
+      return this.formatDateDivider(currDate);
+    }
+    return null;
+  }
+
+  private formatDateDivider(date: Date): string {
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    if (date.toDateString() === today.toDateString()) return 'Today';
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  setReplyToMessage(msg: IMessage): void {
+    this.replyingToMessage = msg;
+    this.focusInput();
+  }
+
+  cancelReply(): void {
+    this.replyingToMessage = null;
+  }
+
+  scrollToOriginalMessage(id?: string, event?: Event): void {
+    if (event) event.stopPropagation();
+    if (!id) return;
+    const el = document.getElementById(`msg-bubble-${id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('reply-highlight-pulse');
+      setTimeout(() => {
+        el.classList.remove('reply-highlight-pulse');
+      }, 1500);
+    }
+  }
+
+  triggerDmFileUpload(): void {
+    const input = document.getElementById('dm-file-upload-input') as HTMLInputElement;
+    if (input) {
+      input.value = '';
+      input.click();
+    }
+  }
+
+  onDmFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0 || !this.activeConversation) return;
+    const file = input.files[0];
+    this.isUploadingDmFile = true;
+    this.api.uploadDocument(file).subscribe({
+      next: (doc) => {
+        this.isUploadingDmFile = false;
+        const downloadableFile: IDownloadableFile = {
+          documentId: doc.id,
+          fileName: doc.originalName || file.name,
+          fileSize: file.size,
+          mimeType: file.type || 'application/octet-stream',
+        };
+        this.chatState.sendDirectMessage(
+          this.activeConversation!.id,
+          `Shared file: ${doc.originalName || file.name}`,
+          [],
+          this.authService.currentUser(),
+          downloadableFile,
+        ).subscribe({
+          next: () => {
+            this.shouldScroll = true;
+          },
+          error: (err) => {
+            this.localError = err.error?.message || 'Failed to send attachment';
+          },
+        });
+      },
+      error: (err) => {
+        this.isUploadingDmFile = false;
+        this.localError = err.error?.message || 'Failed to upload file attachment';
+      },
+    });
+  }
+
+  get isViewOnlyCollaborator(): boolean {
+    if (!this.activeConversation) return false;
+    const shared = this.chatState.sharedConversations().find(
+      (s) => s.id === this.activeConversation?.id
+    );
+    return shared ? shared.permission === 'view' : false;
+  }
+
+  get activeSharedConversationInfo(): ISharedConversationItem | null {
+    if (!this.activeConversation) return null;
+    return this.chatState.sharedConversations().find(
+      (s) => s.id === this.activeConversation?.id
+    ) || null;
+  }
+
+  get activeDirectConversationInfo(): IDirectConversationItem | null {
+    if (!this.activeConversation || this.activeConversation.type !== 'direct') return null;
+    return this.chatState.directConversations().find(
+      (d) => d.id === this.activeConversation?.id
+    ) || null;
+  }
+
+  get currentUserId(): string {
+    return this.authService.currentUser()?.id || '';
+  }
   localError = '';
   copiedMessageIdx: number | null = null;
   private copiedMessageTimer?: any;
@@ -1471,6 +2477,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.voiceErrorSub?.unsubscribe();
     this.routeSub?.unsubscribe();
     this.queryParamsSub?.unsubscribe();
+    this.incomingMsgSub?.unsubscribe();
   }
 
   private voiceBaseText = '';
@@ -1519,6 +2526,8 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   // Collections state & per-user persistence
   collections: ICollection[] = [];
   isCollectionsGroupExpanded = true;
+  isDirectGroupExpanded = true;
+  isSharedGroupExpanded = true;
   expandedCollectionIds = new Set<string>();
   draggedConversation: IConversation | null = null;
   dragOverCollectionId: string | null = null;
@@ -1703,6 +2712,21 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.loadCollections();
     this.loadConversations();
     this.loadDynamicStarters();
+    this.chatState.loadSharedConversations?.();
+    this.chatState.loadDirectConversations?.();
+    this.notificationService.fetchNotifications?.();
+
+    // Realtime collaborative incoming message & smart auto-scrolling subscription
+    this.incomingMsgSub = this.chatState.incomingMessage$?.subscribe(({ message, conversationId }) => {
+      if (this.activeConversation?.id === conversationId) {
+        if (this.isUserNearBottom()) {
+          this.shouldScroll = true;
+          this.hasUnseenNewMessages = false;
+        } else {
+          this.hasUnseenNewMessages = true;
+        }
+      }
+    });
 
     // Voice recognition subscriptions
     this.voiceSub = this.voiceService.transcript$.subscribe((res) => {
@@ -1719,14 +2743,51 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       }
     });
 
-    // Route param subscription for navigating to specific chats (e.g. from Dashboard collections)
+    // Route param subscription for navigating to specific chats (e.g. from Navigation Sidebar DMs or Dashboard collections)
     this.routeSub = this.route.paramMap.subscribe((params) => {
       const routeId = params.get('id');
-      if (routeId && this.conversations.length > 0) {
+      if (routeId) {
+        // 1. Personal AI conversation
         const found = this.conversations.find((c) => c.id === routeId);
-        if (found && (!this.activeConversation || this.activeConversation.id !== found.id)) {
-          this.selectConversation(found);
+        if (found) {
+          if (!this.activeConversation || this.activeConversation.id !== found.id) {
+            this.selectConversation(found);
+          }
+          return;
         }
+
+        // 2. Direct conversation
+        const foundDm = this.chatState.directConversations().find((d) => d.id === routeId);
+        if (foundDm) {
+          if (!this.activeConversation || this.activeConversation.id !== foundDm.id) {
+            this.selectDirectConversation(foundDm);
+          }
+          return;
+        }
+
+        // 3. Shared conversation
+        const foundShared = this.chatState.sharedConversations().find((s) => s.id === routeId);
+        if (foundShared) {
+          if (!this.activeConversation || this.activeConversation.id !== foundShared.id) {
+            this.selectSharedConversation(foundShared);
+          }
+          return;
+        }
+
+        // 4. Fetch directly from API if not yet loaded in cached arrays
+        this.api.getDirectConversation(routeId).subscribe({
+          next: (dm) => {
+            this.selectDirectConversation(dm);
+          },
+          error: () => {
+            this.api.getConversation(routeId).subscribe({
+              next: (conv) => {
+                this.selectConversation(conv);
+              },
+              error: () => {},
+            });
+          },
+        });
       }
     });
 
@@ -1759,17 +2820,18 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     return `syntra_chat_${userId}_collection_state`;
   }
 
-  private loadPersistedCollectionState(): { groupExpanded: boolean; expandedIds: string[] } {
+  private loadPersistedCollectionState(): { groupExpanded: boolean; sharedGroupExpanded: boolean; expandedIds: string[] } {
     try {
       const raw = localStorage.getItem(this.getCollectionStateStorageKey());
-      if (!raw) return { groupExpanded: true, expandedIds: [] };
+      if (!raw) return { groupExpanded: true, sharedGroupExpanded: true, expandedIds: [] };
       const parsed = JSON.parse(raw);
       return {
         groupExpanded: typeof parsed.groupExpanded === 'boolean' ? parsed.groupExpanded : true,
+        sharedGroupExpanded: typeof parsed.sharedGroupExpanded === 'boolean' ? parsed.sharedGroupExpanded : true,
         expandedIds: Array.isArray(parsed.expandedIds) ? parsed.expandedIds : [],
       };
     } catch {
-      return { groupExpanded: true, expandedIds: [] };
+      return { groupExpanded: true, sharedGroupExpanded: true, expandedIds: [] };
     }
   }
 
@@ -1777,6 +2839,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     try {
       const payload = {
         groupExpanded: this.isCollectionsGroupExpanded,
+        sharedGroupExpanded: this.isSharedGroupExpanded,
         expandedIds: Array.from(this.expandedCollectionIds),
       };
       localStorage.setItem(this.getCollectionStateStorageKey(), JSON.stringify(payload));
@@ -1789,6 +2852,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
         this.collections = cols;
         const persisted = this.loadPersistedCollectionState();
         this.isCollectionsGroupExpanded = persisted.groupExpanded;
+        this.isSharedGroupExpanded = persisted.sharedGroupExpanded;
 
         // Restore persisted collection states, or if fresh/no persisted state:
         // if user has > 2 collections, default to collapsed; otherwise expand
@@ -1838,6 +2902,11 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   toggleAllCollectionsSectionCollapse(): void {
     this.isCollectionsGroupExpanded = !this.isCollectionsGroupExpanded;
+    this.savePersistedCollectionState();
+  }
+
+  toggleSharedSectionCollapse(): void {
+    this.isSharedGroupExpanded = !this.isSharedGroupExpanded;
     this.savePersistedCollectionState();
   }
 
@@ -2604,6 +3673,8 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.pendingCollectionId = null;
     this.isCreatingNewConversation = false;
     this.activeConversation = conv;
+    this.hasUnseenNewMessages = false;
+    this.chatState.setActiveConversationId?.(conv.id);
 
     // Auto-expand parent collection if this conversation belongs to one
     if (conv.collectionId) {
@@ -2691,6 +3762,8 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.pendingCollectionId = collectionId || null;
     this.isCreatingNewConversation = false;
     this.activeConversation = null;
+    this.hasUnseenNewMessages = false;
+    this.chatState.setActiveConversationId?.(null);
     this.inputText = '';
     this.attachedResources = [];
     this.dismissError();
@@ -2777,9 +3850,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       event.stopPropagation();
     }
     this.isMentionOpen = true;
-    this.api.searchMentions('').subscribe((res) => {
-      this.mentionOptions = res.results || [];
-    });
+    this.fetchMentionOptions('');
   }
 
   onInputChange(event: Event): void {
@@ -2795,18 +3866,51 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     if (lastAtIdx !== -1 && !textBeforeCursor.slice(lastAtIdx).includes(' ')) {
       const query = textBeforeCursor.slice(lastAtIdx + 1);
       this.isMentionOpen = true;
-      this.api.searchMentions(query).subscribe((res) => {
-        this.mentionOptions = res.results || [];
-      });
+      this.fetchMentionOptions(query);
     } else {
       this.isMentionOpen = false;
     }
   }
 
+  private fetchMentionOptions(query: string): void {
+    const q = query.toLowerCase().trim();
+    const isDirect = this.activeConversation?.type === 'direct' || this.isDirectMode;
+
+    this.api.searchMentions(query).subscribe((res) => {
+      const results: IMentionOption[] = [];
+
+      // If in direct message (or general), prepend Syntra AI invocation option
+      if (isDirect || !q || 'syntra'.includes(q) || 'ai'.includes(q)) {
+        results.push({
+          id: 'syntra-ai',
+          name: 'Syntra AI',
+          type: 'ai' as any,
+          fileType: 'AI',
+          status: 'active',
+          detail: 'Ask Syntra AI inside this conversation (@Syntra)',
+        });
+      }
+
+      if (res.results && res.results.length > 0) {
+        if (isDirect) {
+          // In Direct Messages, only show colleagues/users and Syntra AI. Exclude files, documents, datasets, and folders.
+          const userResults = res.results.filter(
+            (item) => (item.type as string) === 'user' || (item.type as string) === 'member'
+          );
+          results.push(...userResults);
+        } else {
+          results.push(...res.results);
+        }
+      }
+
+      this.mentionOptions = results;
+    });
+  }
+
   onMentionSelected(option: IMentionOption): void {
-    if (!this.attachedResources.some((r) => r.id === option.id)) {
-      this.attachedResources.push(option);
-    }
+    const isAi = (option.type as any) === 'ai' || option.id === 'syntra-ai';
+    const isUser = (option.type as any) === 'user';
+
     const val = this.inputText;
     const cursorPos = this.inputArea?.nativeElement?.selectionStart ?? val.length;
     const textBefore = val.slice(0, cursorPos);
@@ -2818,23 +3922,47 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       atIdx = val.lastIndexOf('@');
     }
 
-    if (atIdx !== -1) {
-      // Find where the token after @ ends (e.g. '@arch ' or end of string)
-      const afterAt = val.slice(atIdx);
-      const spaceIdx = afterAt.indexOf(' ');
-      const tokenLen = spaceIdx === -1 ? afterAt.length : spaceIdx;
-      const cleanBefore = val.slice(0, atIdx).trimEnd();
-      const cleanAfter = val.slice(atIdx + tokenLen).trimStart();
-      this.inputText = cleanBefore && cleanAfter ? `${cleanBefore} ${cleanAfter}` : `${cleanBefore}${cleanAfter}`;
+    if (isAi) {
+      if (atIdx !== -1) {
+        const afterAt = val.slice(atIdx);
+        const spaceIdx = afterAt.indexOf(' ');
+        const tokenLen = spaceIdx === -1 ? afterAt.length : spaceIdx;
+        const cleanBefore = val.slice(0, atIdx).trimEnd();
+        const cleanAfter = val.slice(atIdx + tokenLen).trimStart();
+        const replacement = '@Syntra ';
+        this.inputText = cleanBefore ? `${cleanBefore} ${replacement}${cleanAfter}` : `${replacement}${cleanAfter}`;
+      } else {
+        this.inputText = this.inputText ? `@Syntra ${this.inputText}` : '@Syntra ';
+      }
+    } else if (isUser) {
+      if (atIdx !== -1) {
+        const afterAt = val.slice(atIdx);
+        const spaceIdx = afterAt.indexOf(' ');
+        const tokenLen = spaceIdx === -1 ? afterAt.length : spaceIdx;
+        const cleanBefore = val.slice(0, atIdx).trimEnd();
+        const cleanAfter = val.slice(atIdx + tokenLen).trimStart();
+        const replacement = `@${option.name} `;
+        this.inputText = cleanBefore ? `${cleanBefore} ${replacement}${cleanAfter}` : `${replacement}${cleanAfter}`;
+      }
+    } else {
+      // Document / dataset / folder resource attachment
+      if (!this.attachedResources.some((r) => r.id === option.id)) {
+        this.attachedResources.push(option);
+      }
+      if (atIdx !== -1) {
+        const afterAt = val.slice(atIdx);
+        const spaceIdx = afterAt.indexOf(' ');
+        const tokenLen = spaceIdx === -1 ? afterAt.length : spaceIdx;
+        const cleanBefore = val.slice(0, atIdx).trimEnd();
+        const cleanAfter = val.slice(atIdx + tokenLen).trimStart();
+        this.inputText = cleanBefore && cleanAfter ? `${cleanBefore} ${cleanAfter}` : `${cleanBefore}${cleanAfter}`;
+      }
     }
+
     this.isMentionOpen = false;
     this.triggerDraftAutosave();
     setTimeout(() => {
       this.focusInput();
-      if (this.inputArea?.nativeElement) {
-        const newPos = atIdx !== -1 ? atIdx : this.inputText.length;
-        this.inputArea.nativeElement.setSelectionRange(newPos, newPos);
-      }
     }, 50);
   }
 
@@ -2908,6 +4036,77 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       this.inputArea.nativeElement.style.height = 'auto';
     }
 
+    if (this.isDirectMode) {
+      let replyToPreview: IReplyToPreview | undefined;
+      let replyToMessageId: string | undefined;
+
+      if (this.replyingToMessage) {
+        replyToMessageId = this.replyingToMessage.id;
+        replyToPreview = {
+          id: this.replyingToMessage.id,
+          senderName: this.replyingToMessage.role === 'assistant' ? 'Syntra AI' : this.getSenderName(this.replyingToMessage),
+          content: this.replyingToMessage.downloadableFile
+            ? `Shared file: ${this.replyingToMessage.downloadableFile.fileName}`
+            : (this.replyingToMessage.content || '').slice(0, 150),
+          fileName: this.replyingToMessage.downloadableFile?.fileName,
+          isAi: this.replyingToMessage.role === 'assistant',
+        };
+        this.replyingToMessage = null;
+      }
+
+      const isAiCall = /@Syntra\b/i.test(content) || /@AI\b/i.test(content);
+
+      if (isAiCall) {
+        this.chatState
+          .sendMessageStream(convId, content, resourceIds, (updatedConv) => {
+            if (this.activeConversation?.id === updatedConv.id) {
+              this.activeConversation = updatedConv;
+            }
+          }, false, replyToPreview, replyToMessageId)
+          .then(() => {
+            if (this.activeConversation?.id === convId) {
+              this.shouldScroll = true;
+            }
+          })
+          .catch((err) => {
+            this.chatDraftService.saveDraft(convId, content, sentAttachedResources);
+            if (this.activeConversation?.id === convId && !this.inputText) {
+              this.inputText = content;
+              this.attachedResources = sentAttachedResources;
+              this.adjustTextareaHeight();
+            }
+            this.localError = err.message || 'Failed to get AI response.';
+          });
+      } else {
+        // Pure direct human-to-human message (Zero AI pipeline flash!)
+        this.chatState.sendDirectMessage(
+          convId,
+          content,
+          [],
+          this.authService.currentUser(),
+          undefined,
+          replyToPreview,
+          replyToMessageId,
+        ).subscribe({
+          next: () => {
+            if (this.activeConversation?.id === convId) {
+              this.shouldScroll = true;
+            }
+          },
+          error: (err) => {
+            this.chatDraftService.saveDraft(convId, content, sentAttachedResources);
+            if (this.activeConversation?.id === convId && !this.inputText) {
+              this.inputText = content;
+              this.attachedResources = sentAttachedResources;
+              this.adjustTextareaHeight();
+            }
+            this.localError = err.error?.message || 'Failed to send direct message';
+          },
+        });
+      }
+      return;
+    }
+
     this.chatState
       .sendMessageStream(convId, content, resourceIds, (updatedConv) => {
         if (!this.isTemporaryMode) {
@@ -2943,9 +4142,30 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       });
   }
 
+  isUserNearBottom(): boolean {
+    if (!this.scrollContainer?.nativeElement) return true;
+    const el = this.scrollContainer.nativeElement;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }
+
+  onScrollContainerScrolled(): void {
+    if (this.isUserNearBottom()) {
+      this.hasUnseenNewMessages = false;
+    }
+  }
+
+  scrollToBottomSmooth(): void {
+    try {
+      if (this.scrollContainer?.nativeElement) {
+        const el = this.scrollContainer.nativeElement;
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      }
+    } catch {}
+  }
+
   private scrollToBottom(): void {
     try {
-      if (this.scrollContainer) {
+      if (this.scrollContainer?.nativeElement) {
         this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
       }
     } catch {}
@@ -3033,6 +4253,11 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
 
+    // Dismiss any mobile-selected timestamp if clicking outside message bubbles
+    if (!target.closest('.group')) {
+      this.selectedTimestampMsgId = null;
+    }
+
     const copyBtn = target.closest('.copy-code-btn') as HTMLButtonElement | null;
     if (!copyBtn) return;
 
@@ -3078,5 +4303,166 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
       .catch((err) => {
         console.error('Failed to copy text:', err);
       });
+  }
+
+  // ---------------- Sharing & Collaboration Methods ----------------
+  selectSharedConversation(sharedItem: ISharedConversationItem): void {
+    this.isSharedGroupExpanded = true;
+    this.savePersistedCollectionState();
+    this.selectConversation(sharedItem);
+  }
+
+  async leaveSharedConversation(sharedItem: ISharedConversationItem, event?: MouseEvent): Promise<void> {
+    if (event) event.stopPropagation();
+    const confirmed = await this.modal.confirmDanger(
+      `Leave "${sharedItem.title}"? You will lose access to this conversation unless re-shared.`,
+      'Leave Shared Chat',
+      'Leave'
+    );
+    if (!confirmed) return;
+
+    this.sharingService.leaveSharedConversation(sharedItem.id).subscribe({
+      next: () => {
+        this.chatState.loadSharedConversations();
+        if (this.activeConversation?.id === sharedItem.id) {
+          this.activeConversation = null;
+          this.createNewConversation();
+        }
+      },
+      error: (err) => {
+        this.modal.alert(err.error?.message || 'Failed to leave shared chat', 'Error');
+      },
+    });
+  }
+
+  handleHeaderShare(event: MouseEvent): void {
+    event.stopPropagation();
+    if (!this.activeConversation) return;
+    if (this.isTemporaryMode || this.activeConversation.id.startsWith('temp-')) {
+      this.modal.alert("Temporary chats can't be shared. Start a regular chat to collaborate.", 'Notice');
+      return;
+    }
+    this.openShareConversationModal(this.activeConversation);
+  }
+
+  handleMenuShare(conv: IConversation, event: MouseEvent): void {
+    event.stopPropagation();
+    this.closeActionMenus();
+    if (this.isTemporaryMode || conv.id.startsWith('temp-')) {
+      this.modal.alert("Temporary chats can't be shared. Start a regular chat to collaborate.", 'Notice');
+      return;
+    }
+    this.openShareConversationModal(conv);
+  }
+
+  openShareConversationModal(conv: IConversation): void {
+    this.shareModalConvId = conv.id;
+    this.shareModalConvTitle = conv.title;
+    this.isShareConvModalOpen = true;
+  }
+
+  openShareMessageModal(msg: IMessage, event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    if (this.isTemporaryMode || this.activeConversation?.id.startsWith('temp-')) {
+      this.modal.alert("Messages from temporary chats cannot be shared.", 'Notice');
+      return;
+    }
+    this.shareModalMessage = msg;
+    this.isShareMessageModalOpen = true;
+  }
+
+  openSharedMessageViewer(msgShare: IMessageShare): void {
+    this.sharedMessageToView = msgShare;
+    this.isSharedMessageViewerOpen = true;
+  }
+
+  openOwnerProfile(owner: IOrgMember, event: MouseEvent): void {
+    event.stopPropagation();
+    this.profileUser = owner;
+    this.isProfilePopoverOpen = true;
+  }
+
+  // ---------------- Direct Messaging & Directory Methods ----------------
+  openOrgDirectory(): void {
+    this.isOrgDirectoryOpen = true;
+  }
+
+  onStartDirectMessage(member: IOrgMember): void {
+    this.isOrgDirectoryOpen = false;
+    this.api.getOrCreateDirectConversation(member.id).subscribe({
+      next: (conv) => {
+        this.chatState.loadDirectConversations();
+        this.selectDirectConversation(conv);
+      },
+      error: (err) => {
+        this.modal.alert(err.error?.message || 'Failed to start conversation with team member', 'Error');
+      },
+    });
+  }
+
+  selectDirectConversation(dm: IDirectConversationItem | IConversation): void {
+    const partner = (dm as any).partner;
+    const partnerTitle = partner ? `${partner.firstName || ''} ${partner.lastName || ''}`.trim() : '';
+    const convToSelect: IConversation = {
+      id: dm.id,
+      title: (dm as any).title || partnerTitle || 'Direct Message',
+      userId: partner?.id || (dm as any).userId || '',
+      type: 'direct',
+      participants: (dm as any).participants || [],
+      unreadCount: (dm as any).unreadCount || 0,
+      lastMessage: (dm as any).lastMessage,
+      partner: partner,
+      attachedResourceIds: [],
+      pinned: false,
+      archived: false,
+      createdAt: (dm as any).createdAt || new Date().toISOString(),
+      updatedAt: (dm as any).updatedAt || new Date().toISOString(),
+    };
+    this.selectConversation(convToSelect);
+    this.chatState.markDirectConversationRead(dm.id);
+  }
+
+  openDirectPartnerProfile(partner: any, event: MouseEvent): void {
+    event.stopPropagation();
+    if (!partner) return;
+    this.profileUser = {
+      id: partner.id,
+      firstName: partner.firstName || 'User',
+      lastName: partner.lastName || '',
+      email: partner.email || '',
+      presence: partner.presence || {
+        isOnline: this.presenceService.isUserOnline(partner.presence),
+      },
+    };
+    this.isProfilePopoverOpen = true;
+  }
+
+  handleToastAction(notification: INotification): void {
+    this.notificationService.dismissToast();
+    if (notification.type === 'conversation_shared' && notification.resourceId) {
+      this.chatState.loadSharedConversations();
+      this.sharingService.getSharedConversations().subscribe((sharedList) => {
+        const found = sharedList.find((s) => s.id === notification.resourceId);
+        if (found) {
+          this.selectSharedConversation(found);
+        }
+      });
+    } else if (notification.type === 'message_shared' && notification.resourceId) {
+      this.sharingService.getSharedMessage(notification.resourceId).subscribe({
+        next: (share) => {
+          this.openSharedMessageViewer(share);
+        },
+        error: (err) => {
+          this.modal.alert(err.error?.message || 'Failed to open shared message', 'Error');
+        },
+      });
+    } else if (notification.type === 'direct_message' && notification.resourceId) {
+      this.chatState.loadDirectConversations();
+      this.api.getDirectConversation(notification.resourceId).subscribe({
+        next: (dm) => {
+          this.selectDirectConversation(dm);
+        },
+      });
+    }
   }
 }

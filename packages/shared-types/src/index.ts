@@ -9,6 +9,7 @@ export * from './access-request.types';
 
 export * from './folder.types';
 export * from './collection.types';
+export * from './notification.types';
 
 
 // ---------------- App Configuration & Branding Constants ----------------

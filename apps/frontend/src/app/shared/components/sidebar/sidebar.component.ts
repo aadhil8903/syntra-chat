@@ -1,20 +1,24 @@
 import { Component, inject, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { NavigationDrawerService } from '../../../core/services/navigation-drawer.service';
+import { ChatStateService } from '../../../core/services/chat-state.service';
+import { ApiService } from '../../../core/services/api.service';
+import { OrgDirectoryModalComponent } from '../org-directory-modal/org-directory-modal.component';
+import { IOrgMember, IDirectConversationItem } from '@enter-chat/shared-types';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, OrgDirectoryModalComponent],
   template: `
     <!-- 1. Desktop Persistent Sidebar (>= 768px) -->
     <aside
       [style.width.px]="isCollapsed ? 64 : width"
       class="hidden md:flex relative border-r border-[#dcdde1] dark:border-[#27272a] bg-white dark:bg-[#0c0c0e] flex-col justify-between p-3 h-full flex-shrink-0 select-none transition-[width] duration-75"
     >
-      <div class="space-y-4">
+      <div class="space-y-4 overflow-y-auto custom-sidebar-scrollbar pr-0.5">
         <!-- Collapse / Expand Toggle Button -->
         <div class="flex items-center" [ngClass]="isCollapsed ? 'justify-center' : 'justify-between px-2'">
           @if (!isCollapsed) {
@@ -68,6 +72,27 @@ import { NavigationDrawerService } from '../../../core/services/navigation-drawe
             }
           </a>
 
+          <button
+            type="button"
+            (click)="openOrgDirectory()"
+            class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-zinc-600 dark:text-[#a1a1aa] hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-[#18181b] transition-colors text-sm font-medium text-left"
+            [title]="isCollapsed ? 'Direct Messages' : ''"
+          >
+            <div class="flex items-center gap-3 truncate">
+              <svg class="w-5 h-5 flex-shrink-0" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              @if (!isCollapsed) {
+                <span class="truncate">Direct Messages</span>
+              }
+            </div>
+            @if (!isCollapsed && totalUnreadDirect > 0) {
+              <span class="px-1.5 py-0.5 rounded-full bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 text-[10px] font-mono font-bold">
+                {{ totalUnreadDirect }}
+              </span>
+            }
+          </button>
+
           <a
             routerLink="/chat"
             [queryParams]="{ view: 'archived' }"
@@ -100,6 +125,54 @@ import { NavigationDrawerService } from '../../../core/services/navigation-drawe
             }
           </a>
         </nav>
+
+        <!-- Direct Messages Section in Desktop Navigation Sidebar -->
+        @if (!isCollapsed && chatState.directConversations().length > 0) {
+          <div class="pt-2 space-y-1 border-t border-[#dcdde1] dark:border-[#27272a]/60">
+            <div class="flex items-center justify-between px-2 py-1 text-xs select-none">
+              <span class="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-[#71717a]">Direct Messages</span>
+              <button
+                type="button"
+                (click)="openOrgDirectory()"
+                class="p-1 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors flex items-center justify-center border border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-600"
+                title="Find people to message"
+                aria-label="Find people to message"
+              >
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+            </div>
+
+            <div class="space-y-0.5 max-h-48 overflow-y-auto custom-sidebar-scrollbar">
+              @for (dm of chatState.directConversations(); track dm.id) {
+                <a
+                  [routerLink]="['/chat', dm.id]"
+                  routerLinkActive="bg-[#f0f1f3] text-zinc-900 font-semibold dark:bg-[#18181b] dark:text-white"
+                  class="group flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-all text-xs text-zinc-600 dark:text-[#a1a1aa] hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-[#18181b]"
+                >
+                  <div class="flex items-center gap-2 truncate flex-1 min-w-0">
+                    <div class="relative flex-shrink-0 overflow-visible">
+                      <div class="w-5 h-5 rounded-full bg-zinc-200 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:text-white dark:border-zinc-700 flex items-center justify-center text-[10px] font-semibold uppercase">
+                        {{ (dm.partner.firstName || 'U')[0] }}
+                      </div>
+                      <span
+                        class="absolute bottom-0 right-0 w-2 h-2 rounded-full ring-1.5 ring-white dark:ring-[#0c0c0e] z-10"
+                        [ngClass]="dm.partner.presence?.isOnline ? 'bg-emerald-500' : 'bg-zinc-400'"
+                      ></span>
+                    </div>
+                    <span class="truncate font-medium">{{ dm.partner.firstName }} {{ dm.partner.lastName }}</span>
+                  </div>
+                  @if (dm.unreadCount > 0) {
+                    <span class="ml-1 px-1.5 py-0.2 rounded-full bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 text-[9px] font-mono font-bold flex-shrink-0">
+                      {{ dm.unreadCount }}
+                    </span>
+                  }
+                </a>
+              }
+            </div>
+          </div>
+        }
       </div>
 
       <!-- Bottom Secondary Navigation -->
@@ -183,7 +256,7 @@ import { NavigationDrawerService } from '../../../core/services/navigation-drawe
         aria-modal="true"
         aria-label="Navigation Menu"
       >
-        <div class="space-y-4">
+        <div class="space-y-4 overflow-y-auto custom-sidebar-scrollbar">
           <!-- Drawer Header with Logo & Close Button -->
           <div class="flex items-center justify-between pb-3 border-b border-[#dcdde1] dark:border-[#27272a]">
             <div class="flex items-center gap-2.5">
@@ -231,6 +304,24 @@ import { NavigationDrawerService } from '../../../core/services/navigation-drawe
               </svg>
               <span>Chat</span>
             </a>
+
+            <button
+              type="button"
+              (click)="openOrgDirectory()"
+              class="w-full flex items-center justify-between px-3.5 min-h-[44px] rounded-xl text-zinc-600 dark:text-[#a1a1aa] hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-[#18181b] transition-colors text-sm font-medium text-left"
+            >
+              <div class="flex items-center gap-3 truncate">
+                <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span>Direct Messages</span>
+              </div>
+              @if (totalUnreadDirect > 0) {
+                <span class="px-1.5 py-0.5 rounded-full bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 text-[10px] font-mono font-bold">
+                  {{ totalUnreadDirect }}
+                </span>
+              }
+            </button>
 
             <a
               routerLink="/chat"
@@ -326,21 +417,38 @@ import { NavigationDrawerService } from '../../../core/services/navigation-drawe
         }
       </div>
     </div>
+
+    <!-- Organization Directory Modal -->
+    @if (isOrgDirectoryOpen) {
+      <app-org-directory-modal
+        [isOpen]="isOrgDirectoryOpen"
+        (closed)="isOrgDirectoryOpen = false"
+        (messageMember)="onStartDirectMessage($event)"
+      ></app-org-directory-modal>
+    }
   `,
 })
 export class SidebarComponent implements OnInit {
   private authService = inject(AuthService);
+  private api = inject(ApiService);
+  private router = inject(Router);
+  chatState = inject(ChatStateService);
   readonly drawerService = inject(NavigationDrawerService);
 
   user = this.authService.currentUser;
   width = 240;
   isCollapsed = false;
+  isOrgDirectoryOpen = false;
   private isResizing = false;
   private startX = 0;
   private startWidth = 240;
 
   get isAdmin() {
     return this.authService.isAdmin();
+  }
+
+  get totalUnreadDirect(): number {
+    return this.chatState.directConversations().reduce((acc, dm) => acc + (dm.unreadCount || 0), 0);
   }
 
   ngOnInit(): void {
@@ -352,6 +460,25 @@ export class SidebarComponent implements OnInit {
     if (savedCollapsed) {
       this.isCollapsed = savedCollapsed === 'true';
     }
+    this.chatState.loadDirectConversations?.();
+  }
+
+  openOrgDirectory(): void {
+    this.isOrgDirectoryOpen = true;
+  }
+
+  onStartDirectMessage(member: IOrgMember): void {
+    this.isOrgDirectoryOpen = false;
+    this.drawerService.close();
+    this.api.getOrCreateDirectConversation(member.id).subscribe({
+      next: (dm) => {
+        this.chatState.loadDirectConversations();
+        this.router.navigate(['/chat', dm.id]);
+      },
+      error: (err) => {
+        console.error('Failed to start direct conversation:', err);
+      },
+    });
   }
 
   @HostListener('window:keydown.escape')

@@ -266,7 +266,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                 <button
                   *ngIf="isAdmin"
                   (click)="$event.stopPropagation(); deleteFolder(sub.fullPath)"
-                  class="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity p-1 rounded-lg hover:bg-zinc-800 text-zinc-500"
+                  class="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-all p-1.5 rounded-lg hover:bg-zinc-200/80 active:bg-zinc-200 dark:hover:bg-zinc-800 dark:active:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
                   title="Delete folder"
                 >
                   <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -325,7 +325,7 @@ import { extractDroppedFilesAndFolders } from '../../core/utils/drag-drop-folder
                       <button
                         *ngIf="isAdmin"
                         (click)="deleteDataset(ds.id, $event)"
-                        class="text-zinc-500 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors flex-shrink-0"
+                        class="text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white p-1.5 rounded-lg hover:bg-zinc-200/80 active:bg-zinc-200 dark:hover:bg-zinc-800 dark:active:bg-zinc-700 transition-colors flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
                         title="Delete dataset"
                       >
                         <svg class="w-4 h-4" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">

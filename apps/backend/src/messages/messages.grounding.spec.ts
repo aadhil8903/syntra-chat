@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { MessagesService, detectUnresolvedTargetOperation } from './messages.service';
+import { MessagesEventsService } from './messages-events.service';
 import { MessageEntity } from './schemas/message.schema';
 import { ConversationEntity } from '../conversations/schemas/conversation.schema';
 import { OwnershipService } from '../permissions/services/ownership.service';
@@ -9,6 +10,10 @@ import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import { MentionsService } from '../mentions/mentions.service';
 import { CollectionsService } from '../collections/collections.service';
 import { DocumentsService } from '../documents/documents.service';
+import { MessageShareEntity } from './schemas/message-share.schema';
+import { ConversationShareEntity } from '../conversations/schemas/conversation-share.schema';
+import { User } from '../users/schemas/user.schema';
+import { NotificationsService } from '../notifications/notifications.service';
 import { MessageRole } from '@enter-chat/shared-types';
 
 describe('MessagesService — Grounding & Anti-Hallucination Spec', () => {
@@ -44,6 +49,12 @@ describe('MessagesService — Grounding & Anti-Hallucination Spec', () => {
     mockConversationModel = {
       findOne: jest.fn().mockImplementation((query) => {
         if (query._id.toString() === mockConvId && query.userId.toString() === mockUserId) {
+          return Promise.resolve(conversationInDb);
+        }
+        return Promise.resolve(null);
+      }),
+      findById: jest.fn().mockImplementation((id) => {
+        if (id && id.toString() === mockConvId) {
           return Promise.resolve(conversationInDb);
         }
         return Promise.resolve(null);
@@ -147,11 +158,54 @@ describe('MessagesService — Grounding & Anti-Hallucination Spec', () => {
       resolvePdfRequest: jest.fn().mockResolvedValue({ matchType: 'none' }),
     };
 
+    const mockUserModel = {
+      findById: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({
+            _id: new Types.ObjectId(mockUserId),
+            firstName: 'Test',
+            lastName: 'User',
+            email: 'test@example.com',
+          }),
+        }),
+      }),
+      find: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+      }),
+    };
+
+    const mockMessageShareModel = {
+      findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn().mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+      insertMany: jest.fn().mockResolvedValue([]),
+    };
+
+    const mockConversationShareModel = {
+      findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+    };
+
+    const mockNotificationsService = {
+      createNotification: jest.fn().mockResolvedValue({}),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MessagesService,
         { provide: getModelToken(MessageEntity.name), useValue: mockMessageModel },
         { provide: getModelToken(ConversationEntity.name), useValue: mockConversationModel },
+        { provide: getModelToken(MessageShareEntity.name), useValue: mockMessageShareModel },
+        { provide: getModelToken(ConversationShareEntity.name), useValue: mockConversationShareModel },
+        { provide: getModelToken(User.name), useValue: mockUserModel },
         { provide: getModelToken('DocumentEntity'), useValue: mockDocumentModel },
         { provide: getModelToken('DatasetEntity'), useValue: mockDatasetModel },
         { provide: OwnershipService, useValue: mockOwnershipService },
@@ -159,6 +213,14 @@ describe('MessagesService — Grounding & Anti-Hallucination Spec', () => {
         { provide: MentionsService, useValue: mockMentionsService },
         { provide: CollectionsService, useValue: mockCollectionsService },
         { provide: DocumentsService, useValue: mockDocumentsService },
+        { provide: NotificationsService, useValue: mockNotificationsService },
+        {
+          provide: MessagesEventsService,
+          useValue: {
+            broadcastNewMessage: jest.fn(),
+            broadcastConversationUpdated: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

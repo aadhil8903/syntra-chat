@@ -1,8 +1,9 @@
-﻿import { Test, TestingModule } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { HttpException, HttpStatus, ExecutionContext } from '@nestjs/common';
 import { MessagesService } from './messages/messages.service';
+import { MessagesEventsService } from './messages/messages-events.service';
 import { MessageEntity } from './messages/schemas/message.schema';
 import { ConversationEntity } from './conversations/schemas/conversation.schema';
 import { OwnershipService } from './permissions/services/ownership.service';
@@ -10,6 +11,10 @@ import { AiGatewayService } from './ai-gateway/ai-gateway.service';
 import { MentionsService } from './mentions/mentions.service';
 import { CollectionsService } from './collections/collections.service';
 import { DocumentsService } from './documents/documents.service';
+import { MessageShareEntity } from './messages/schemas/message-share.schema';
+import { ConversationShareEntity } from './conversations/schemas/conversation-share.schema';
+import { User } from './users/schemas/user.schema';
+import { NotificationsService } from './notifications/notifications.service';
 import { AuthThrottlerGuard } from './auth/guards/auth-throttler.guard';
 
 describe('Load & Concurrency Benchmark Suite', () => {
@@ -26,6 +31,17 @@ describe('Load & Concurrency Benchmark Suite', () => {
       findOne: jest.fn().mockImplementation((query) => {
         return Promise.resolve({
           _id: query._id,
+          userId: new Types.ObjectId(mockUserId),
+          title: 'Benchmark Conversation',
+          attachedResourceIds: [],
+          activeScope: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }),
+      findById: jest.fn().mockImplementation((id) => {
+        return Promise.resolve({
+          _id: id,
           userId: new Types.ObjectId(mockUserId),
           title: 'Benchmark Conversation',
           attachedResourceIds: [],
@@ -122,11 +138,54 @@ describe('Load & Concurrency Benchmark Suite', () => {
       canUserDownloadDocument: jest.fn().mockResolvedValue({ canDownload: false }),
     };
 
+    const mockUserModel = {
+      findById: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({
+            _id: new Types.ObjectId(mockUserId),
+            firstName: 'Benchmark',
+            lastName: 'User',
+            email: 'benchmark@example.com',
+          }),
+        }),
+      }),
+      find: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+      }),
+    };
+
+    const mockMessageShareModel = {
+      findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn().mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+      insertMany: jest.fn().mockResolvedValue([]),
+    };
+
+    const mockConversationShareModel = {
+      findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+    };
+
+    const mockNotificationsService = {
+      createNotification: jest.fn().mockResolvedValue({}),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MessagesService,
         { provide: getModelToken(MessageEntity.name), useValue: mockMessageModel },
         { provide: getModelToken(ConversationEntity.name), useValue: mockConversationModel },
+        { provide: getModelToken(MessageShareEntity.name), useValue: mockMessageShareModel },
+        { provide: getModelToken(ConversationShareEntity.name), useValue: mockConversationShareModel },
+        { provide: getModelToken(User.name), useValue: mockUserModel },
         { provide: getModelToken('DocumentEntity'), useValue: mockDocumentModel },
         { provide: getModelToken('DatasetEntity'), useValue: mockDatasetModel },
         { provide: OwnershipService, useValue: mockOwnershipService },
@@ -134,6 +193,14 @@ describe('Load & Concurrency Benchmark Suite', () => {
         { provide: MentionsService, useValue: mockMentionsService },
         { provide: CollectionsService, useValue: mockCollectionsService },
         { provide: DocumentsService, useValue: mockDocumentsService },
+        { provide: NotificationsService, useValue: mockNotificationsService },
+        {
+          provide: MessagesEventsService,
+          useValue: {
+            broadcastNewMessage: jest.fn(),
+            broadcastConversationUpdated: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

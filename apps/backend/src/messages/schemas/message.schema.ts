@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document as MongoDocument, Types } from 'mongoose';
-import { MessageRole, ICitation, IChartSpec, ITableSpec, IDownloadableFile } from '@enter-chat/shared-types';
+import { MessageRole, ICitation, IChartSpec, ITableSpec, IDownloadableFile, IReplyToPreview } from '@enter-chat/shared-types';
 
 export type MessageEntityDocument = MessageEntity & MongoDocument;
 
@@ -24,6 +24,9 @@ export class MessageEntity {
   referencedResourceIds: string[];
 
   @Prop({ type: [Object], required: false })
+  mentions?: Array<{ type: string; id: string; name: string }>;
+
+  @Prop({ type: [Object], required: false })
   citations?: ICitation[];
 
   @Prop({ type: Object, required: false })
@@ -43,6 +46,12 @@ export class MessageEntity {
 
   @Prop({ type: Object, required: false })
   downloadableFile?: IDownloadableFile;
+
+  @Prop({ type: String, required: false })
+  replyToMessageId?: string;
+
+  @Prop({ type: Object, required: false })
+  replyTo?: IReplyToPreview;
 
   createdAt: Date;
   updatedAt: Date;

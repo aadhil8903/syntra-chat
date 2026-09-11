@@ -126,12 +126,12 @@ export interface IMoveUndoNotification {
                 <!-- Preview Table -->
                 <div class="space-y-1.5">
                   <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Sample Data Preview</div>
-                  <div class="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-x-auto bg-white dark:bg-[#09090b]">
+                  <div class="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-x-auto max-h-96 overflow-y-auto bg-white dark:bg-[#111114]">
                     <table class="w-full min-w-[600px] text-left text-xs font-mono">
-                      <thead class="bg-zinc-50 dark:bg-[#141417] text-zinc-600 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800">
+                      <thead class="sticky top-0 z-10 bg-white dark:bg-[#111114] text-zinc-600 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800">
                         <tr>
                           @for (col of currentActiveSheet.columns; track col.name) {
-                            <th class="px-3 py-2.5 whitespace-nowrap text-zinc-700 dark:text-zinc-300 font-semibold">{{ col.name }}</th>
+                            <th class="px-3 py-2.5 whitespace-nowrap text-zinc-700 dark:text-zinc-300 font-semibold bg-white dark:bg-[#111114]">{{ col.name }}</th>
                           }
                         </tr>
                       </thead>
@@ -988,7 +988,7 @@ export interface IMoveUndoNotification {
       }
 
       <!-- Unified Documents & Datasets Table -->
-      <div class="bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl overflow-hidden shadow-sm dark:shadow-none">
+      <div class="bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl shadow-sm dark:shadow-none relative overflow-clip">
         @if (loading) {
           <div class="p-16 text-center text-zinc-500 text-sm flex flex-col items-center justify-center gap-3">
             <div class="w-5 h-5 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
@@ -1021,17 +1021,17 @@ export interface IMoveUndoNotification {
           <!-- Desktop Documents Table (>= 768px) -->
           <div class="hidden md:block overflow-x-auto w-full">
             <table class="w-full text-left text-xs">
-              <thead class="bg-zinc-50 dark:bg-[#09090b] text-zinc-600 dark:text-zinc-400 text-[11px] font-semibold uppercase tracking-wider border-b border-zinc-200 dark:border-zinc-800">
+              <thead class="sticky top-0 z-10 bg-white dark:bg-[#111114] text-zinc-600 dark:text-zinc-400 text-[11px] font-semibold uppercase tracking-wider border-b border-zinc-200 dark:border-zinc-800">
                 <tr>
-                  <th class="px-4 py-3 min-w-[150px]">File Name</th>
-                  <th class="px-3 py-3 min-w-[80px]">Folder</th>
-                  <th class="px-2 py-3 text-center w-14">Format</th>
-                  <th class="px-3 py-3 min-w-[80px]">Status</th>
-                  <th class="px-3 py-3 text-center min-w-[100px]">Download</th>
-                  <th class="px-3 py-3 font-mono min-w-[80px]">Chunks / Rows</th>
-                  <th class="px-3 py-3 font-mono min-w-[65px]">Size</th>
-                  <th class="px-3 py-3 min-w-[85px]">Uploaded</th>
-                  <th class="px-3 py-3 text-right w-12 min-w-[48px] sticky right-0 bg-zinc-50 dark:bg-[#09090b] z-10">Actions</th>
+                  <th class="px-4 py-3.5 min-w-[200px] bg-white dark:bg-[#111114]">File Name</th>
+                  <th class="px-3.5 py-3.5 min-w-[110px] bg-white dark:bg-[#111114]">Folder</th>
+                  <th class="px-2 py-3.5 text-center w-16 min-w-[64px] bg-white dark:bg-[#111114]">Format</th>
+                  <th class="px-3.5 py-3.5 min-w-[110px] bg-white dark:bg-[#111114]">Status</th>
+                  <th class="px-3.5 py-3.5 text-center min-w-[120px] bg-white dark:bg-[#111114]">Download</th>
+                  <th class="px-3.5 py-3.5 font-mono min-w-[110px] bg-white dark:bg-[#111114]">Chunks / Rows</th>
+                  <th class="px-3.5 py-3.5 font-mono min-w-[85px] bg-white dark:bg-[#111114]">Size</th>
+                  <th class="px-3.5 py-3.5 min-w-[110px] bg-white dark:bg-[#111114]">Uploaded</th>
+                  <th class="px-3.5 py-3.5 text-right w-12 min-w-[48px] sticky right-0 top-0 bg-white dark:bg-[#111114] z-20 border-b border-zinc-200 dark:border-zinc-800">Actions</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800/60">
@@ -1050,7 +1050,7 @@ export interface IMoveUndoNotification {
                     (click)="onRowClick(doc)"
                   >
                     <!-- File Name with Icon -->
-                    <td class="px-4 py-2.5">
+                    <td class="px-4 py-3.5">
                       <div class="flex items-center gap-2.5">
                         @if (!canAccessDoc(doc)) {
                           <span class="p-1 rounded bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500" title="Access Locked">
@@ -1072,21 +1072,21 @@ export interface IMoveUndoNotification {
                     </td>
 
                     <!-- Folder Plain Text -->
-                    <td class="px-3 py-2.5">
+                    <td class="px-3.5 py-3.5">
                       <span class="text-xs text-zinc-600 dark:text-zinc-400 font-mono truncate max-w-[130px] block" [title]="doc.folder || 'Root'">
                         {{ doc.folder ? doc.folder : 'Root' }}
                       </span>
                     </td>
 
                     <!-- Format Plain Text -->
-                    <td class="px-2 py-2.5 text-center">
+                    <td class="px-2 py-3.5 text-center">
                       <span class="text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400">
                         {{ doc.fileType }}
                       </span>
                     </td>
 
                     <!-- Status -->
-                    <td class="px-3 py-2.5">
+                    <td class="px-3.5 py-3.5">
                       @if (doc.status === DocumentStatus.READY) {
                         <span class="inline-flex items-center gap-2 text-xs font-mono text-zinc-700 dark:text-zinc-300">
                           <span class="w-2 h-2 rounded-full bg-zinc-800 dark:bg-zinc-200"></span>
@@ -1116,7 +1116,7 @@ export interface IMoveUndoNotification {
                     </td>
 
                     <!-- Download Permission Control (Inline Dropdown Minimal) -->
-                    <td class="px-3 py-2.5 whitespace-nowrap" (click)="$event.stopPropagation()">
+                    <td class="px-3.5 py-3.5 whitespace-nowrap" (click)="$event.stopPropagation()">
                       <div class="relative inline-block">
                         <button
                           type="button"
@@ -1138,7 +1138,7 @@ export interface IMoveUndoNotification {
                     </td>
 
                     <!-- Chunks / Rows -->
-                    <td class="px-3 py-2.5 font-mono text-zinc-600 dark:text-zinc-400">
+                    <td class="px-3.5 py-3.5 font-mono text-zinc-600 dark:text-zinc-400">
                       @if (isTabular(doc)) {
                         <span>{{ doc.totalRows || 0 }} rows</span>
                       } @else {
@@ -1147,22 +1147,26 @@ export interface IMoveUndoNotification {
                     </td>
 
                     <!-- File Size -->
-                    <td class="px-3 py-2.5 font-mono text-zinc-600 dark:text-zinc-400">
+                    <td class="px-3.5 py-3.5 font-mono text-zinc-600 dark:text-zinc-400">
                       {{ (doc.fileSize / 1024).toFixed(1) }} KB
                     </td>
 
                     <!-- Upload Date -->
-                    <td class="px-3 py-2.5 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
+                    <td class="px-3.5 py-3.5 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
                       {{ doc.createdAt | date:'mediumDate' }}
                     </td>
 
                     <!-- Actions -->
-                    <td class="px-3 py-2.5 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-zinc-50 dark:bg-[#111114] dark:group-hover:bg-[#18181b] transition-colors z-10" (click)="$event.stopPropagation()">
+                    <td class="px-3.5 py-3.5 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-zinc-50 dark:bg-[#111114] dark:group-hover:bg-[#18181b] transition-colors z-10" (click)="$event.stopPropagation()">
                       @if (canAccessDoc(doc)) {
                         <button
                           type="button"
                           (click)="toggleActionMenu(doc, $event)"
-                          class="w-8 h-8 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600 focus:bg-zinc-100 dark:focus:bg-zinc-800 ml-auto"
+                          class="w-8 h-8 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/80 active:bg-zinc-200 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 dark:active:bg-zinc-700 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600 focus:bg-zinc-200/80 dark:focus:bg-zinc-800 ml-auto"
+                          [class.bg-zinc-200]="activeActionMenuDoc?.id === doc.id"
+                          [class.text-zinc-900]="activeActionMenuDoc?.id === doc.id"
+                          [class.dark:bg-zinc-800]="activeActionMenuDoc?.id === doc.id"
+                          [class.dark:text-white]="activeActionMenuDoc?.id === doc.id"
                           [attr.aria-expanded]="activeActionMenuDoc?.id === doc.id"
                           [attr.aria-label]="'More actions for ' + doc.originalName"
                           title="More actions"
@@ -1241,7 +1245,11 @@ export interface IMoveUndoNotification {
                       <button
                         type="button"
                         (click)="toggleActionMenu(doc, $event)"
-                        class="w-11 h-11 min-w-[44px] min-h-[44px] -mr-2 -my-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 active:bg-zinc-200 dark:active:bg-zinc-800 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
+                        class="w-11 h-11 min-w-[44px] min-h-[44px] -mr-2 -my-2 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/80 active:bg-zinc-200 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 dark:active:bg-zinc-700 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600 focus:bg-zinc-200/80 dark:focus:bg-zinc-800"
+                        [class.bg-zinc-200]="activeActionMenuDoc?.id === doc.id"
+                        [class.text-zinc-900]="activeActionMenuDoc?.id === doc.id"
+                        [class.dark:bg-zinc-800]="activeActionMenuDoc?.id === doc.id"
+                        [class.dark:text-white]="activeActionMenuDoc?.id === doc.id"
                         [attr.aria-expanded]="activeActionMenuDoc?.id === doc.id"
                         [attr.aria-label]="'More actions for ' + doc.originalName"
                         title="More actions"

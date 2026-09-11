@@ -42,12 +42,12 @@ import jsPDF from 'jspdf';
           </div>
         </div>
 
-        <div class="overflow-x-auto max-h-80">
+        <div class="overflow-x-auto max-h-80 overflow-y-auto">
           <table class="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr class="border-b border-[#dcdde1] dark:border-[#27272a] bg-[#f0f1f3] dark:bg-[#0c0c0e] text-zinc-700 dark:text-[#a1a1aa] font-medium">
+            <thead class="sticky top-0 z-10 border-b border-[#dcdde1] dark:border-[#27272a] bg-[#f0f1f3] dark:bg-[#0c0c0e] text-zinc-700 dark:text-[#a1a1aa] font-medium">
+              <tr>
                 @for (col of table.columns; track col) {
-                  <th class="px-3.5 py-2.5 whitespace-nowrap">{{ col }}</th>
+                  <th class="px-3.5 py-2.5 whitespace-nowrap bg-[#f0f1f3] dark:bg-[#0c0c0e]">{{ col }}</th>
                 }
               </tr>
             </thead>

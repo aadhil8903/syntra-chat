@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { PresenceService } from './presence.service';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Reflector } from '@nestjs/core';
@@ -34,6 +35,11 @@ describe('UsersController (Provisioning & Access Control)', () => {
       deleteUser: jest.fn(),
     };
 
+    const mockPresenceService = {
+      recordHeartbeat: jest.fn().mockResolvedValue({ status: 'ok' }),
+      getOrgMembersWithPresence: jest.fn().mockResolvedValue([]),
+    };
+
     reflector = new Reflector();
     rolesGuard = new RolesGuard(reflector);
 
@@ -41,6 +47,7 @@ describe('UsersController (Provisioning & Access Control)', () => {
       controllers: [UsersController],
       providers: [
         { provide: UsersService, useValue: usersService },
+        { provide: PresenceService, useValue: mockPresenceService },
       ],
     })
       .overrideGuard(JwtAuthGuard)

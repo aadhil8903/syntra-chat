@@ -74,13 +74,27 @@ import { IMentionOption, MentionResourceType } from '@enter-chat/shared-types';
                 class="min-h-[44px] px-3 py-2 rounded-xl cursor-pointer hover:bg-[#f0f1f3] dark:hover:bg-[#18181b] transition-colors flex items-center justify-between gap-2.5"
               >
                 <div class="flex items-center gap-2.5 min-w-0 flex-1">
-                  @if (opt.type === MentionResourceType.FOLDER) {
+                  @if (isAi(opt)) {
+                    <div class="w-7 h-7 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 flex items-center justify-center text-[10px] font-bold flex-shrink-0 shadow-xs">
+                      AI
+                    </div>
+                  } @else if (isUser(opt)) {
+                    <div class="relative flex-shrink-0">
+                      <div class="w-7 h-7 rounded-full bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 flex items-center justify-center text-xs font-semibold uppercase border border-[#dcdde1] dark:border-zinc-700">
+                        {{ (opt.name || 'U')[0] }}
+                      </div>
+                      <span
+                        class="absolute bottom-0 right-0 w-2 h-2 rounded-full ring-1 ring-white dark:ring-[#111114]"
+                        [ngClass]="opt.status === 'online' ? 'bg-emerald-500' : 'bg-zinc-400'"
+                      ></span>
+                    </div>
+                  } @else if (isFolder(opt)) {
                     <div class="w-7 h-7 rounded-xl bg-[#f8f9fa] text-zinc-700 border border-[#dcdde1] dark:bg-[#18181b] dark:text-white dark:border-[#3f3f46] flex items-center justify-center flex-shrink-0">
                       <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                       </svg>
                     </div>
-                  } @else if (opt.type === MentionResourceType.DOCUMENT) {
+                  } @else if (isDocument(opt)) {
                     <div class="w-7 h-7 rounded-xl bg-[#f8f9fa] text-zinc-700 border border-[#dcdde1] dark:bg-[#18181b] dark:text-white dark:border-[#3f3f46] flex items-center justify-center flex-shrink-0">
                       <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -103,7 +117,7 @@ import { IMentionOption, MentionResourceType } from '@enter-chat/shared-types';
 
                 <div class="flex items-center gap-1.5 flex-shrink-0">
                   <span class="text-[11px] font-mono uppercase text-zinc-500 dark:text-[#a1a1aa]">
-                    {{ opt.type === MentionResourceType.FOLDER ? 'Folder' : opt.fileType }}
+                    {{ getBadge(opt) }}
                   </span>
                 </div>
               </li>
@@ -157,6 +171,29 @@ export class MentionAutocompleteComponent implements OnChanges {
       return this.options.filter((o) => o.type === MentionResourceType.DATASET);
     }
     return this.options;
+  }
+
+  isAi(opt: IMentionOption): boolean {
+    return (opt.type as any) === 'ai' || opt.id === 'syntra-ai';
+  }
+
+  isUser(opt: IMentionOption): boolean {
+    return (opt.type as any) === 'user';
+  }
+
+  isFolder(opt: IMentionOption): boolean {
+    return opt.type === MentionResourceType.FOLDER;
+  }
+
+  isDocument(opt: IMentionOption): boolean {
+    return opt.type === MentionResourceType.DOCUMENT;
+  }
+
+  getBadge(opt: IMentionOption): string {
+    if (this.isAi(opt)) return 'AI';
+    if (this.isUser(opt)) return opt.status === 'online' ? 'Online' : 'Offline';
+    if (this.isFolder(opt)) return 'Folder';
+    return opt.fileType || 'Doc';
   }
 
   ngOnChanges(changes: SimpleChanges): void {

@@ -24,6 +24,16 @@ import {
   IUpdateFolderDto,
   DocumentDownloadPolicy,
   FolderDownloadPolicy,
+  IUserPresence,
+  IOrgMember,
+  IConversationShare,
+  ISharedConversationItem,
+  IShareConversationDto,
+  IUpdateSharePermissionDto,
+  IMessageShare,
+  IShareMessageDto,
+  INotification,
+  IDirectConversationItem,
 } from '@enter-chat/shared-types';
 import { getApiBaseUrl } from '../config/app-config';
 
@@ -357,6 +367,94 @@ export class ApiService {
 
   deleteFolderByName(name: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/folders/by-name/${encodeURIComponent(name)}`);
+  }
+
+  // ---------------- Presence ----------------
+  recordHeartbeat(): Observable<{ success: boolean; lastSeenAt: string }> {
+    return this.http.post<{ success: boolean; lastSeenAt: string }>(`${this.baseUrl}/users/presence/heartbeat`, {});
+  }
+
+  getOrganizationMembers(search?: string): Observable<IOrgMember[]> {
+    let params = new HttpParams();
+    if (search && search.trim()) {
+      params = params.set('search', search.trim());
+    }
+    return this.http.get<IOrgMember[]>(`${this.baseUrl}/users/organization-members`, { params });
+  }
+
+  // ---------------- Direct Messaging ----------------
+  getDirectConversations(): Observable<IDirectConversationItem[]> {
+    return this.http.get<IDirectConversationItem[]>(`${this.baseUrl}/conversations/direct`);
+  }
+
+  getOrCreateDirectConversation(targetUserId: string): Observable<IConversation> {
+    return this.http.post<IConversation>(`${this.baseUrl}/conversations/direct`, { targetUserId });
+  }
+
+  getDirectConversation(conversationId: string): Observable<IConversation> {
+    return this.http.get<IConversation>(`${this.baseUrl}/conversations/direct/${conversationId}`);
+  }
+
+  markDirectConversationAsRead(conversationId: string): Observable<{ success: boolean }> {
+    return this.http.patch<{ success: boolean }>(`${this.baseUrl}/conversations/direct/${conversationId}/read`, {});
+  }
+
+  // ---------------- Sharing & Collaboration ----------------
+  getSharedConversations(): Observable<ISharedConversationItem[]> {
+    return this.http.get<ISharedConversationItem[]>(`${this.baseUrl}/conversations/shared/with-me`);
+  }
+
+  getConversationShares(conversationId: string): Observable<IConversationShare[]> {
+    return this.http.get<IConversationShare[]>(`${this.baseUrl}/conversations/${conversationId}/shares`);
+  }
+
+  shareConversation(conversationId: string, dto: IShareConversationDto): Observable<IConversationShare[]> {
+    return this.http.post<IConversationShare[]>(`${this.baseUrl}/conversations/${conversationId}/shares`, dto);
+  }
+
+  updateSharePermission(conversationId: string, targetUserId: string, dto: IUpdateSharePermissionDto): Observable<IConversationShare> {
+    return this.http.patch<IConversationShare>(`${this.baseUrl}/conversations/${conversationId}/shares/${targetUserId}`, dto);
+  }
+
+  revokeShare(conversationId: string, targetUserId: string): Observable<{ success: boolean }> {
+    return this.http.delete<{ success: boolean }>(`${this.baseUrl}/conversations/${conversationId}/shares/${targetUserId}`);
+  }
+
+  leaveSharedConversation(conversationId: string): Observable<{ success: boolean }> {
+    return this.http.delete<{ success: boolean }>(`${this.baseUrl}/conversations/${conversationId}/shares/leave`);
+  }
+
+  shareMessage(messageId: string, dto: IShareMessageDto): Observable<IMessageShare[]> {
+    return this.http.post<IMessageShare[]>(`${this.baseUrl}/messages/${messageId}/share`, dto);
+  }
+
+  getSharedMessage(messageId: string): Observable<IMessageShare> {
+    return this.http.get<IMessageShare>(`${this.baseUrl}/messages/${messageId}/shared`);
+  }
+
+  getSharedMessages(): Observable<IMessageShare[]> {
+    return this.http.get<IMessageShare[]>(`${this.baseUrl}/messages/shared/with-me`);
+  }
+
+  // ---------------- Notifications ----------------
+  getNotifications(limit?: number): Observable<INotification[]> {
+    let params = new HttpParams();
+    if (limit) {
+      params = params.set('limit', String(limit));
+    }
+    return this.http.get<INotification[]>(`${this.baseUrl}/notifications`, { params });
+  }
+
+  getUnreadNotificationCount(): Observable<{ count: number }> {
+    return this.http.get<{ count: number }>(`${this.baseUrl}/notifications/unread-count`);
+  }
+
+  markNotificationAsRead(id: string): Observable<{ success: boolean }> {
+    return this.http.patch<{ success: boolean }>(`${this.baseUrl}/notifications/${id}/read`, {});
+  }
+
+  markAllNotificationsAsRead(): Observable<{ success: boolean }> {
+    return this.http.patch<{ success: boolean }>(`${this.baseUrl}/notifications/read-all`, {});
   }
 
   // ---------------- Voice Transcription ----------------

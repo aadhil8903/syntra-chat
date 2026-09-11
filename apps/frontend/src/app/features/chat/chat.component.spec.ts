@@ -68,6 +68,8 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
       sendMessageStream: jest.fn().mockResolvedValue(undefined),
       generationStates: signal({}),
       activeGenerations: signal([]),
+      incomingMessage$: new Subject(),
+      setActiveConversationId: jest.fn(),
     };
 
     chatDraftServiceMock = {

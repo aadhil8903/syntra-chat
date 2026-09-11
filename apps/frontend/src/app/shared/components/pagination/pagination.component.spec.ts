@@ -67,32 +67,105 @@ describe('PaginationComponent', () => {
       expect(component.endItem).toBe(124);
     });
 
-    it('should generate page numbers correctly without ellipsis when totalPages <= 7', () => {
-      component.totalItems = 45;
-      component.pageSize = 10; // 5 pages
+    it('should generate page numbers correctly for 1, 2, and 3 total pages', () => {
+      // 1 page
+      component.totalItems = 10;
+      component.pageSize = 10;
       component.currentPage = 1;
-      expect(component.pages).toEqual([1, 2, 3, 4, 5]);
-    });
+      expect(component.pages).toEqual([1]);
 
-    it('should generate page numbers with ellipsis when near start', () => {
-      component.totalItems = 100;
-      component.pageSize = 10; // 10 pages
+      // 2 pages
+      component.totalItems = 20;
+      component.pageSize = 10;
+      component.currentPage = 1;
+      expect(component.pages).toEqual([1, 2]);
+
       component.currentPage = 2;
-      expect(component.pages).toEqual([1, 2, 3, 4, 5, '...', 10]);
+      expect(component.pages).toEqual([1, 2]);
+
+      // 3 pages
+      component.totalItems = 30;
+      component.pageSize = 10;
+      component.currentPage = 1;
+      expect(component.pages).toEqual([1, 2, 3]);
+
+      component.currentPage = 2;
+      expect(component.pages).toEqual([1, 2, 3]);
+
+      component.currentPage = 3;
+      expect(component.pages).toEqual([1, 2, 3]);
     });
 
-    it('should generate page numbers with ellipsis when near end', () => {
-      component.totalItems = 100;
-      component.pageSize = 10; // 10 pages
-      component.currentPage = 9;
-      expect(component.pages).toEqual([1, '...', 6, 7, 8, 9, 10]);
+    it('should slide 3-page window correctly for 4 total pages', () => {
+      component.totalItems = 40;
+      component.pageSize = 10; // 4 pages
+
+      component.currentPage = 1;
+      expect(component.pages).toEqual([1, 2, 3]);
+
+      component.currentPage = 2;
+      expect(component.pages).toEqual([1, 2, 3]);
+
+      component.currentPage = 3;
+      expect(component.pages).toEqual([2, 3, 4]);
+
+      component.currentPage = 4;
+      expect(component.pages).toEqual([2, 3, 4]);
     });
 
-    it('should generate page numbers with ellipsis on both sides when in middle', () => {
+    it('should slide 3-page window correctly for 5 total pages', () => {
+      component.totalItems = 50;
+      component.pageSize = 10; // 5 pages
+
+      component.currentPage = 1;
+      expect(component.pages).toEqual([1, 2, 3]);
+
+      component.currentPage = 2;
+      expect(component.pages).toEqual([1, 2, 3]);
+
+      component.currentPage = 3;
+      expect(component.pages).toEqual([2, 3, 4]);
+
+      component.currentPage = 4;
+      expect(component.pages).toEqual([3, 4, 5]);
+
+      component.currentPage = 5;
+      expect(component.pages).toEqual([3, 4, 5]);
+    });
+
+    it('should slide 3-page window correctly across 10 total pages', () => {
       component.totalItems = 100;
       component.pageSize = 10; // 10 pages
+
+      component.currentPage = 1;
+      expect(component.pages).toEqual([1, 2, 3]);
+
+      component.currentPage = 2;
+      expect(component.pages).toEqual([1, 2, 3]);
+
+      component.currentPage = 3;
+      expect(component.pages).toEqual([2, 3, 4]);
+
+      component.currentPage = 4;
+      expect(component.pages).toEqual([3, 4, 5]);
+
+      component.currentPage = 5;
+      expect(component.pages).toEqual([4, 5, 6]);
+
       component.currentPage = 6;
-      expect(component.pages).toEqual([1, '...', 5, 6, 7, '...', 10]);
+      expect(component.pages).toEqual([5, 6, 7]);
+
+      component.currentPage = 7;
+      expect(component.pages).toEqual([6, 7, 8]);
+
+      component.currentPage = 8;
+      expect(component.pages).toEqual([7, 8, 9]);
+
+      component.currentPage = 9;
+      expect(component.pages).toEqual([8, 9, 10]);
+
+      component.currentPage = 10;
+      expect(component.pages).toEqual([8, 9, 10]);
     });
   });
 
@@ -109,10 +182,6 @@ describe('PaginationComponent', () => {
       // Should not emit for active page
       (component.pageChange.emit as jest.Mock).mockClear();
       component.onPageSelect(1);
-      expect(component.pageChange.emit).not.toHaveBeenCalled();
-
-      // Should not emit for ellipsis
-      component.onPageSelect('...');
       expect(component.pageChange.emit).not.toHaveBeenCalled();
     });
 

@@ -19,12 +19,19 @@ import {
   IActiveScope,
   IDownloadableFile,
   AgentIntent,
+  IMessageShare,
+  IMessageAuthor,
 } from '@enter-chat/shared-types';
 import { OwnershipService } from '../permissions/services/ownership.service';
 import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import { MentionsService } from '../mentions/mentions.service';
 import { CollectionsService } from '../collections/collections.service';
 import { DocumentsService } from '../documents/documents.service';
+import { MessageShareEntity, MessageShareDocument } from './schemas/message-share.schema';
+import { ConversationShareEntity, ConversationShareDocument } from '../conversations/schemas/conversation-share.schema';
+import { User, UserDocument } from '../users/schemas/user.schema';
+import { NotificationsService } from '../notifications/notifications.service';
+import { MessagesEventsService } from './messages-events.service';
 
 interface IResolvedScopeData {
   explicitMentionedIds: string[];
@@ -161,6 +168,12 @@ export class MessagesService {
     private readonly messageModel: Model<MessageEntityDocument>,
     @InjectModel(ConversationEntity.name)
     private readonly conversationModel: Model<ConversationEntityDocument>,
+    @InjectModel(MessageShareEntity.name)
+    private readonly messageShareModel: Model<MessageShareDocument>,
+    @InjectModel(ConversationShareEntity.name)
+    private readonly conversationShareModel: Model<ConversationShareDocument>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
     @InjectModel('DocumentEntity')
     private readonly documentModel: Model<any>,
     @InjectModel('DatasetEntity')
@@ -170,6 +183,8 @@ export class MessagesService {
     private readonly mentionsService: MentionsService,
     private readonly collectionsService: CollectionsService,
     private readonly documentsService: DocumentsService,
+    private readonly notificationsService: NotificationsService,
+    private readonly messagesEventsService: MessagesEventsService,
   ) {}
 
   getActiveGenerations(userId: string): string[] {
@@ -182,14 +197,35 @@ export class MessagesService {
       return [];
     }
 
-    // Verify conversation ownership
-    await this.ownershipService.verifyOwnership('conversations', conversationId, userId);
+    // Verify conversation ownership, direct conversation membership, or active share access
+    const conv = await this.conversationModel.findById(conversationId).lean().exec();
+    if (!conv) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    if (conv.type === 'direct') {
+      const isParticipant = conv.participants && conv.participants.some((p: any) => p.toString() === userId);
+      if (!isParticipant) {
+        throw new ForbiddenException('You do not have access to this direct conversation');
+      }
+    } else {
+      const isOwner = conv.userId.toString() === userId;
+      if (!isOwner) {
+        const share = await this.conversationShareModel.findOne({
+          conversationId: new Types.ObjectId(conversationId),
+          sharedWithUserId: new Types.ObjectId(userId),
+        });
+        if (!share) {
+          throw new ForbiddenException('You do not have access to this conversation');
+        }
+      }
+    }
 
     const messages = await this.messageModel
       .find({
         conversationId: new Types.ObjectId(conversationId),
-        userId: new Types.ObjectId(userId),
       })
+      .populate('userId', 'firstName lastName email role')
       .sort({ createdAt: 1 })
       .exec();
 
@@ -521,14 +557,93 @@ export class MessagesService {
         throw new NotFoundException('Conversation not found');
       }
 
-      // 1. Verify conversation ownership
-      conv = await this.conversationModel.findOne({
-        _id: new Types.ObjectId(conversationId),
-        userId: new Types.ObjectId(userId),
-      });
+      conv = await this.conversationModel.findById(conversationId);
       if (!conv) {
         throw new NotFoundException('Conversation not found or not accessible');
       }
+
+      if (conv.type === 'direct') {
+        const isParticipant = conv.participants && conv.participants.some((p: any) => p.toString() === userId);
+        if (!isParticipant) {
+          throw new ForbiddenException('You do not have access to this direct conversation.');
+        }
+      } else {
+        const isOwner = conv.userId.toString() === userId;
+        if (!isOwner) {
+          const share = await this.conversationShareModel.findOne({
+            conversationId: new Types.ObjectId(conversationId),
+            sharedWithUserId: new Types.ObjectId(userId),
+          });
+          if (!share) {
+            throw new NotFoundException('Conversation not found or not accessible');
+          }
+          if (share.permission === 'view') {
+            throw new ForbiddenException('You have read-only access to this conversation.');
+          }
+        }
+      }
+    }
+
+    // Direct Conversation check for AI Invocation
+    const isAiInvocation = dto.mentions?.some((m: any) => m.type === 'ai') || /@Syntra\b/i.test(content) || /@AI\b/i.test(content);
+
+    if (conv && conv.type === 'direct' && !isAiInvocation) {
+      // Pure direct message between two organization members without AI invocation
+      const authorUser: any = await this.userModel.findById(userId).select('firstName lastName email role').exec();
+      const userMsgDoc = new this.messageModel({
+        conversationId: new Types.ObjectId(conversationId),
+        userId: new Types.ObjectId(userId),
+        role: MessageRole.USER,
+        content,
+        mentions: dto.mentions || [],
+        downloadableFile: dto.downloadableFile,
+        replyToMessageId: dto.replyToMessageId,
+        replyTo: dto.replyTo,
+      });
+      const savedUserMsg = await userMsgDoc.save();
+
+      const partnerId = conv.participants.find((p: any) => p.toString() !== userId)?.toString();
+      if (!conv.unreadCounts) conv.unreadCounts = new Map();
+      const currentUnread = (conv.unreadCounts as any)?.get?.(partnerId) ?? (conv.unreadCounts as any)?.[partnerId] ?? 0;
+      if (conv.unreadCounts.set) {
+        conv.unreadCounts.set(partnerId, currentUnread + 1);
+      } else {
+        (conv.unreadCounts as any)[partnerId] = currentUnread + 1;
+      }
+
+      const senderName = authorUser ? `${authorUser.firstName} ${authorUser.lastName}` : 'User';
+      conv.lastMessage = {
+        content,
+        senderId: new Types.ObjectId(userId),
+        senderName,
+        createdAt: new Date(),
+        role: MessageRole.USER,
+        isAi: false,
+      };
+      conv.lastMessageAt = new Date();
+      conv.markModified('unreadCounts');
+      conv.markModified('lastMessage');
+      await conv.save();
+
+      const userMsgDto = this.toIMessage(savedUserMsg, authorUser);
+      const participantIds = conv.participants ? conv.participants.map((p: any) => p.toString()) : [userId, partnerId].filter(Boolean);
+      this.messagesEventsService.broadcastNewMessage(userMsgDto, participantIds);
+
+      if (partnerId) {
+        this.notificationsService.createNotification({
+          userId: partnerId,
+          senderId: userId,
+          type: 'direct_message',
+          title: `Message from ${senderName}`,
+          message: content.slice(0, 100),
+          resourceType: 'conversation',
+          resourceId: conversationId,
+        }).catch((err) => console.error('Notification error:', err));
+      }
+
+      return {
+        userMessage: userMsgDto,
+      };
     }
 
     // 2. Concurrency Check (Max 2 active chats generating simultaneously per user)
@@ -563,6 +678,10 @@ export class MessagesService {
             role: MessageRole.USER,
             content,
             referencedResourceIds: scopeData.explicitMentionedIds,
+            mentions: dto.mentions || [],
+            downloadableFile: dto.downloadableFile,
+            replyToMessageId: dto.replyToMessageId,
+            replyTo: dto.replyTo,
           }).save()
         : Promise.resolve({
             _id: 'temp-msg-user-' + Date.now(),
@@ -571,18 +690,25 @@ export class MessagesService {
             role: MessageRole.USER,
             content,
             referencedResourceIds: scopeData.explicitMentionedIds,
+            downloadableFile: dto.downloadableFile,
+            replyToMessageId: dto.replyToMessageId,
+            replyTo: dto.replyTo,
             createdAt: new Date(),
           });
 
       const historyPromise = !isTemp
-        ? this.messageModel
-            .find({
-              conversationId: new Types.ObjectId(conversationId),
-              userId: new Types.ObjectId(userId),
-            })
-            .sort({ createdAt: -1 })
-            .limit(50)
-            .exec()
+        ? (() => {
+            let q: any = this.messageModel
+              .find({
+                conversationId: new Types.ObjectId(conversationId),
+              })
+              .sort({ createdAt: -1 })
+              .limit(50);
+            if (typeof q?.populate === 'function') {
+              q = q.populate('userId', 'firstName lastName');
+            }
+            return q.exec();
+          })()
         : Promise.resolve([]);
 
       const sharedMemoryPromise = conv.collectionId
@@ -593,12 +719,37 @@ export class MessagesService {
         ? this.ownershipService.validateUserResources(userId, conv.attachedResourceIds)
         : Promise.resolve({ validDocumentIds: [], validDatasetIds: [] });
 
-      const [savedUserMsg, pastMessages, sharedMemory, validatedConv] = await Promise.all([
+      const authorUserPromise = !isTemp
+        ? this.userModel.findById(userId).select('firstName lastName email role').exec()
+        : Promise.resolve(null);
+
+      const participantIdsPromise = !isTemp
+        ? this.getConversationParticipantIds(conv)
+        : Promise.resolve([] as string[]);
+
+      const [savedUserMsg, pastMessages, sharedMemory, validatedConv, authorUser, participantIds] = await Promise.all([
         userMsgPromise,
         historyPromise,
         sharedMemoryPromise,
         validConvAttachedPromise,
+        authorUserPromise,
+        participantIdsPromise,
       ]);
+
+      const userMsgDto: IMessage = !isTemp ? this.toIMessage(savedUserMsg as MessageEntityDocument, authorUser) : {
+        id: (savedUserMsg as any)._id.toString(),
+        conversationId,
+        userId,
+        role: MessageRole.USER,
+        content,
+        referencedResourceIds: scopeData.explicitMentionedIds,
+        citations: [],
+        createdAt: (savedUserMsg as any).createdAt instanceof Date ? (savedUserMsg as any).createdAt.toISOString() : new Date().toISOString(),
+      };
+
+      if (!isTemp && participantIds.length > 0) {
+        this.messagesEventsService.broadcastNewMessage(userMsgDto, participantIds);
+      }
 
       // Check for ungrounded / unresolved operational intent
       const unresolvedCheck = detectUnresolvedTargetOperation(content, scopeData.effectiveResourceIds, scopeData.activeScope);
@@ -626,9 +777,14 @@ export class MessagesService {
             { new: true },
           );
 
+          const assistantMsgDto = this.toIMessage(savedAssistantMsg as MessageEntityDocument);
+          if (participantIds.length > 0) {
+            this.messagesEventsService.broadcastNewMessage(assistantMsgDto, participantIds);
+          }
+
           return {
-            userMessage: this.toIMessage(savedUserMsg as MessageEntityDocument),
-            assistantMessage: this.toIMessage(savedAssistantMsg as MessageEntityDocument),
+            userMessage: userMsgDto,
+            assistantMessage: assistantMsgDto,
             conversation: updatedConv ? {
               id: updatedConv._id.toString(),
               title: updatedConv.title,
@@ -699,10 +855,34 @@ export class MessagesService {
       const history = pastMessages
         .filter((m: any) => m._id.toString() !== savedUserMsg._id.toString())
         .reverse()
-        .map((m: any) => ({
-          role: m.role as 'user' | 'assistant' | 'system',
-          content: m.content,
-        }));
+        .map((m: any) => {
+          let prefix = '';
+          if (conv.type === 'direct' && m.role === 'user') {
+            const senderName = m.userId?.firstName
+              ? `${m.userId.firstName} ${m.userId.lastName || ''}`.trim()
+              : (m.author?.firstName ? `${m.author.firstName} ${m.author.lastName || ''}`.trim() : '');
+            if (senderName) {
+              prefix = `${senderName}: `;
+            }
+          }
+          return {
+            role: m.role as 'user' | 'assistant' | 'system',
+            content: prefix ? `${prefix}${m.content}` : m.content,
+          };
+        });
+
+      // 7. Attach quoted reply context if user is replying to a specific message
+      let effectiveAiMessage = content;
+      if (dto.replyTo) {
+        const quotedSender = dto.replyTo.senderName || 'Colleague';
+        const quotedText = dto.replyTo.content || dto.replyTo.fileName || '';
+        const cleanPrompt = content.replace(/@Syntra\b/gi, '').replace(/@AI\b/gi, '').trim();
+        if (cleanPrompt) {
+          effectiveAiMessage = `[Replying to message from ${quotedSender}: "${quotedText}"]\n\n${content}`;
+        } else {
+          effectiveAiMessage = `[Replying to message from ${quotedSender}: "${quotedText}"]\n\nPlease help answer or address this message.`;
+        }
+      }
 
       // 8. Call AI Service via AiGateway with structured activeScope
       const isFileReq = isPdfDiscoveryRequest(content);
@@ -726,7 +906,7 @@ export class MessagesService {
         userId,
         userRole,
         conversationId,
-        message: content,
+        message: effectiveAiMessage,
         resourceIds: combinedResourceIds,
         activeScope: scopeData.activeScope,
         sharedMemory: sharedMemory || undefined,
@@ -806,7 +986,16 @@ export class MessagesService {
           updatePayload.activeScope = scopeData.updatedActiveScopePayload;
         }
 
-        if (pastMessages.length === 0 || conv.title === 'New Conversation' || !conv.title || conv.title.startsWith('New Conversation')) {
+        if (conv.type === 'direct') {
+          updatePayload.lastMessage = {
+            content: aiResponse.answer || 'Syntra AI response',
+            senderId: new Types.ObjectId(userId),
+            senderName: 'Syntra AI',
+            createdAt: new Date(),
+            role: MessageRole.ASSISTANT,
+            isAi: true,
+          };
+        } else if (pastMessages.length === 0 || conv.title === 'New Conversation' || !conv.title || conv.title.startsWith('New Conversation')) {
           try {
             const title = await this.aiGatewayService.generateTitle(content);
             if (title && title !== 'New Conversation') {
@@ -841,33 +1030,30 @@ export class MessagesService {
         };
       }
 
+      const assistantMsgDto: IMessage = !isTemp ? this.toIMessage(savedAssistantMsg as MessageEntityDocument) : {
+        id: (savedAssistantMsg as any)._id.toString(),
+        conversationId,
+        userId,
+        role: MessageRole.ASSISTANT,
+        content: savedAssistantMsg.content,
+        referencedResourceIds: savedAssistantMsg.referencedResourceIds,
+        citations: savedAssistantMsg.citations,
+        generatedChart: savedAssistantMsg.generatedChart,
+        generatedCharts: savedAssistantMsg.generatedCharts,
+        generatedTable: savedAssistantMsg.generatedTable,
+        pythonCode: savedAssistantMsg.pythonCode,
+        executionOutput: savedAssistantMsg.executionOutput,
+        downloadableFile: savedAssistantMsg.downloadableFile,
+        createdAt: savedAssistantMsg.createdAt.toISOString(),
+      };
+
+      if (!isTemp && participantIds.length > 0) {
+        this.messagesEventsService.broadcastNewMessage(assistantMsgDto, participantIds);
+      }
+
       return {
-        userMessage: !isTemp ? this.toIMessage(savedUserMsg as MessageEntityDocument) : {
-          id: (savedUserMsg as any)._id.toString(),
-          conversationId,
-          userId,
-          role: MessageRole.USER,
-          content,
-          referencedResourceIds: scopeData.explicitMentionedIds,
-          citations: [],
-          createdAt: (savedUserMsg as any).createdAt instanceof Date ? (savedUserMsg as any).createdAt.toISOString() : new Date().toISOString(),
-        },
-        assistantMessage: !isTemp ? this.toIMessage(savedAssistantMsg as MessageEntityDocument) : {
-          id: (savedAssistantMsg as any)._id.toString(),
-          conversationId,
-          userId,
-          role: MessageRole.ASSISTANT,
-          content: savedAssistantMsg.content,
-          referencedResourceIds: savedAssistantMsg.referencedResourceIds,
-          citations: savedAssistantMsg.citations,
-          generatedChart: savedAssistantMsg.generatedChart,
-          generatedCharts: savedAssistantMsg.generatedCharts,
-          generatedTable: savedAssistantMsg.generatedTable,
-          pythonCode: savedAssistantMsg.pythonCode,
-          executionOutput: savedAssistantMsg.executionOutput,
-          downloadableFile: savedAssistantMsg.downloadableFile,
-          createdAt: savedAssistantMsg.createdAt.toISOString(),
-        },
+        userMessage: userMsgDto,
+        assistantMessage: assistantMsgDto,
         conversation: !isTemp ? (updatedConv ? {
           id: updatedConv._id.toString(),
           title: updatedConv.title,
@@ -937,14 +1123,96 @@ export class MessagesService {
         throw new NotFoundException('Conversation not found');
       }
 
-      // 1. Verify conversation ownership
-      conv = await this.conversationModel.findOne({
-        _id: new Types.ObjectId(conversationId),
-        userId: new Types.ObjectId(userId),
-      });
+      conv = await this.conversationModel.findById(conversationId);
       if (!conv) {
         throw new NotFoundException('Conversation not found or not accessible');
       }
+
+      if (conv.type === 'direct') {
+        const isParticipant = conv.participants && conv.participants.some((p: any) => p.toString() === userId);
+        if (!isParticipant) {
+          throw new ForbiddenException('You do not have access to this direct conversation.');
+        }
+      } else {
+        const isOwner = conv.userId.toString() === userId;
+        if (!isOwner) {
+          const share = await this.conversationShareModel.findOne({
+            conversationId: new Types.ObjectId(conversationId),
+            sharedWithUserId: new Types.ObjectId(userId),
+          });
+          if (!share) {
+            throw new NotFoundException('Conversation not found or not accessible');
+          }
+          if (share.permission === 'view') {
+            throw new ForbiddenException('You have read-only access to this conversation.');
+          }
+        }
+      }
+    }
+
+    // Direct Conversation check for AI Invocation
+    const isAiInvocation = dto.mentions?.some((m: any) => m.type === 'ai') || /@Syntra\b/i.test(content) || /@AI\b/i.test(content);
+
+    if (conv && conv.type === 'direct' && !isAiInvocation) {
+      // Pure direct message between two organization members without AI invocation
+      const authorUser: any = await this.userModel.findById(userId).select('firstName lastName email role').exec();
+      const userMsgDoc = new this.messageModel({
+        conversationId: new Types.ObjectId(conversationId),
+        userId: new Types.ObjectId(userId),
+        role: MessageRole.USER,
+        content,
+        mentions: dto.mentions || [],
+      });
+      const savedUserMsg = await userMsgDoc.save();
+
+      const partnerId = conv.participants.find((p: any) => p.toString() !== userId)?.toString();
+      if (!conv.unreadCounts) conv.unreadCounts = new Map();
+      const currentUnread = (conv.unreadCounts as any)?.get?.(partnerId) ?? (conv.unreadCounts as any)?.[partnerId] ?? 0;
+      if (conv.unreadCounts.set) {
+        conv.unreadCounts.set(partnerId, currentUnread + 1);
+      } else {
+        (conv.unreadCounts as any)[partnerId] = currentUnread + 1;
+      }
+
+      const senderName = authorUser ? `${authorUser.firstName} ${authorUser.lastName}` : 'User';
+      conv.lastMessage = {
+        content,
+        senderId: new Types.ObjectId(userId),
+        senderName,
+        createdAt: new Date(),
+        role: MessageRole.USER,
+        isAi: false,
+      };
+      conv.lastMessageAt = new Date();
+      conv.markModified('unreadCounts');
+      conv.markModified('lastMessage');
+      await conv.save();
+
+      const userMsgDto = this.toIMessage(savedUserMsg, authorUser);
+      const participantIds = conv.participants ? conv.participants.map((p: any) => p.toString()) : [userId, partnerId].filter(Boolean);
+      this.messagesEventsService.broadcastNewMessage(userMsgDto, participantIds);
+
+      if (partnerId) {
+        this.notificationsService.createNotification({
+          userId: partnerId,
+          senderId: userId,
+          type: 'direct_message',
+          title: `Message from ${senderName}`,
+          message: content.slice(0, 100),
+          resourceType: 'conversation',
+          resourceId: conversationId,
+        }).catch((err) => console.error('Notification error:', err));
+      }
+
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders?.();
+
+      res.write(`event: user_message\ndata: ${JSON.stringify(userMsgDto)}\n\n`);
+      res.write(`event: done\ndata: ${JSON.stringify({ conversationId })}\n\n`);
+      res.end();
+      return;
     }
 
     // 2. Concurrency Check (Max 2 active chats generating simultaneously per user)
@@ -979,6 +1247,9 @@ export class MessagesService {
 
       // 4. Handle User Message (Save to DB only for persistent chats)
       let savedUserMsg: any;
+      let userMsgDto: IMessage;
+      let participantIds: string[] = [];
+
       if (!isTemp) {
         const userMsgDoc = new this.messageModel({
           conversationId: new Types.ObjectId(conversationId),
@@ -986,9 +1257,19 @@ export class MessagesService {
           role: MessageRole.USER,
           content,
           referencedResourceIds: scopeData.explicitMentionedIds,
+          mentions: dto.mentions || [],
+          downloadableFile: dto.downloadableFile,
+          replyToMessageId: dto.replyToMessageId,
+          replyTo: dto.replyTo,
         });
         savedUserMsg = await userMsgDoc.save();
-        res.write(`event: user_message\ndata: ${JSON.stringify(this.toIMessage(savedUserMsg))}\n\n`);
+        const authorUser: any = await this.userModel.findById(userId).select('firstName lastName email role').exec();
+        userMsgDto = this.toIMessage(savedUserMsg, authorUser);
+        participantIds = await this.getConversationParticipantIds(conv);
+        if (participantIds.length > 0) {
+          this.messagesEventsService.broadcastNewMessage(userMsgDto, participantIds);
+        }
+        res.write(`event: user_message\ndata: ${JSON.stringify(userMsgDto)}\n\n`);
       } else {
         savedUserMsg = {
           id: 'temp-msg-user-' + Date.now(),
@@ -998,8 +1279,12 @@ export class MessagesService {
           content,
           referencedResourceIds: scopeData.explicitMentionedIds,
           citations: [],
+          downloadableFile: dto.downloadableFile,
+          replyToMessageId: dto.replyToMessageId,
+          replyTo: dto.replyTo,
           createdAt: new Date().toISOString(),
         };
+        userMsgDto = savedUserMsg;
         res.write(`event: user_message\ndata: ${JSON.stringify(savedUserMsg)}\n\n`);
       }
 
@@ -1025,13 +1310,18 @@ export class MessagesService {
             referencedResourceIds: [],
             citations: [],
           });
-          await assistantMsgDoc.save();
+          const savedAsst = await assistantMsgDoc.save();
 
           const updatePayload: any = { lastMessageAt: new Date() };
           if (scopeData.updatedActiveScopePayload !== undefined) {
             updatePayload.activeScope = scopeData.updatedActiveScopePayload;
           }
           await this.conversationModel.findByIdAndUpdate(conversationId, { $set: updatePayload });
+
+          const asstDto = this.toIMessage(savedAsst);
+          if (participantIds.length > 0) {
+            this.messagesEventsService.broadcastNewMessage(asstDto, participantIds);
+          }
         }
         res.end();
         return;
@@ -1052,23 +1342,49 @@ export class MessagesService {
       let history: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
       let pastMessages: any[] = [];
       if (!isTemp) {
-        pastMessages = await this.messageModel
+        let streamHistoryQuery: any = this.messageModel
           .find({
             conversationId: new Types.ObjectId(conversationId),
-            userId: new Types.ObjectId(userId),
             _id: { $ne: savedUserMsg._id },
           })
           .sort({ createdAt: -1 })
-          .limit(50)
-          .exec();
+          .limit(50);
+        if (typeof streamHistoryQuery?.populate === 'function') {
+          streamHistoryQuery = streamHistoryQuery.populate('userId', 'firstName lastName');
+        }
+        pastMessages = await streamHistoryQuery.exec();
 
-        history = pastMessages.reverse().map((m) => ({
-          role: m.role as 'user' | 'assistant' | 'system',
-          content: m.content,
-        }));
+        history = pastMessages.reverse().map((m) => {
+          let prefix = '';
+          if (conv.type === 'direct' && m.role === 'user') {
+            const senderName = m.userId?.firstName
+              ? `${m.userId.firstName} ${m.userId.lastName || ''}`.trim()
+              : (m.author?.firstName ? `${m.author.firstName} ${m.author.lastName || ''}`.trim() : '');
+            if (senderName) {
+              prefix = `${senderName}: `;
+            }
+          }
+          return {
+            role: m.role as 'user' | 'assistant' | 'system',
+            content: prefix ? `${prefix}${m.content}` : m.content,
+          };
+        });
       }
 
-      // 7. Retrieve Collection Shared Memory if conversation is assigned to a collection
+      // 7. Attach quoted reply context if user is replying to a specific message
+      let effectiveAiMessage = content;
+      if (dto.replyTo) {
+        const quotedSender = dto.replyTo.senderName || 'Colleague';
+        const quotedText = dto.replyTo.content || dto.replyTo.fileName || '';
+        const cleanPrompt = content.replace(/@Syntra\b/gi, '').replace(/@AI\b/gi, '').trim();
+        if (cleanPrompt) {
+          effectiveAiMessage = `[Replying to message from ${quotedSender}: "${quotedText}"]\n\n${content}`;
+        } else {
+          effectiveAiMessage = `[Replying to message from ${quotedSender}: "${quotedText}"]\n\nPlease help answer or address this message.`;
+        }
+      }
+
+      // 8. Retrieve Collection Shared Memory if conversation is assigned to a collection
       let sharedMemory = '';
       if (conv.collectionId) {
         sharedMemory = await this.collectionsService.getSharedMemory(userId, conv.collectionId.toString());
@@ -1099,7 +1415,7 @@ export class MessagesService {
           userId,
           userRole,
           conversationId,
-          message: content,
+          message: effectiveAiMessage,
           resourceIds: combinedResourceIds,
           activeScope: scopeData.activeScope,
           sharedMemory: sharedMemory || undefined,
@@ -1244,6 +1560,10 @@ export class MessagesService {
           downloadableFile: authoritativeDownloadableFile,
         });
         savedAssistantMsg = await assistantMsgDoc.save();
+        const asstDto = this.toIMessage(savedAssistantMsg);
+        if (participantIds.length > 0) {
+          this.messagesEventsService.broadcastNewMessage(asstDto, participantIds);
+        }
 
         // Update Collection Shared Memory if conversation belongs to a collection
         if (conv.collectionId && fullAnswer) {
@@ -1355,13 +1675,237 @@ export class MessagesService {
     }
   }
 
-  private toIMessage(doc: MessageEntityDocument): IMessage {
+  async shareMessage(
+    userId: string,
+    messageId: string,
+    dto: { userIds: string[] },
+  ): Promise<IMessageShare[]> {
+    if (!Types.ObjectId.isValid(messageId)) {
+      throw new BadRequestException('Invalid message ID');
+    }
+
+    const message: any = await this.messageModel.findById(messageId).populate('userId', 'firstName lastName email').lean().exec();
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    // Verify sender has access to this message (is message author, conversation owner, or conversation collaborator)
+    const conv = await this.conversationModel.findById(message.conversationId).lean().exec();
+    if (!conv) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    const isAuthor = message.userId && (message.userId._id || message.userId).toString() === userId;
+    const isConvOwner = conv.userId.toString() === userId;
+    if (!isAuthor && !isConvOwner) {
+      const share = await this.conversationShareModel.findOne({
+        conversationId: conv._id,
+        sharedWithUserId: new Types.ObjectId(userId),
+      });
+      if (!share) {
+        throw new ForbiddenException('You do not have permission to share this message.');
+      }
+    }
+
+    const sender = await this.userModel.findById(userId).lean().exec();
+    const senderName = sender ? `${sender.firstName} ${sender.lastName}`.trim() : 'A colleague';
+
+    const results: IMessageShare[] = [];
+
+    for (const targetUserId of dto.userIds) {
+      if (targetUserId === userId) continue;
+      if (!Types.ObjectId.isValid(targetUserId)) continue;
+
+      const shareDoc = await this.messageShareModel.findOneAndUpdate(
+        {
+          messageId: new Types.ObjectId(messageId),
+          sharedWithUserId: new Types.ObjectId(targetUserId),
+        },
+        {
+          $set: {
+            conversationId: conv._id,
+            ownerId: conv.userId,
+            createdBy: new Types.ObjectId(userId),
+          },
+        },
+        { upsert: true, new: true },
+      );
+
+      // Create notification
+      try {
+        const preview = message.content ? (message.content.length > 60 ? message.content.slice(0, 57) + '...' : message.content) : 'a message';
+        await this.notificationsService.createNotification({
+          userId: targetUserId,
+          senderId: userId,
+          type: 'message_shared',
+          title: 'Message Shared',
+          message: `${senderName} shared a message with you: "${preview}"`,
+          resourceType: 'message',
+          resourceId: messageId,
+        });
+      } catch (err) {
+        this.logger.warn(`Failed to notify user ${targetUserId} of shared message: ${err}`);
+      }
+
+      results.push({
+        id: shareDoc._id.toString(),
+        messageId: messageId,
+        conversationId: conv._id.toString(),
+        ownerId: conv.userId.toString(),
+        sharedWithUserId: targetUserId,
+        createdAt: shareDoc.createdAt ? new Date(shareDoc.createdAt).toISOString() : new Date().toISOString(),
+      });
+    }
+
+    return results;
+  }
+
+  async getSharedMessage(userId: string, messageId: string): Promise<IMessageShare> {
+    if (!Types.ObjectId.isValid(messageId)) {
+      throw new BadRequestException('Invalid message ID');
+    }
+
+    const message: any = await this.messageModel.findById(messageId).populate('userId', 'firstName lastName email').lean().exec();
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    // Check if user is author, conversation owner, or recipient in message_shares
+    const isAuthor = message.userId && (message.userId._id || message.userId).toString() === userId;
+    const isShareRecipient = await this.messageShareModel.findOne({
+      messageId: new Types.ObjectId(messageId),
+      sharedWithUserId: new Types.ObjectId(userId),
+    }).populate('createdBy', 'firstName lastName email').lean().exec();
+
+    if (!isAuthor && !isShareRecipient) {
+      // Check if user is conversation owner or collaborator
+      const conv = await this.conversationModel.findById(message.conversationId).lean().exec();
+      if (!conv) {
+        throw new NotFoundException('Message not found');
+      }
+      const isConvOwner = conv.userId.toString() === userId;
+      const isConvCollaborator = await this.conversationShareModel.findOne({
+        conversationId: conv._id,
+        sharedWithUserId: new Types.ObjectId(userId),
+      });
+
+      if (!isConvOwner && !isConvCollaborator) {
+        throw new ForbiddenException('You do not have access to this shared message.');
+      }
+    }
+
+    const shareDoc = isShareRecipient as any;
+    const sharedBy = shareDoc?.createdBy;
+
+    return {
+      id: shareDoc ? shareDoc._id.toString() : message._id.toString(),
+      messageId: message._id.toString(),
+      conversationId: message.conversationId.toString(),
+      ownerId: message.userId?._id ? message.userId._id.toString() : message.userId?.toString(),
+      sharedWithUserId: userId,
+      sharedByUser: sharedBy ? {
+        id: sharedBy._id ? sharedBy._id.toString() : sharedBy.toString(),
+        firstName: sharedBy.firstName,
+        lastName: sharedBy.lastName,
+        email: sharedBy.email,
+      } : undefined,
+      message: this.toIMessage(message),
+      createdAt: shareDoc?.createdAt ? new Date(shareDoc.createdAt).toISOString() : new Date().toISOString(),
+    };
+  }
+
+  async listSharedMessagesWithUser(userId: string): Promise<IMessageShare[]> {
+    const shares = await this.messageShareModel
+      .find({ sharedWithUserId: new Types.ObjectId(userId) })
+      .populate({
+        path: 'messageId',
+        populate: { path: 'userId', select: 'firstName lastName email' },
+      })
+      .populate('createdBy', 'firstName lastName email')
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+
+    return shares
+      .filter((s: any) => s.messageId != null)
+      .map((s: any) => {
+        const msg = s.messageId;
+        const creator = s.createdBy;
+        return {
+          id: s._id.toString(),
+          messageId: msg._id.toString(),
+          conversationId: s.conversationId.toString(),
+          ownerId: s.ownerId.toString(),
+          sharedWithUserId: userId,
+          sharedByUser: creator ? {
+            id: creator._id ? creator._id.toString() : creator.toString(),
+            firstName: creator.firstName,
+            lastName: creator.lastName,
+            email: creator.email,
+          } : undefined,
+          message: this.toIMessage(msg),
+          createdAt: s.createdAt ? new Date(s.createdAt).toISOString() : new Date().toISOString(),
+        };
+      });
+  }
+
+  private async getConversationParticipantIds(conv: any): Promise<string[]> {
+    if (!conv) return [];
+    if (conv.type === 'direct') {
+      return (conv.participants || []).map((p: any) => (p._id || p).toString());
+    }
+    const participantIds = new Set<string>();
+    if (conv.userId) {
+      participantIds.add((conv.userId._id || conv.userId).toString());
+    }
+    if (conv._id && this.conversationShareModel) {
+      try {
+        const query: any = this.conversationShareModel.find({
+          conversationId: conv._id,
+        });
+        const shares = typeof query?.exec === 'function' ? await query.exec() : (await query || []);
+        if (Array.isArray(shares)) {
+          for (const share of shares) {
+            if (share && share.sharedWithUserId) {
+              participantIds.add((share.sharedWithUserId._id || share.sharedWithUserId).toString());
+            }
+          }
+        }
+      } catch (err) {
+        this.logger.warn(`Failed to resolve participant shares: ${err}`);
+      }
+    }
+    return Array.from(participantIds);
+  }
+
+  private toIMessage(doc: any, authorUser?: any): IMessage {
+    let author: IMessageAuthor | undefined;
+    if (authorUser && authorUser.firstName) {
+      author = {
+        id: authorUser._id ? authorUser._id.toString() : (authorUser.id || authorUser.toString()),
+        firstName: authorUser.firstName,
+        lastName: authorUser.lastName,
+        email: authorUser.email,
+        role: authorUser.role,
+      };
+    } else if (doc.userId && typeof doc.userId === 'object' && doc.userId.firstName) {
+      author = {
+        id: doc.userId._id ? doc.userId._id.toString() : (doc.userId.id || doc.userId.toString()),
+        firstName: doc.userId.firstName,
+        lastName: doc.userId.lastName,
+        email: doc.userId.email,
+        role: doc.userId.role,
+      };
+    }
+
     return {
       id: doc._id.toString(),
       conversationId: doc.conversationId.toString(),
-      userId: doc.userId.toString(),
+      userId: doc.userId?._id ? doc.userId._id.toString() : doc.userId?.toString(),
+      author,
       role: doc.role as MessageRole,
       content: doc.content,
+      mentions: doc.mentions || [],
       referencedResourceIds: doc.referencedResourceIds || [],
       citations: doc.citations || [],
       generatedChart: doc.generatedChart,
@@ -1370,7 +1914,9 @@ export class MessagesService {
       pythonCode: doc.pythonCode,
       executionOutput: doc.executionOutput,
       downloadableFile: doc.downloadableFile,
-      createdAt: doc.createdAt?.toISOString() || new Date().toISOString(),
+      replyToMessageId: doc.replyToMessageId,
+      replyTo: doc.replyTo,
+      createdAt: doc.createdAt?.toISOString ? doc.createdAt.toISOString() : (doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString()),
     };
   }
 }

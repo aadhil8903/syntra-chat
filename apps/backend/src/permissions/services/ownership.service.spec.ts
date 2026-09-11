@@ -33,7 +33,7 @@ describe('OwnershipService (Multi-User Isolation & IDOR Protection)', () => {
       return collections[name];
     };
 
-    ['users', 'documents', 'datasets', 'folders', 'roles'].forEach(getCollection);
+    ['users', 'documents', 'datasets', 'folders', 'roles', 'conversations', 'conversation_shares', 'message_shares'].forEach(getCollection);
     mockCollection = getCollection('documents');
 
     mockConnection = {

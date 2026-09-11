@@ -3,6 +3,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { MessagesService } from './messages.service';
+import { MessagesEventsService } from './messages-events.service';
 import { MessageEntity } from './schemas/message.schema';
 import { ConversationEntity } from '../conversations/schemas/conversation.schema';
 import { OwnershipService } from '../permissions/services/ownership.service';
@@ -10,6 +11,10 @@ import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import { MentionsService } from '../mentions/mentions.service';
 import { CollectionsService } from '../collections/collections.service';
 import { DocumentsService } from '../documents/documents.service';
+import { MessageShareEntity } from './schemas/message-share.schema';
+import { ConversationShareEntity } from '../conversations/schemas/conversation-share.schema';
+import { User } from '../users/schemas/user.schema';
+import { NotificationsService } from '../notifications/notifications.service';
 import { MessageRole } from '@enter-chat/shared-types';
 
 describe('MessagesService — Spec Round 22 Active Scope Persistence', () => {
@@ -23,6 +28,7 @@ describe('MessagesService — Spec Round 22 Active Scope Persistence', () => {
   let mockMentionsService: any;
   let mockCollectionsService: any;
   let mockDocumentsService: any;
+  let mockNotificationsService: any;
 
   const mockUserId = new Types.ObjectId().toString();
   const mockConvId = new Types.ObjectId().toString();
@@ -45,6 +51,12 @@ describe('MessagesService — Spec Round 22 Active Scope Persistence', () => {
     mockConversationModel = {
       findOne: jest.fn().mockImplementation((query) => {
         if (query._id.toString() === mockConvId && query.userId.toString() === mockUserId) {
+          return Promise.resolve(conversationInDb);
+        }
+        return Promise.resolve(null);
+      }),
+      findById: jest.fn().mockImplementation((id) => {
+        if (id && id.toString() === mockConvId) {
           return Promise.resolve(conversationInDb);
         }
         return Promise.resolve(null);
@@ -190,11 +202,54 @@ describe('MessagesService — Spec Round 22 Active Scope Persistence', () => {
       canUserDownloadDocument: jest.fn().mockResolvedValue({ canDownload: false }),
     };
 
+    const mockUserModel = {
+      findById: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({
+            _id: new Types.ObjectId(mockUserId),
+            firstName: 'Test',
+            lastName: 'User',
+            email: 'test@example.com',
+          }),
+        }),
+      }),
+      find: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+      }),
+    };
+
+    const mockMessageShareModel = {
+      findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn().mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+      insertMany: jest.fn().mockResolvedValue([]),
+    };
+
+    const mockConversationShareModel = {
+      findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+    };
+
+    mockNotificationsService = {
+      createNotification: jest.fn().mockResolvedValue({}),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MessagesService,
         { provide: getModelToken(MessageEntity.name), useValue: mockMessageModel },
         { provide: getModelToken(ConversationEntity.name), useValue: mockConversationModel },
+        { provide: getModelToken(MessageShareEntity.name), useValue: mockMessageShareModel },
+        { provide: getModelToken(ConversationShareEntity.name), useValue: mockConversationShareModel },
+        { provide: getModelToken(User.name), useValue: mockUserModel },
         { provide: getModelToken('DocumentEntity'), useValue: mockDocumentModel },
         { provide: getModelToken('DatasetEntity'), useValue: mockDatasetModel },
         { provide: OwnershipService, useValue: mockOwnershipService },
@@ -202,6 +257,14 @@ describe('MessagesService — Spec Round 22 Active Scope Persistence', () => {
         { provide: MentionsService, useValue: mockMentionsService },
         { provide: CollectionsService, useValue: mockCollectionsService },
         { provide: DocumentsService, useValue: mockDocumentsService },
+        { provide: NotificationsService, useValue: mockNotificationsService },
+        {
+          provide: MessagesEventsService,
+          useValue: {
+            broadcastNewMessage: jest.fn(),
+            broadcastConversationUpdated: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -484,6 +547,7 @@ describe('MessagesService — Spec Round 22 Active Scope Persistence', () => {
       };
 
       mockConversationModel.findOne.mockResolvedValueOnce(freshConv);
+      mockConversationModel.findById.mockResolvedValueOnce(freshConv);
 
       await service.sendMessage(mockUserId, {
         conversationId: freshConvId,
@@ -573,6 +637,105 @@ describe('MessagesService — Spec Round 22 Active Scope Persistence', () => {
       expect(writtenEvents.some((e) => e.includes('event: user_message'))).toBe(true);
       expect(writtenEvents.some((e) => e.includes('event: completed_message'))).toBe(true);
       expect(mockRes.end).toHaveBeenCalled();
+    });
+
+    it('Scenario P: Human-to-Human Direct Message saves message, updates lastMessage & unread count, does NOT invoke AI', async () => {
+      const partnerId = new Types.ObjectId().toString();
+      const directConvId = new Types.ObjectId().toString();
+      const directConv = {
+        _id: new Types.ObjectId(directConvId),
+        userId: new Types.ObjectId(mockUserId),
+        type: 'direct',
+        participants: [new Types.ObjectId(mockUserId), new Types.ObjectId(partnerId)],
+        unreadCounts: new Map(),
+        lastMessage: null,
+        save: jest.fn().mockResolvedValue(true),
+        markModified: jest.fn(),
+      };
+
+      mockConversationModel.findById.mockImplementation((id: any) => {
+        if (id.toString() === directConvId) return Promise.resolve(directConv);
+        return Promise.resolve(null);
+      });
+
+      mockAiGatewayService.chat.mockClear();
+
+      const response = await service.sendMessage(mockUserId, {
+        conversationId: directConvId,
+        content: 'Hey Rahul, can you review the report?',
+      });
+
+      expect(response.userMessage).toBeDefined();
+      expect(response.userMessage.content).toBe('Hey Rahul, can you review the report?');
+      expect(response.assistantMessage).toBeUndefined();
+      expect(mockAiGatewayService.chat).not.toHaveBeenCalled();
+      expect(directConv.save).toHaveBeenCalled();
+      expect(directConv.lastMessage?.content).toBe('Hey Rahul, can you review the report?');
+      expect(directConv.unreadCounts.get(partnerId)).toBe(1);
+      expect(mockNotificationsService.createNotification).toHaveBeenCalled();
+    });
+
+    it('Scenario Q: Direct Message with @Syntra invokes AI with sender permissions and stores AI response', async () => {
+      const partnerId = new Types.ObjectId().toString();
+      const directConvId = new Types.ObjectId().toString();
+      const directConv = {
+        _id: new Types.ObjectId(directConvId),
+        userId: new Types.ObjectId(mockUserId),
+        type: 'direct',
+        participants: [new Types.ObjectId(mockUserId), new Types.ObjectId(partnerId)],
+        unreadCounts: new Map(),
+        lastMessage: null,
+        save: jest.fn().mockResolvedValue(true),
+        markModified: jest.fn(),
+      };
+
+      mockConversationModel.findById.mockImplementation((id: any) => {
+        if (id.toString() === directConvId) return Promise.resolve(directConv);
+        return Promise.resolve(null);
+      });
+
+      mockAiGatewayService.chat.mockResolvedValueOnce({
+        answer: 'Here is the summary of the report.',
+        citations: [],
+      });
+
+      const response = await service.sendMessage(mockUserId, {
+        conversationId: directConvId,
+        content: '@Syntra summarize the Q3 numbers',
+        mentions: [{ type: 'ai', id: 'syntra', name: 'Syntra AI' }],
+      });
+
+      expect(response.userMessage.content).toBe('@Syntra summarize the Q3 numbers');
+      expect(response.assistantMessage?.content).toBe('Here is the summary of the report.');
+      expect(mockAiGatewayService.chat).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: mockUserId, // Sender's identity is used!
+          message: '@Syntra summarize the Q3 numbers',
+        }),
+      );
+    });
+
+    it('Scenario R: Non-participant is forbidden from sending message to a direct conversation', async () => {
+      const strangerId = new Types.ObjectId().toString();
+      const directConvId = new Types.ObjectId().toString();
+      const directConv = {
+        _id: new Types.ObjectId(directConvId),
+        userId: new Types.ObjectId(mockUserId),
+        type: 'direct',
+        participants: [new Types.ObjectId(mockUserId), new Types.ObjectId(new Types.ObjectId().toString())],
+      };
+
+      mockConversationModel.findById.mockImplementation((id: any) => {
+        if (id.toString() === directConvId) return Promise.resolve(directConv);
+        return Promise.resolve(null);
+      });
+
+      await expect(
+        service.sendMessage(strangerId, {
+          conversationId: directConvId,
+          content: 'I want to spy on your conversation',
+        }),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });

@@ -56,6 +56,9 @@ export class User {
   @Prop({ type: String, required: false })
   deletedBy?: string;
 
+  @Prop({ type: Date, required: false })
+  lastSeenAt?: Date;
+
   createdAt: Date;
   updatedAt: Date;
 }

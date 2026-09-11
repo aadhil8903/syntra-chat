@@ -954,9 +954,10 @@ export class DocsComponent implements OnInit, AfterViewInit, OnDestroy {
   private animFrameId: number | null = null;
   private animStartTime: number | null = null;
   private isUserClickScrolling = false;
-  private scrollObserver: IntersectionObserver | null = null;
+  private scrollListener: (() => void) | null = null;
   private animVisibilityObserver: IntersectionObserver | null = null;
   private isTutorialVisible = true;
+  private scrollContainer: HTMLElement | null = null;
 
   ngOnInit(): void {
     if (typeof window !== 'undefined') {
@@ -977,7 +978,7 @@ export class DocsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     if (typeof window !== 'undefined') {
-      this.setupSectionObserver();
+      this.setupScrollSpy();
       this.setupTutorialVisibilityObserver();
 
       this.ngZone.runOutsideAngular(() => {
@@ -991,9 +992,13 @@ export class DocsComponent implements OnInit, AfterViewInit, OnDestroy {
       cancelAnimationFrame(this.animFrameId);
       this.animFrameId = null;
     }
-    if (this.scrollObserver) {
-      this.scrollObserver.disconnect();
-      this.scrollObserver = null;
+    if (this.scrollListener && typeof window !== 'undefined') {
+      if (this.scrollContainer) {
+        this.scrollContainer.removeEventListener('scroll', this.scrollListener);
+      }
+      window.removeEventListener('resize', this.scrollListener);
+      this.scrollListener = null;
+      this.scrollContainer = null;
     }
     if (this.animVisibilityObserver) {
       this.animVisibilityObserver.disconnect();
@@ -1045,31 +1050,89 @@ export class DocsComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private setupSectionObserver(): void {
-    if (typeof IntersectionObserver === 'undefined') return;
+  private setupScrollSpy(): void {
+    if (typeof window === 'undefined') return;
 
-    const options: IntersectionObserverInit = {
-      root: null,
-      rootMargin: '-80px 0px -60% 0px',
-      threshold: 0
-    };
-
-    this.scrollObserver = new IntersectionObserver((entries) => {
-      if (this.isUserClickScrolling) return;
-
-      for (const entry of entries) {
-        if (entry.isIntersecting) {
-          this.activeSection.set(entry.target.id);
+    // Find the actual scroll container — the <main class="overflow-y-auto"> wrapper
+    // that wraps the <router-outlet> in app.component.ts
+    const hostEl = this.el.nativeElement as HTMLElement;
+    let container: HTMLElement | null = hostEl.closest('main.overflow-y-auto') as HTMLElement | null;
+    if (!container) {
+      // Fallback: walk up from the host element to find the first scrollable parent
+      let parent = hostEl.parentElement;
+      while (parent) {
+        const style = window.getComputedStyle(parent);
+        if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+          container = parent;
           break;
         }
+        parent = parent.parentElement;
       }
-    }, options);
+    }
 
-    // Observe all doc sections
-    const sectionElements = this.el.nativeElement.querySelectorAll('section[id]');
-    sectionElements.forEach((sec: Element) => {
-      this.scrollObserver?.observe(sec);
-    });
+    // Final fallback to document.documentElement
+    const scrollTarget = container || document.documentElement;
+    this.scrollContainer = scrollTarget;
+
+    let ticking = false;
+
+    const updateActiveSection = () => {
+      if (this.isUserClickScrolling) return;
+
+      const scrollPosition = scrollTarget.scrollTop || 0;
+      const viewportHeight = scrollTarget.clientHeight;
+      const totalHeight = scrollTarget.scrollHeight;
+
+      const availableSections = this.filteredSections();
+      if (availableSections.length === 0) return;
+
+      // 1. If user has actually scrolled and reached near the bottom, activate the final visible section
+      if (scrollPosition > 200 && viewportHeight + scrollPosition >= totalHeight - 80) {
+        const lastSection = availableSections[availableSections.length - 1];
+        if (this.activeSection() !== lastSection.id) {
+          this.activeSection.set(lastSection.id);
+        }
+        return;
+      }
+
+      // 2. Otherwise find the section whose top is closest to the header offset
+      const validIds = new Set(availableSections.map(s => s.id));
+      const sectionElements = (Array.from(
+        this.el.nativeElement.querySelectorAll('section[id]')
+      ) as HTMLElement[]).filter(el => validIds.has(el.id));
+
+      if (sectionElements.length === 0) return;
+
+      let currentSectionId = sectionElements[0].id;
+      const headerOffset = 140;
+
+      for (const section of sectionElements) {
+        const rect = section.getBoundingClientRect();
+        if (rect.top <= headerOffset) {
+          currentSectionId = section.id;
+        }
+      }
+
+      if (this.activeSection() !== currentSectionId) {
+        this.activeSection.set(currentSectionId);
+      }
+    };
+
+    this.scrollListener = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          updateActiveSection();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    scrollTarget.addEventListener('scroll', this.scrollListener, { passive: true });
+    window.addEventListener('resize', this.scrollListener, { passive: true });
+
+    // Initial check
+    setTimeout(() => updateActiveSection(), 100);
   }
 
   private setupTutorialVisibilityObserver(): void {

@@ -3,6 +3,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import { MessagesController } from './messages.controller';
 import { MessagesService } from './messages.service';
+import { MessagesEventsService } from './messages-events.service';
 import { MessageEntity } from './schemas/message.schema';
 import { ConversationEntity } from '../conversations/schemas/conversation.schema';
 import { OwnershipService } from '../permissions/services/ownership.service';
@@ -10,6 +11,10 @@ import { AiGatewayService } from '../ai-gateway/ai-gateway.service';
 import { MentionsService } from '../mentions/mentions.service';
 import { CollectionsService } from '../collections/collections.service';
 import { DocumentsService } from '../documents/documents.service';
+import { MessageShareEntity } from './schemas/message-share.schema';
+import { ConversationShareEntity } from '../conversations/schemas/conversation-share.schema';
+import { User } from '../users/schemas/user.schema';
+import { NotificationsService } from '../notifications/notifications.service';
 import { MessageRole, UserRole } from '@enter-chat/shared-types';
 
 describe('ChatFlow Integration — Controller -> Service -> Gateway -> DB Pipeline', () => {
@@ -42,6 +47,12 @@ describe('ChatFlow Integration — Controller -> Service -> Gateway -> DB Pipeli
           query._id.toString() === mockConvId &&
           query.userId.toString() === mockUserId
         ) {
+          return Promise.resolve(conversationState);
+        }
+        return Promise.resolve(null);
+      }),
+      findById: jest.fn().mockImplementation((id) => {
+        if (id && id.toString() === mockConvId) {
           return Promise.resolve(conversationState);
         }
         return Promise.resolve(null);
@@ -184,12 +195,55 @@ describe('ChatFlow Integration — Controller -> Service -> Gateway -> DB Pipeli
       canUserDownloadDocument: jest.fn().mockResolvedValue({ canDownload: false }),
     };
 
+    const mockUserModel = {
+      findById: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue({
+            _id: new Types.ObjectId(mockUserId),
+            firstName: 'Test',
+            lastName: 'User',
+            email: 'test@example.com',
+          }),
+        }),
+      }),
+      find: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+      }),
+    };
+
+    const mockMessageShareModel = {
+      findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn().mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue([]),
+        }),
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+      insertMany: jest.fn().mockResolvedValue([]),
+    };
+
+    const mockConversationShareModel = {
+      findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+    };
+
+    const mockNotificationsService = {
+      createNotification: jest.fn().mockResolvedValue({}),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [MessagesController],
       providers: [
         MessagesService,
         { provide: getModelToken(MessageEntity.name), useValue: mockMessageModel },
         { provide: getModelToken(ConversationEntity.name), useValue: mockConversationModel },
+        { provide: getModelToken(MessageShareEntity.name), useValue: mockMessageShareModel },
+        { provide: getModelToken(ConversationShareEntity.name), useValue: mockConversationShareModel },
+        { provide: getModelToken(User.name), useValue: mockUserModel },
         { provide: getModelToken('DocumentEntity'), useValue: mockDocumentModel },
         { provide: getModelToken('DatasetEntity'), useValue: mockDatasetModel },
         { provide: OwnershipService, useValue: mockOwnershipService },
@@ -197,6 +251,14 @@ describe('ChatFlow Integration — Controller -> Service -> Gateway -> DB Pipeli
         { provide: MentionsService, useValue: mockMentionsService },
         { provide: CollectionsService, useValue: mockCollectionsService },
         { provide: DocumentsService, useValue: mockDocumentsService },
+        { provide: NotificationsService, useValue: mockNotificationsService },
+        {
+          provide: MessagesEventsService,
+          useValue: {
+            broadcastNewMessage: jest.fn(),
+            broadcastConversationUpdated: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

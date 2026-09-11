@@ -105,4 +105,75 @@ describe('ChatStateService (Streaming & Responsiveness)', () => {
 
     expect(service.getError('temp-session-456')).toBe('Conversation not found');
   });
+
+  it('should emit incomingMessage$ and reconcile optimistic messages on incoming realtime message', (done) => {
+    service.setMessages('conv-realtime-1', [
+      {
+        id: 'temp-12345',
+        conversationId: 'conv-realtime-1',
+        userId: 'user-a',
+        role: MessageRole.USER,
+        content: 'Collaborative test message',
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    const realServerMsg: IMessage = {
+      id: 'real-srv-msg-999',
+      conversationId: 'conv-realtime-1',
+      userId: 'user-a',
+      role: MessageRole.USER,
+      content: 'Collaborative test message',
+      createdAt: new Date().toISOString(),
+    };
+
+    service.incomingMessage$.subscribe(({ message, conversationId }) => {
+      expect(conversationId).toBe('conv-realtime-1');
+      expect(message.id).toBe('real-srv-msg-999');
+
+      // Check cache reconciliation
+      const cached = service.getCachedMessages('conv-realtime-1')!;
+      expect(cached.length).toBe(1);
+      expect(cached[0].id).toBe('real-srv-msg-999');
+      done();
+    });
+
+    (service as any).handleIncomingRealtimeMessage(realServerMsg, 'conv-realtime-1');
+  });
+
+  it('should update unreadCount and lastMessage for non-active direct conversations', () => {
+    service.setActiveConversationId('conv-active');
+    service.directConversations.set([
+      {
+        id: 'conv-dm-other',
+        title: 'Jane Doe',
+        userId: 'user-jane',
+        unreadCount: 0,
+        createdAt: '',
+        updatedAt: '',
+      },
+    ]);
+
+    const incomingMsg: IMessage = {
+      id: 'msg-incoming-1',
+      conversationId: 'conv-dm-other',
+      userId: 'user-jane',
+      role: MessageRole.USER,
+      content: 'Hey colleague!',
+      author: {
+        id: 'user-jane',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+      },
+      createdAt: new Date().toISOString(),
+    };
+
+    (service as any).handleIncomingRealtimeMessage(incomingMsg, 'conv-dm-other');
+
+    const updatedList = service.directConversations();
+    expect(updatedList[0].unreadCount).toBe(1);
+    expect(updatedList[0].lastMessage?.content).toBe('Hey colleague!');
+    expect(updatedList[0].lastMessage?.senderName).toBe('Jane Doe');
+  });
 });

@@ -19,12 +19,29 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AuthThrottlerGuard } from '../auth/guards/auth-throttler.guard';
-import { IUser, UserRole, ICreateUserResult } from '@enter-chat/shared-types';
+import { IUser, UserRole, ICreateUserResult, IOrgMember } from '@enter-chat/shared-types';
+import { PresenceService } from './presence.service';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly presenceService: PresenceService,
+  ) {}
+
+  @Post('presence/heartbeat')
+  async recordHeartbeat(@CurrentUser('id') userId: string): Promise<{ success: boolean; lastSeenAt: string }> {
+    return this.presenceService.recordHeartbeat(userId);
+  }
+
+  @Get('organization-members')
+  async getOrganizationMembers(
+    @CurrentUser('id') currentUserId: string,
+    @Query('search') search?: string,
+  ): Promise<IOrgMember[]> {
+    return this.presenceService.getOrgMembersWithPresence(currentUserId, search);
+  }
 
   @Get('me')
   async getProfile(@CurrentUser() user: IUser): Promise<IUser> {

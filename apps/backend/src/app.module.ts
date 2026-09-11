@@ -20,9 +20,12 @@ import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { CollectionsModule } from './collections/collections.module';
 import { HealthModule } from './health/health.module';
 import { AuditModule } from './audit/audit.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
+    EventsModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.local', '.env', 'apps/backend/.env'],
@@ -47,6 +50,7 @@ import { AuditModule } from './audit/audit.module';
     AccessRequestsModule,
     RolesModule,
     FoldersModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

@@ -114,7 +114,7 @@
     </div>
 
     <!-- Users Table (Desktop View >= 768px) -->
-    <div class="hidden md:block bg-white dark:bg-[#111114] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 overflow-hidden shadow-sm dark:shadow-none">
+    <div class="hidden md:block bg-white dark:bg-[#111114] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 shadow-sm dark:shadow-none relative overflow-clip">
       <app-pagination
         position="top"
         *ngIf="filteredUsers.length > 0"
@@ -128,14 +128,14 @@
       ></app-pagination>
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-xs">
-          <thead>
-            <tr class="bg-zinc-50 dark:bg-[#09090b] border-b border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
-              <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px]">User Account</th>
-              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Security Role</th>
-              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Departments</th>
-              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Allowed Folders</th>
-              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Status</th>
-              <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] text-right">Actions</th>
+          <thead class="sticky top-0 z-10 bg-white dark:bg-[#111114] border-b border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
+            <tr>
+              <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] bg-white dark:bg-[#111114] min-w-[200px]">User Account</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] bg-white dark:bg-[#111114] min-w-[140px]">Security Role</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] bg-white dark:bg-[#111114] min-w-[150px]">Departments</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] bg-white dark:bg-[#111114] min-w-[180px]">Allowed Folders</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] bg-white dark:bg-[#111114] min-w-[110px]">Status</th>
+              <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] text-right bg-white dark:bg-[#111114] min-w-[120px]">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800/60">
@@ -321,7 +321,7 @@
                     <button
                       *ngIf="user.role !== 'admin'"
                       (click)="deleteUser(user)"
-                      class="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                      class="p-1.5 rounded-lg hover:bg-zinc-200/80 active:bg-zinc-200 dark:hover:bg-zinc-800 dark:active:bg-zinc-700 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
                       title="Delete User Account"
                     >
                       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -348,7 +348,12 @@
             }
             @if (filteredUsers.length === 0) {
               <tr>
-                <td colspan="6" class="py-12 text-center text-zinc-500 text-xs">No users found matching your search query.</td>
+                <td colspan="6" class="py-16 text-center text-zinc-500 dark:text-zinc-400 text-xs">
+                  <div class="flex flex-col items-center justify-center gap-1.5">
+                    <span class="font-semibold text-zinc-800 dark:text-zinc-200 text-sm">No users found</span>
+                    <span class="text-xs text-zinc-500 dark:text-zinc-400">No user accounts match your search query.</span>
+                  </div>
+                </td>
               </tr>
             }
           </tbody>
@@ -574,16 +579,16 @@
   <!-- Tab 2: Security Roles Management -->
   <div *ngIf="activeTab === 'roles'" class="space-y-4">
     <!-- Roles Table (Desktop View >= 768px) -->
-    <div class="hidden md:block bg-white dark:bg-[#111114] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 overflow-hidden shadow-sm dark:shadow-none">
+    <div class="hidden md:block bg-white dark:bg-[#111114] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 shadow-sm dark:shadow-none relative overflow-clip">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-xs">
-          <thead>
-            <tr class="bg-zinc-50 dark:bg-[#09090b] border-b border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
-              <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px]">Role Name & Key</th>
-              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Description</th>
-              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Folder Permissions</th>
-              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Type</th>
-              <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] text-right">Actions</th>
+          <thead class="sticky top-0 z-10 bg-white dark:bg-[#111114] border-b border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
+            <tr>
+              <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] bg-white dark:bg-[#111114] min-w-[180px]">Role Name & Key</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] bg-white dark:bg-[#111114] min-w-[240px]">Description</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] bg-white dark:bg-[#111114] min-w-[180px]">Folder Permissions</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] bg-white dark:bg-[#111114] min-w-[100px]">Type</th>
+              <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] text-right bg-white dark:bg-[#111114] min-w-[120px]">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800/60">
@@ -593,7 +598,7 @@
                 <td class="py-3.5 px-5">
                   <div *ngIf="editingRoleId !== (role._id || role.id)">
                     <div class="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">{{ role.name }}</div>
-                    <div class="text-[10px] font-mono text-zinc-500 mt-0.5">key: <span class="text-zinc-300">{{ role.key }}</span></div>
+                    <div class="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 mt-0.5">key: <span class="text-zinc-700 dark:text-zinc-300">{{ role.key }}</span></div>
                   </div>
                   <div *ngIf="editingRoleId === (role._id || role.id)" class="space-y-1">
                     <input
@@ -706,14 +711,14 @@
                     <button
                       *ngIf="!role.isSystem"
                       (click)="deleteRole(role)"
-                      class="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                      class="p-1.5 rounded-lg hover:bg-zinc-200/80 active:bg-zinc-200 dark:hover:bg-zinc-800 dark:active:bg-zinc-700 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
                       title="Delete Custom Role"
                     >
                       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
                     </button>
-                    <span *ngIf="role.isSystem" class="text-[11px] text-zinc-600 font-mono italic pr-2">Immutable</span>
+                    <span *ngIf="role.isSystem" class="text-[11px] text-zinc-600 dark:text-zinc-400 font-mono italic pr-2">Immutable</span>
                   </div>
                   <div *ngIf="editingRoleId === (role._id || role.id)" class="flex items-center justify-end gap-1.5">
                     <button
@@ -728,6 +733,16 @@
                     >
                       Cancel
                     </button>
+                  </div>
+                </td>
+              </tr>
+            }
+            @if (roles.length === 0) {
+              <tr>
+                <td colspan="5" class="py-16 text-center text-zinc-500 dark:text-zinc-400 text-xs">
+                  <div class="flex flex-col items-center justify-center gap-1.5">
+                    <span class="font-semibold text-zinc-800 dark:text-zinc-200 text-sm">No security roles found</span>
+                    <span class="text-xs text-zinc-500 dark:text-zinc-400">Create a role to manage folder permissions.</span>
                   </div>
                 </td>
               </tr>
@@ -933,7 +948,7 @@
     <!-- SUB-VIEW 1: PENDING REQUESTS TABLE -->
     <div *ngIf="requestsSubTab === 'pending'" class="space-y-4">
       <!-- Desktop Table (>= 768px) -->
-      <div class="hidden md:block bg-white dark:bg-[#111114] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 overflow-hidden shadow-sm dark:shadow-none">
+      <div class="hidden md:block bg-white dark:bg-[#111114] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 shadow-sm dark:shadow-none relative overflow-clip">
         <app-pagination
           position="top"
           *ngIf="pendingRequests.length > 0"
@@ -947,36 +962,36 @@
         ></app-pagination>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr class="bg-zinc-50 dark:bg-[#09090b] border-b border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
-                <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px]">Requester</th>
-                <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Requested Target</th>
-                <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Reason / Justification</th>
-                <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Requested At</th>
-                <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] text-right">Actions</th>
-              </tr>
-            </thead>
+            <thead class="sticky top-0 z-10 bg-white dark:bg-[#111114] border-b border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
+            <tr>
+              <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] bg-white dark:bg-[#111114] min-w-[180px]">Requester</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] bg-white dark:bg-[#111114] min-w-[200px]">Requested Target</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] bg-white dark:bg-[#111114] min-w-[220px]">Reason / Justification</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] bg-white dark:bg-[#111114] min-w-[150px]">Requested At</th>
+              <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] text-right bg-white dark:bg-[#111114] min-w-[140px]">Actions</th>
+            </tr>
+          </thead>
             <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800/60">
               @for (req of paginatedPendingRequests; track req.id) {
                 <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
                   <td class="py-3.5 px-5">
                     <div class="font-medium text-zinc-900 dark:text-zinc-100">{{ req.userName || req.userEmail || req.userId }}</div>
-                    <div *ngIf="req.userEmail" class="text-[11px] text-zinc-500 font-mono">{{ req.userEmail }}</div>
+                    <div *ngIf="req.userEmail" class="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono">{{ req.userEmail }}</div>
                   </td>
                   <td class="py-3.5 px-4 font-medium text-zinc-800 dark:text-zinc-200">
                     <div class="flex items-center gap-2">
                       <span class="text-[10px] font-mono uppercase text-zinc-500 dark:text-zinc-400 font-medium flex-shrink-0 tracking-wider">
                         {{ req.resourceType }}
                       </span>
-                      <span class="font-medium text-xs text-zinc-900 dark:text-zinc-100 truncate max-w-[200px]" [title]="req.resourceName || req.folderPath || req.resourceId">
+                      <span class="font-medium text-xs text-zinc-900 dark:text-zinc-100" [title]="req.resourceName || req.folderPath || req.resourceId">
                         {{ req.resourceName || req.folderPath || req.resourceId }}
                       </span>
                     </div>
-                    <div *ngIf="req.folderPath && req.resourceName" class="text-[11px] text-zinc-500 font-mono mt-0.5 truncate max-w-[200px]">
+                    <div *ngIf="req.folderPath && req.resourceName" class="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono mt-0.5">
                       Folder: {{ req.folderPath }}
                     </div>
                   </td>
-                  <td class="py-3.5 px-4 text-zinc-700 dark:text-zinc-300 max-w-xs truncate">{{ req.reason || 'No justification provided' }}</td>
+                  <td class="py-3.5 px-4 text-zinc-700 dark:text-zinc-300 leading-relaxed">{{ req.reason || 'No justification provided' }}</td>
                   <td class="py-3.5 px-4 text-zinc-600 dark:text-zinc-400 font-mono text-[11px] whitespace-nowrap">{{ req.createdAt | date:'medium' }}</td>
                   <td class="py-3.5 px-5 text-right whitespace-nowrap">
                     <div class="flex items-center justify-end gap-1.5">
@@ -998,10 +1013,10 @@
               }
               @if (pendingRequests.length === 0) {
                 <tr>
-                  <td colspan="5" class="py-12 text-center text-zinc-500 text-xs">
+                  <td colspan="5" class="py-16 text-center text-zinc-500 dark:text-zinc-400 text-xs">
                     <div class="flex flex-col items-center justify-center gap-1.5">
-                      <span class="font-medium text-zinc-300">All caught up</span>
-                      <span class="text-[11px] text-zinc-500">No pending access requests require your review.</span>
+                      <span class="font-semibold text-zinc-800 dark:text-zinc-200 text-sm">All caught up</span>
+                      <span class="text-xs text-zinc-500 dark:text-zinc-400">No pending access requests require your review.</span>
                     </div>
                   </td>
                 </tr>
@@ -1069,10 +1084,10 @@
           </div>
         }
         @if (pendingRequests.length === 0) {
-          <div class="p-8 bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl text-center text-zinc-500 text-xs shadow-sm dark:shadow-none">
+          <div class="p-8 bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-2xl text-center text-zinc-500 dark:text-zinc-400 text-xs shadow-sm dark:shadow-none">
             <div class="flex flex-col items-center justify-center gap-1">
-              <span class="font-medium text-zinc-300">All caught up</span>
-              <span class="text-[11px] text-zinc-500">No pending access requests require your review.</span>
+              <span class="font-semibold text-zinc-800 dark:text-zinc-200 text-sm">All caught up</span>
+              <span class="text-xs text-zinc-500 dark:text-zinc-400">No pending access requests require your review.</span>
             </div>
           </div>
         }
@@ -1194,7 +1209,7 @@
       </div>
 
       <!-- History Table (Desktop View >= 768px) -->
-      <div class="hidden md:block bg-white dark:bg-[#111114] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 overflow-hidden shadow-sm dark:shadow-none">
+      <div class="hidden md:block bg-white dark:bg-[#111114] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 shadow-sm dark:shadow-none relative overflow-clip">
         <app-pagination
           position="top"
           *ngIf="historyTotal > 0"
@@ -1208,60 +1223,60 @@
         ></app-pagination>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr class="bg-zinc-50 dark:bg-[#09090b] border-b border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
-                <th class="py-3 px-4 font-semibold uppercase tracking-wider text-[11px] min-w-[140px]">Requester</th>
-                <th class="py-3 px-3 font-semibold uppercase tracking-wider text-[11px] min-w-[150px]">Requested Target</th>
-                <th class="py-3 px-3 font-semibold uppercase tracking-wider text-[11px] min-w-[110px]">Requested Date</th>
-                <th class="py-3 px-3 font-semibold uppercase tracking-wider text-[11px] min-w-[85px]">Status</th>
-                <th class="py-3 px-3 font-semibold uppercase tracking-wider text-[11px] min-w-[120px]">Resolving Admin</th>
-                <th class="py-3 px-3 font-semibold uppercase tracking-wider text-[11px] min-w-[110px]">Resolved Date</th>
-                <th class="py-3 px-3 font-semibold uppercase tracking-wider text-[11px] text-center w-12 min-w-[48px] sticky right-0 bg-zinc-50 dark:bg-[#09090b] z-10">Note</th>
-              </tr>
-            </thead>
+            <thead class="sticky top-0 z-10 bg-white dark:bg-[#111114] border-b border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
+            <tr>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] min-w-[160px] bg-white dark:bg-[#111114]">Requester</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] min-w-[180px] bg-white dark:bg-[#111114]">Requested Target</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] min-w-[140px] bg-white dark:bg-[#111114]">Requested Date</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] min-w-[100px] bg-white dark:bg-[#111114]">Status</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] min-w-[150px] bg-white dark:bg-[#111114]">Resolving Admin</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] min-w-[140px] bg-white dark:bg-[#111114]">Resolved Date</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] text-center w-14 min-w-[56px] sticky right-0 top-0 bg-white dark:bg-[#111114] z-20 border-b border-zinc-200 dark:border-zinc-800">Note</th>
+            </tr>
+          </thead>
             <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800/60">
               @for (req of historyRequests; track req.id) {
                 <tr class="group hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
                   <!-- Requester -->
-                  <td class="py-2.5 px-4">
-                    <div class="font-medium text-zinc-900 dark:text-zinc-100 truncate max-w-[160px]">{{ req.userName || req.userEmail || (req.userId ? 'User (' + req.userId.slice(-4) + ')' : 'Former User') }}</div>
-                    <div *ngIf="req.userEmail" class="text-[11px] text-zinc-500 font-mono truncate max-w-[160px]">{{ req.userEmail }}</div>
+                  <td class="py-3.5 px-4">
+                    <div class="font-medium text-zinc-900 dark:text-zinc-100">{{ req.userName || req.userEmail || (req.userId ? 'User (' + req.userId.slice(-4) + ')' : 'Former User') }}</div>
+                    <div *ngIf="req.userEmail" class="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono">{{ req.userEmail }}</div>
                   </td>
 
                   <!-- Target Resource -->
-                  <td class="py-2.5 px-3">
+                  <td class="py-3.5 px-4">
                     <div class="flex items-center gap-2">
                       <span class="text-[10px] font-mono uppercase text-zinc-500 dark:text-zinc-400 font-medium flex-shrink-0 tracking-wider">
                         {{ req.resourceType }}
                       </span>
-                      <span class="font-medium text-xs text-zinc-900 dark:text-zinc-200 truncate max-w-[180px]" [title]="req.resourceName || req.folderPath || req.resourceId">
+                      <span class="font-medium text-xs text-zinc-900 dark:text-zinc-200" [title]="req.resourceName || req.folderPath || req.resourceId">
                         {{ req.resourceName || req.folderPath || req.resourceId }}
                       </span>
                     </div>
-                    <div *ngIf="req.folderPath && req.resourceName" class="text-[11px] text-zinc-500 font-mono mt-0.5 truncate max-w-[180px]">
+                    <div *ngIf="req.folderPath && req.resourceName" class="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono mt-0.5">
                       Folder: {{ req.folderPath }}
                     </div>
                   </td>
 
                   <!-- Requested At -->
-                  <td class="py-2.5 px-3 text-zinc-500 dark:text-zinc-400 font-mono text-[11px] whitespace-nowrap">
+                  <td class="py-3.5 px-4 text-zinc-600 dark:text-zinc-400 font-mono text-[11px] whitespace-nowrap">
                     {{ req.createdAt | date:'medium' }}
                   </td>
 
                   <!-- Status -->
-                  <td class="py-2.5 px-3">
+                  <td class="py-3.5 px-4">
                     @if (req.status === 'approved') {
-                      <span class="inline-flex items-center gap-1.5 text-[11px] font-mono text-zinc-700 dark:text-zinc-300 font-medium">
+                      <span class="inline-flex items-center gap-1.5 text-[11px] font-mono text-zinc-800 dark:text-zinc-200 font-medium">
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                         Approved
                       </span>
                     } @else if (req.status === 'rejected') {
-                      <span class="inline-flex items-center gap-1.5 text-[11px] font-mono text-zinc-600 dark:text-zinc-400 font-medium">
+                      <span class="inline-flex items-center gap-1.5 text-[11px] font-mono text-zinc-700 dark:text-zinc-300 font-medium">
                         <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
                         Rejected
                       </span>
                     } @else {
-                      <span class="inline-flex items-center gap-1.5 text-[11px] font-mono text-zinc-700 dark:text-zinc-300 font-medium">
+                      <span class="inline-flex items-center gap-1.5 text-[11px] font-mono text-zinc-800 dark:text-zinc-200 font-medium">
                         <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                         Pending
                       </span>
@@ -1269,31 +1284,31 @@
                   </td>
 
                   <!-- Resolving Admin -->
-                  <td class="py-2.5 px-3">
+                  <td class="py-3.5 px-4">
                     @if (req.status === 'pending') {
                       <span class="text-zinc-400 dark:text-zinc-600 font-mono">—</span>
                     } @else {
-                      <div class="font-medium text-zinc-900 dark:text-zinc-200 truncate max-w-[140px]">
+                      <div class="font-medium text-zinc-900 dark:text-zinc-200">
                         {{ req.resolvedByName || req.resolvedByEmail || 'Administrator' }}
                       </div>
-                      <div *ngIf="req.resolvedByEmail && req.resolvedByName !== req.resolvedByEmail" class="text-[10px] text-zinc-500 font-mono truncate max-w-[140px]">
+                      <div *ngIf="req.resolvedByEmail && req.resolvedByName !== req.resolvedByEmail" class="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
                         {{ req.resolvedByEmail }}
                       </div>
                     }
                   </td>
 
                   <!-- Resolved At -->
-                  <td class="py-2.5 px-3 font-mono text-[11px] text-zinc-400 whitespace-nowrap">
+                  <td class="py-3.5 px-4 font-mono text-[11px] text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
                     {{ req.resolvedAt ? (req.resolvedAt | date:'medium') : '—' }}
                   </td>
 
                   <!-- Message Icon Button Column -->
-                  <td class="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-zinc-50 dark:bg-[#111114] dark:group-hover:bg-[#18181b] z-10 transition-colors" (click)="$event.stopPropagation()">
+                  <td class="py-3.5 px-4 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-zinc-50 dark:bg-[#111114] dark:group-hover:bg-[#18181b] z-10 transition-colors" (click)="$event.stopPropagation()">
                     @if (req.reason) {
                       <button
                         type="button"
                         (click)="openRequestMessage(req, $event)"
-                        class="w-8 h-8 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600 focus:bg-zinc-100 dark:focus:bg-zinc-800 mx-auto"
+                        class="w-8 h-8 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/80 active:bg-zinc-200 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 dark:active:bg-zinc-700 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600 focus:bg-zinc-200/80 dark:focus:bg-zinc-800 mx-auto"
                         [class.bg-zinc-200]="activeMessageRequest?.id === req.id" [class.dark:bg-zinc-800]="activeMessageRequest?.id === req.id"
                         [class.text-zinc-900]="activeMessageRequest?.id === req.id" [class.dark:text-white]="activeMessageRequest?.id === req.id"
                         title="View requester note"
@@ -1304,7 +1319,7 @@
                         </svg>
                       </button>
                     } @else {
-                      <span class="text-zinc-600 font-mono text-xs">—</span>
+                      <span class="text-zinc-400 dark:text-zinc-600 font-mono text-xs">—</span>
                     }
                   </td>
                 </tr>
@@ -1312,18 +1327,21 @@
 
               @if (historyRequests.length === 0 && !historyLoading) {
                 <tr>
-                  <td colspan="7" class="py-12 text-center text-zinc-500 text-xs">
-                    <div class="flex flex-col items-center justify-center gap-1">
-                      <span class="font-medium text-zinc-300">No history records match the selected filters</span>
-                      <span class="text-[11px] text-zinc-500">Try adjusting your date range, status, or user filters.</span>
+                  <td colspan="7" class="py-16 text-center text-zinc-500 dark:text-zinc-400 text-xs">
+                    <div class="flex flex-col items-center justify-center gap-1.5">
+                      <span class="font-semibold text-zinc-800 dark:text-zinc-200 text-sm">No history records match the selected filters</span>
+                      <span class="text-xs text-zinc-500 dark:text-zinc-400">Try adjusting your date range, status, or user filters.</span>
                     </div>
                   </td>
                 </tr>
               }
               @if (historyLoading) {
                 <tr>
-                  <td colspan="7" class="py-12 text-center text-zinc-400 text-xs">
-                    Loading access request history...
+                  <td colspan="7" class="py-16 text-center text-zinc-500 dark:text-zinc-400 text-xs">
+                    <div class="flex flex-col items-center justify-center gap-2">
+                      <div class="w-5 h-5 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
+                      <span>Loading access request history...</span>
+                    </div>
                   </td>
                 </tr>
               }

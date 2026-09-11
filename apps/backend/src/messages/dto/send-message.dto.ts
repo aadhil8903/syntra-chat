@@ -1,5 +1,5 @@
 import { IsNotEmpty, IsString, IsArray, IsOptional, IsBoolean } from 'class-validator';
-import { ISendMessageDto } from '@enter-chat/shared-types';
+import { ISendMessageDto, IReplyToPreview } from '@enter-chat/shared-types';
 
 export class SendMessageDto implements ISendMessageDto {
   @IsString()
@@ -18,5 +18,23 @@ export class SendMessageDto implements ISendMessageDto {
   @IsBoolean()
   @IsOptional()
   temporary?: boolean;
+
+  @IsArray()
+  @IsOptional()
+  mentions?: Array<{ type: 'user' | 'ai'; id: string; name: string }>;
+
+  @IsBoolean()
+  @IsOptional()
+  isDirect?: boolean;
+
+  @IsOptional()
+  downloadableFile?: any;
+
+  @IsString()
+  @IsOptional()
+  replyToMessageId?: string;
+
+  @IsOptional()
+  replyTo?: IReplyToPreview;
 }
 
