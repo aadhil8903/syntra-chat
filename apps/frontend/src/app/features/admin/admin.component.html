@@ -222,12 +222,12 @@
                 <td class="py-3.5 px-4">
                   <!-- View Mode -->
                   <div *ngIf="editingUserId !== user.id" class="text-xs">
-                    @if (user.role === 'admin') {
-                      <span class="text-zinc-500 font-mono text-xs">All (Admin)</span>
+                    @if (user.role === 'admin' || user.role === 'master_admin') {
+                      <span class="text-zinc-500 font-mono text-xs">All Workspaces (Admin)</span>
                     } @else if (user.allowedFolders && user.allowedFolders.length > 0) {
                       <span class="text-zinc-700 dark:text-zinc-300 font-mono text-xs">{{ user.allowedFolders.join(', ') }}</span>
                     } @else {
-                      <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">No restricted folders</span>
+                      <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">Standard (Department Default)</span>
                     }
                   </div>
 
@@ -449,14 +449,14 @@
 
           <!-- Allowed Folders -->
           <div>
-            <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-1">Allowed Folders</span>
+            <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-1">Folder Permissions</span>
             <div *ngIf="editingUserId !== user.id" class="text-xs">
-              @if (user.role === 'admin') {
-                <span class="text-zinc-500 font-mono text-xs">All (Admin)</span>
+              @if (user.role === 'admin' || user.role === 'master_admin') {
+                <span class="text-zinc-500 font-mono text-xs">All Workspaces (Admin)</span>
               } @else if (user.allowedFolders && user.allowedFolders.length > 0) {
                 <span class="text-zinc-700 dark:text-zinc-300 font-mono text-xs">{{ user.allowedFolders.join(', ') }}</span>
               } @else {
-                <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">No restricted folders</span>
+                <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">Standard (Department Default)</span>
               }
             </div>
             <div *ngIf="editingUserId === user.id" class="space-y-1.5">
@@ -557,7 +557,7 @@
             <tr class="bg-zinc-50 dark:bg-[#09090b] border-b border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
               <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px]">Role Name & Key</th>
               <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Description</th>
-              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Restricted Folders</th>
+              <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Folder Permissions</th>
               <th class="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px]">Type</th>
               <th class="py-3.5 px-5 font-semibold uppercase tracking-wider text-[11px] text-right">Actions</th>
             </tr>
@@ -600,10 +600,12 @@
                 <!-- Allowed Folders -->
                 <td class="py-3.5 px-4">
                   <div *ngIf="editingRoleId !== (role._id || role.id)" class="text-xs">
-                    @if (role.allowedFolders && role.allowedFolders.length) {
+                    @if (role.key === 'admin' || role.key === 'master_admin') {
+                      <span class="text-zinc-500 font-mono text-xs">All Workspaces (Admin)</span>
+                    } @else if (role.allowedFolders && role.allowedFolders.length) {
                       <span class="text-zinc-700 dark:text-zinc-300 font-mono text-xs">{{ role.allowedFolders.join(', ') }}</span>
                     } @else {
-                      <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">All Workspaces</span>
+                      <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">Standard (Department Default)</span>
                     }
                   </div>
                   <div *ngIf="editingRoleId === (role._id || role.id)" class="space-y-1.5">
@@ -756,12 +758,14 @@
 
           <!-- Restricted / Allowed Folders -->
           <div>
-            <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-1">Restricted Folders</span>
+            <span class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider block mb-1">Folder Permissions</span>
             <div *ngIf="editingRoleId !== (role._id || role.id)" class="text-xs">
-              @if (role.allowedFolders && role.allowedFolders.length) {
+              @if (role.key === 'admin' || role.key === 'master_admin') {
+                <span class="text-zinc-500 font-mono text-xs">All Workspaces (Admin)</span>
+              } @else if (role.allowedFolders && role.allowedFolders.length) {
                 <span class="text-zinc-700 dark:text-zinc-300 font-mono text-xs">{{ role.allowedFolders.join(', ') }}</span>
               } @else {
-                <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">All Workspaces</span>
+                <span class="text-zinc-400 dark:text-zinc-600 text-[11px] font-mono">Standard (Department Default)</span>
               }
             </div>
             <div *ngIf="editingRoleId === (role._id || role.id)" class="space-y-1.5">
@@ -1607,8 +1611,9 @@
 
         <!-- Allowed Folders -->
         <div>
-          <label class="block text-zinc-700 dark:text-zinc-400 font-medium mb-1">Allowed Folders (Optional Restricted Access)</label>
-          <div class="flex flex-wrap gap-1 mb-2">
+          <label class="block text-zinc-700 dark:text-zinc-400 font-medium mb-1">Folder Permissions (Optional)</label>
+          <p class="text-[11px] text-zinc-500 mb-2">Leave empty for standard department-based access, or select specific folders to grant extra access.</p>
+          <div class="flex flex-wrap gap-1 mb-2" *ngIf="newUserSelectedFolders.length">
             @for (f of newUserSelectedFolders; track f) {
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200 text-[10px] border border-zinc-700 font-mono">
                 📁 {{ f }}
@@ -1622,7 +1627,7 @@
               (click)="toggleDropdown('new-user-folders', $event)"
               class="px-2.5 py-1 rounded-lg bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-[11px] text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white flex items-center gap-1"
             >
-              <span>Select Workspace Folders</span>
+              <span>{{ newUserSelectedFolders.length ? newUserSelectedFolders.length + ' folder(s) selected' : '+ Grant Specific Folders' }}</span>
             </button>
             <div
               *ngIf="openDropdownId === 'new-user-folders'"
@@ -1787,11 +1792,12 @@
 
         <!-- Allowed Folders Selector -->
         <div>
-          <label class="block text-zinc-700 dark:text-zinc-400 font-medium mb-1">Restricted Folders (Optional)</label>
-          <div class="flex flex-wrap gap-1 mb-2">
+          <label class="block text-zinc-700 dark:text-zinc-400 font-medium mb-1">Folder Permissions (Optional)</label>
+          <p class="text-[11px] text-zinc-500 mb-2">Leave empty for standard department-based access, or select specific folders to grant access to this role.</p>
+          <div class="flex flex-wrap gap-1 mb-2" *ngIf="newRoleSelectedFolders.length">
             @for (f of newRoleSelectedFolders; track f) {
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200 text-[10px] border border-zinc-700 font-mono">
-                {{ f }}
+                📁 {{ f }}
                 <button type="button" (click)="removeItem(newRoleSelectedFolders, f, $event)" class="text-zinc-400 hover:text-white">&times;</button>
               </span>
             }
@@ -1802,7 +1808,7 @@
               (click)="toggleDropdown('new-role-folders', $event)"
               class="px-2.5 py-1 rounded-lg bg-[#f8f9fa] dark:bg-[#09090b] border border-zinc-300 dark:border-zinc-700 text-[11px] text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white flex items-center gap-1"
             >
-              <span>Select Workspace Folders</span>
+              <span>{{ newRoleSelectedFolders.length ? newRoleSelectedFolders.length + ' folder(s) selected' : '+ Grant Specific Folders' }}</span>
             </button>
             <div
               *ngIf="openDropdownId === 'new-role-folders'"
