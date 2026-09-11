@@ -17,7 +17,7 @@ import { IMentionOption, MentionResourceType } from '@enter-chat/shared-types';
 @Component({
   selector: 'app-mention-autocomplete',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule], 
   template: `
     @if (isOpen) {
       <div
