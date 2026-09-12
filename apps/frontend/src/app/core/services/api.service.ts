@@ -76,6 +76,15 @@ export class ApiService {
     return this.http.post<IDocument>(`${this.baseUrl}/documents/upload`, formData);
   }
 
+  uploadDirectMessageAttachment(
+    conversationId: string,
+    file: File,
+  ): Observable<IDocument> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<IDocument>(`${this.baseUrl}/conversations/direct/${conversationId}/attachments`, formData);
+  }
+
   downloadDocument(id: string): Observable<Blob> {
     return this.http.get(`${this.baseUrl}/documents/${id}/download`, {
       responseType: 'blob',

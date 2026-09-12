@@ -8,9 +8,12 @@ import {
   Query,
   Body,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ConversationsService } from './conversations.service';
 import { ConversationSharesService } from './conversation-shares.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
@@ -24,6 +27,7 @@ import {
   IShareConversationDto,
   IUpdateSharePermissionDto,
   IDirectConversationItem,
+  IDocument,
 } from '@enter-chat/shared-types';
 
 @Controller('conversations')
@@ -70,6 +74,16 @@ export class ConversationsController {
     @Param('id') id: string,
   ): Promise<{ success: boolean }> {
     return this.conversationsService.markDirectConversationAsRead(userId, id);
+  }
+
+  @Post('direct/:id/attachments')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024 } }))
+  async uploadDirectAttachment(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<IDocument> {
+    return this.conversationsService.uploadDirectAttachment(userId, id, file);
   }
 
   @Post()

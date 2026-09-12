@@ -8,6 +8,7 @@ import { ConversationSharesService } from './conversation-shares.service';
 import { ConversationsController } from './conversations.controller';
 import { UsersModule } from '../users/users.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { DocumentsModule } from '../documents/documents.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     ]),
     UsersModule,
     NotificationsModule,
+    DocumentsModule,
   ],
   controllers: [ConversationsController],
   providers: [ConversationsService, ConversationSharesService],

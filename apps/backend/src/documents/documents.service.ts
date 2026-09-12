@@ -145,6 +145,64 @@ export class DocumentsService {
     return this.toIDocument(savedDoc, folderPolicy);
   }
 
+  async uploadDirectAttachment(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<IDocument> {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    const ext = path.extname(file.originalname);
+    const fileType = this.mapFileType(ext);
+    const isTabular = ['csv', 'xlsx', 'xls'].includes(fileType);
+
+    // Dynamically resolve unique filename
+    const uniqueOriginalName = await resolveUniqueFilenameForModel(
+      this.documentModel,
+      file.originalname,
+      '',
+    );
+
+    // Save to user-isolated folder in GridFS
+    const destinationSubdir = `users/${userId}/direct_attachments`;
+    const saveResult = await this.storageService.saveFile(
+      file.buffer,
+      destinationSubdir,
+      uniqueOriginalName,
+    );
+
+    try {
+      const doc = new this.documentModel({
+        userId: Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : (userId as any),
+        filename: saveResult.filename,
+        originalName: uniqueOriginalName,
+        fileType,
+        mimeType: file.mimetype || 'application/octet-stream',
+        fileSize: file.size,
+        storagePath: saveResult.storagePath,
+        folder: '',
+        allowedDepartments: [],
+        downloadPolicy: 'allowed',
+        status: DocumentStatus.READY,
+        sourceType: isTabular ? 'tabular' : 'narrative',
+        chunkCount: 0,
+        sheetNames: [],
+        sheets: [],
+        totalRows: 0,
+      });
+
+      const savedDoc = await doc.save();
+      return this.toIDocument(savedDoc);
+    } catch (err) {
+      this.logger.error(`Document metadata creation failed for direct attachment ${saveResult.storagePath}. Cleaning up GridFS file...`);
+      await this.storageService.deleteFile(saveResult.storagePath).catch((cleanupErr: any) => {
+        this.logger.warn(`Failed to cleanup orphaned GridFS file ${saveResult.storagePath}: ${cleanupErr.message}`);
+      });
+      throw err;
+    }
+  }
+
   async replaceDocument(
     userId: string,
     documentId: string,

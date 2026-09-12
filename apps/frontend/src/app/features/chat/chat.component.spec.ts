@@ -9,7 +9,7 @@ import { PdfReportService } from '../../core/services/pdf-report.service';
 import { WalkthroughService } from '../../core/services/walkthrough.service';
 import { VoiceRecognitionService } from '../../core/services/voice-recognition.service';
 import { provideRouter } from '@angular/router';
-import { of, Subject, EMPTY } from 'rxjs';
+import { of, Subject, EMPTY, throwError } from 'rxjs';
 import { signal, NO_ERRORS_SCHEMA } from '@angular/core';
 import { IConversation, MentionResourceType } from '@enter-chat/shared-types';
 
@@ -55,6 +55,15 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
       getDocuments: jest.fn().mockReturnValue(of([])),
       getDatasets: jest.fn().mockReturnValue(of([])),
       moveConversationToCollection: jest.fn().mockReturnValue(of({ success: true })),
+      uploadDirectMessageAttachment: jest.fn((convId: string, file: File) =>
+        of({
+          id: 'doc-att-123',
+          originalName: file.name,
+          fileSize: file.size,
+          mimeType: file.type || 'application/pdf',
+          status: 'ready',
+        })
+      ),
     };
 
     chatStateMock = {
@@ -66,6 +75,11 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
       getError: jest.fn().mockReturnValue(''),
       clearError: jest.fn(),
       sendMessageStream: jest.fn().mockResolvedValue(undefined),
+      sendDirectMessage: jest.fn().mockReturnValue(of({})),
+      directConversations: signal([]),
+      sharedConversations: signal([]),
+      loadDirectConversations: jest.fn(),
+      loadSharedConversations: jest.fn(),
       generationStates: signal({}),
       activeGenerations: signal([]),
       incomingMessage$: new Subject(),
@@ -97,6 +111,8 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
     modalMock = {
       confirmDanger: jest.fn().mockResolvedValue(true),
       confirm: jest.fn().mockResolvedValue(true),
+      alert: jest.fn().mockResolvedValue(undefined),
+      prompt: jest.fn().mockResolvedValue(''),
     };
 
     const voiceTranscript$ = new Subject();
@@ -600,6 +616,174 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
       component.sendUserMessage();
 
       expect(apiServiceMock.createConversation).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Direct Message File Attachments via Paperclip', () => {
+    const mockDmConv: IConversation = {
+      id: 'dm-conv-1',
+      title: 'Jane Doe',
+      userId: 'user-2',
+      type: 'direct',
+      participants: ['user-1', 'user-2'],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    beforeEach(() => {
+      component.activeConversation = mockDmConv;
+    });
+
+    it('Scenario 1: triggers file input click when triggerDmFileUpload is called', () => {
+      const mockInput = document.createElement('input');
+      mockInput.id = 'dm-file-upload-input';
+      const clickSpy = jest.spyOn(mockInput, 'click');
+      document.body.appendChild(mockInput);
+
+      component.triggerDmFileUpload();
+
+      expect(clickSpy).toHaveBeenCalled();
+      document.body.removeChild(mockInput);
+    });
+
+    it('Scenario 2: rejects file exceeding 50 MB limit client-side before making HTTP request', () => {
+      const largeFile = new File(['a'.repeat(100)], 'huge-file.pdf', { type: 'application/pdf' });
+      Object.defineProperty(largeFile, 'size', { value: 55 * 1024 * 1024 });
+
+      const event = {
+        target: {
+          files: [largeFile],
+          value: 'fake-path',
+        },
+      } as unknown as Event;
+
+      component.onDmFileSelected(event);
+
+      expect(modalMock.alert).toHaveBeenCalledWith(
+        'File size exceeds the 50 MB limit. Please select a smaller file.',
+        'File Too Large'
+      );
+      expect(apiServiceMock.uploadDirectMessageAttachment).not.toHaveBeenCalled();
+      expect(component.isUploadingDmFile).toBe(false);
+    });
+
+    it('Scenario 3: successfully uploads attachment and sends direct message with downloadableFile payload', () => {
+      const validFile = new File(['dummy content'], 'report.pdf', { type: 'application/pdf' });
+      Object.defineProperty(validFile, 'size', { value: 1024 * 50 });
+
+      const event = {
+        target: {
+          files: [validFile],
+        },
+      } as unknown as Event;
+
+      component.onDmFileSelected(event);
+
+      expect(apiServiceMock.uploadDirectMessageAttachment).toHaveBeenCalledWith('dm-conv-1', validFile);
+      expect(chatStateMock.sendDirectMessage).toHaveBeenCalledWith(
+        'dm-conv-1',
+        'Shared file: report.pdf',
+        [],
+        expect.anything(),
+        {
+          documentId: 'doc-att-123',
+          fileName: 'report.pdf',
+          fileSize: 51200,
+          mimeType: 'application/pdf',
+        }
+      );
+      expect(component.isUploadingDmFile).toBe(false);
+    });
+
+    it('Scenario 4: handles upload failure, resets loading state, and displays modal alert', () => {
+      apiServiceMock.uploadDirectMessageAttachment.mockReturnValue(
+        throwError(() => ({ error: { message: 'You are not a participant in this direct conversation' } }))
+      );
+
+      const validFile = new File(['dummy content'], 'forbidden.pdf', { type: 'application/pdf' });
+      const event = {
+        target: {
+          files: [validFile],
+        },
+      } as unknown as Event;
+
+      component.onDmFileSelected(event);
+
+      expect(component.isUploadingDmFile).toBe(false);
+      expect(component.localError).toBe('You are not a participant in this direct conversation');
+      expect(modalMock.alert).toHaveBeenCalledWith(
+        'You are not a participant in this direct conversation',
+        'Upload Failed'
+      );
+    });
+  });
+
+  describe('@Syntra Composer Mention Token Rendering', () => {
+    it('Scenario 1: styles only @Syntra with theme-aware rose classes and leaves following text unstyled', () => {
+      component.inputText = '@Syntra what is the meaning of RAG?';
+
+      expect(component.hasSyntraMention).toBe(true);
+      const html = component.highlightedComposerHtml;
+
+      expect(html).toContain('<span class="composer-syntra-token text-rose-600 dark:text-rose-400 font-medium">@Syntra</span> what is the meaning of RAG?');
+      expect(html.startsWith('<span class="composer-syntra-token text-rose-600 dark:text-rose-400 font-medium">@Syntra</span>')).toBe(true);
+      // Verify text after @Syntra is plain unstyled text
+      expect(html.endsWith('what is the meaning of RAG?')).toBe(true);
+    });
+
+    it('Scenario 2: correctly formats @Syntra when immediately followed by punctuation like commas and colons', () => {
+      component.inputText = '@Syntra, please analyze this file:';
+      const commaHtml = component.highlightedComposerHtml;
+      expect(commaHtml).toBe('<span class="composer-syntra-token text-rose-600 dark:text-rose-400 font-medium">@Syntra</span>, please analyze this file:');
+
+      component.inputText = '@Syntra: summarize the document';
+      const colonHtml = component.highlightedComposerHtml;
+      expect(colonHtml).toBe('<span class="composer-syntra-token text-rose-600 dark:text-rose-400 font-medium">@Syntra</span>: summarize the document');
+    });
+
+    it('Scenario 3: handles case-insensitivity (@syntra, @SYNTRA, @Syntra)', () => {
+      component.inputText = '@syntra help me';
+      expect(component.highlightedComposerHtml).toBe('<span class="composer-syntra-token text-rose-600 dark:text-rose-400 font-medium">@syntra</span> help me');
+
+      component.inputText = '@SYNTRA help me';
+      expect(component.highlightedComposerHtml).toBe('<span class="composer-syntra-token text-rose-600 dark:text-rose-400 font-medium">@SYNTRA</span> help me');
+    });
+
+    it('Scenario 4: highlights multiple @Syntra mentions in one prompt', () => {
+      component.inputText = 'Ask @Syntra first and then ping @Syntra again.';
+      const html = component.highlightedComposerHtml;
+      const occurrences = (html.match(/composer-syntra-token/g) || []).length;
+      expect(occurrences).toBe(2);
+      expect(html).toBe('Ask <span class="composer-syntra-token text-rose-600 dark:text-rose-400 font-medium">@Syntra</span> first and then ping <span class="composer-syntra-token text-rose-600 dark:text-rose-400 font-medium">@Syntra</span> again.');
+    });
+
+    it('Scenario 5: returns hasSyntraMention=false when no @Syntra is present', () => {
+      component.inputText = 'Regular message to team';
+      expect(component.hasSyntraMention).toBe(false);
+      expect(component.highlightedComposerHtml).toBe('Regular message to team');
+    });
+
+    it('Scenario 6: safely escapes HTML entities in user input while highlighting @Syntra', () => {
+      component.inputText = '@Syntra <script>alert("xss")</script> & "quotes"';
+      const html = component.highlightedComposerHtml;
+      expect(html).not.toContain('<script>');
+      expect(html).toContain('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt; &amp; &quot;quotes&quot;');
+      expect(html).toContain('<span class="composer-syntra-token text-rose-600 dark:text-rose-400 font-medium">@Syntra</span>');
+    });
+
+    it('Scenario 7: submitted message text and backend payload remains raw untouched string', () => {
+      component.selectConversation(mockConvA);
+      component.inputText = '@Syntra explain transformers';
+
+      component.sendUserMessage();
+
+      expect(chatStateMock.sendMessageStream).toHaveBeenCalledWith(
+        'conv-a',
+        '@Syntra explain transformers',
+        expect.any(Array),
+        expect.any(Function),
+        false
+      );
     });
   });
 });

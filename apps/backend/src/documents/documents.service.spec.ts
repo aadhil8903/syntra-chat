@@ -797,4 +797,85 @@ describe('DocumentsService - Dynamic Duplicate Filename Handling', () => {
       expect(res.matchType).toBe('none');
     });
   });
+
+  describe('uploadDirectAttachment — Direct Message Attachment Flow', () => {
+    const testUserId = new Types.ObjectId().toString();
+
+    it('successfully stores attachment in GridFS and creates DocumentEntity with READY status', async () => {
+      const mockFile: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'Project_Spec.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 2048,
+        buffer: Buffer.from('%PDF dummy content'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+
+      const doc = await service.uploadDirectAttachment(testUserId, mockFile);
+      expect(doc).toBeDefined();
+      expect(doc.originalName).toBe('Project_Spec.pdf');
+      expect(doc.status).toBe(DocumentStatus.READY);
+      expect(doc.downloadPolicy).toBe('allowed');
+      expect(mockStorageService.saveFile).toHaveBeenCalledWith(
+        mockFile.buffer,
+        `users/${testUserId}/direct_attachments`,
+        'Project_Spec.pdf',
+      );
+    });
+
+    it('rejects unsupported file formats', async () => {
+      const mockFile: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'malicious.exe',
+        encoding: '7bit',
+        mimetype: 'application/x-msdownload',
+        size: 1024,
+        buffer: Buffer.from('MZ...'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+
+      await expect(service.uploadDirectAttachment(testUserId, mockFile)).rejects.toThrow(
+        'Unsupported file format: .exe',
+      );
+    });
+
+    it('cleans up GridFS file if DocumentEntity creation fails to prevent orphaned files', async () => {
+      const mockFile: Express.Multer.File = {
+        fieldname: 'file',
+        originalname: 'Corrupted_Doc.pdf',
+        encoding: '7bit',
+        mimetype: 'application/pdf',
+        size: 1024,
+        buffer: Buffer.from('%PDF...'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: null as any,
+      };
+
+      // Force documentModel save to fail on service instance
+      const originalModel = (service as any).documentModel;
+      const failingModel: any = jest.fn().mockImplementation(() => ({
+        save: jest.fn().mockRejectedValue(new Error('MongoDB write timeout')),
+      }));
+      failingModel.find = originalModel.find;
+      (service as any).documentModel = failingModel;
+
+      await expect(service.uploadDirectAttachment(testUserId, mockFile)).rejects.toThrow(
+        'MongoDB write timeout',
+      );
+      expect(mockStorageService.deleteFile).toHaveBeenCalled();
+
+      // Restore mock
+      (service as any).documentModel = originalModel;
+    });
+  });
 });
+

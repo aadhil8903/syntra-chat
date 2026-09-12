@@ -1510,21 +1510,40 @@ export interface IDynamicStarterCard {
                     title="Attach a file to send"
                     aria-label="Attach file"
                   >
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                    </svg>
+                    @if (isUploadingDmFile) {
+                      <svg class="w-4 h-4 animate-spin text-zinc-500 dark:text-zinc-400" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                      </svg>
+                    } @else {
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                      </svg>
+                    }
                   </button>
 
                   <!-- Direct Text Input Area -->
-                  <textarea
-                    #inputArea
-                    [(ngModel)]="inputText"
-                    (input)="onInputChange($event)"
-                    (keydown)="onKeyDown($event)"
-                    placeholder="Type a message... (use @Syntra for AI)"
-                    rows="1"
-                    class="chat-composer-textarea w-full bg-transparent border-0 text-zinc-900 dark:text-zinc-100 text-sm px-1 py-1 focus:outline-none focus:ring-0 resize-none max-h-36 sm:max-h-48 overflow-y-auto leading-relaxed placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
-                  ></textarea>
+                  <div class="relative w-full flex items-start">
+                    @if (hasSyntraMention) {
+                      <div
+                        #dmBackdropArea
+                        class="composer-highlight-backdrop pointer-events-none absolute inset-0 w-full bg-transparent border-0 text-zinc-900 dark:text-zinc-100 text-sm px-1 py-1 leading-relaxed whitespace-pre-wrap break-words overflow-hidden"
+                        [innerHTML]="highlightedComposerHtml"
+                        aria-hidden="true"
+                      ></div>
+                    }
+                    <textarea
+                      #inputArea
+                      [(ngModel)]="inputText"
+                      (input)="onInputChange($event)"
+                      (scroll)="onComposerScroll($event)"
+                      (keydown)="onKeyDown($event)"
+                      placeholder="Type a message... (use @Syntra for AI)"
+                      rows="1"
+                      [class.composer-transparent-text]="hasSyntraMention"
+                      class="chat-composer-textarea relative z-10 w-full bg-transparent border-0 text-zinc-900 dark:text-zinc-100 text-sm px-1 py-1 focus:outline-none focus:ring-0 resize-none max-h-36 sm:max-h-48 overflow-y-auto leading-relaxed placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                    ></textarea>
+                  </div>
 
                   <!-- Voice Mic Button -->
                   <button
@@ -1594,16 +1613,28 @@ export interface IDynamicStarterCard {
                 <!-- Floating Prompt Container (Clean Coherent Light/Dark Card) -->
                 <div data-tour="chat-input-area" class="relative rounded-2xl bg-white dark:bg-[#121215] border border-zinc-200 dark:border-[#27272a] focus-within:border-zinc-400 dark:focus-within:border-zinc-500 p-2.5 sm:p-3 transition-all shadow-xs dark:shadow-none" [class.opacity-60]="isViewOnlyCollaborator">
                   <div class="flex items-start gap-1">
-                    <textarea
-                      #inputArea
-                      [(ngModel)]="inputText"
-                      (input)="onInputChange($event)"
-                      (keydown)="onKeyDown($event)"
-                      [placeholder]="isViewOnlyCollaborator ? 'View-only mode (Cannot send messages)' : 'Ask anything or type @ to mention files...'"
-                      [disabled]="isCurrentGenerating || isMaxGenerationsReached || isViewOnlyCollaborator"
-                      rows="1"
-                      class="chat-composer-textarea w-full bg-transparent border-0 text-zinc-900 dark:text-zinc-100 text-sm px-1.5 py-1 focus:outline-none focus:ring-0 resize-none max-h-36 sm:max-h-60 overflow-y-auto leading-relaxed disabled:opacity-50 transition-[height] duration-150 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
-                    ></textarea>
+                    <div class="relative w-full flex items-start">
+                      @if (hasSyntraMention) {
+                        <div
+                          #backdropArea
+                          class="composer-highlight-backdrop pointer-events-none absolute inset-0 w-full bg-transparent border-0 text-zinc-900 dark:text-zinc-100 text-sm px-1.5 py-1 leading-relaxed whitespace-pre-wrap break-words overflow-hidden"
+                          [innerHTML]="highlightedComposerHtml"
+                          aria-hidden="true"
+                        ></div>
+                      }
+                      <textarea
+                        #inputArea
+                        [(ngModel)]="inputText"
+                        (input)="onInputChange($event)"
+                        (scroll)="onComposerScroll($event)"
+                        (keydown)="onKeyDown($event)"
+                        [placeholder]="isViewOnlyCollaborator ? 'View-only mode (Cannot send messages)' : 'Ask anything or type @ to mention files...'"
+                        [disabled]="isCurrentGenerating || isMaxGenerationsReached || isViewOnlyCollaborator"
+                        rows="1"
+                        [class.composer-transparent-text]="hasSyntraMention"
+                        class="chat-composer-textarea relative z-10 w-full bg-transparent border-0 text-zinc-900 dark:text-zinc-100 text-sm px-1.5 py-1 focus:outline-none focus:ring-0 resize-none max-h-36 sm:max-h-60 overflow-y-auto leading-relaxed disabled:opacity-50 transition-[height] duration-150 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                      ></textarea>
+                    </div>
 
                     <!-- Voice / Microphone Button in Top-Right of Input Box -->
                     <button
@@ -1940,6 +1971,41 @@ export interface IDynamicStarterCard {
         box-shadow: none !important;
         outline: none !important;
         -webkit-box-shadow: none !important;
+        font-family: inherit;
+        letter-spacing: inherit;
+      }
+      .composer-highlight-backdrop {
+        font-family: inherit;
+        letter-spacing: inherit;
+        pointer-events: none;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .composer-transparent-text {
+        color: transparent !important;
+        caret-color: #18181b;
+      }
+      :host-context(.dark) .composer-transparent-text,
+      :host(.dark) .composer-transparent-text,
+      .dark .composer-transparent-text {
+        caret-color: #f4f4f5;
+      }
+      .composer-transparent-text::placeholder {
+        color: #a1a1aa !important;
+      }
+      :host-context(.dark) .composer-transparent-text::placeholder,
+      :host(.dark) .composer-transparent-text::placeholder,
+      .dark .composer-transparent-text::placeholder {
+        color: #71717a !important;
+      }
+      .composer-syntra-token {
+        color: #e11d48;
+        font-weight: 500;
+      }
+      :host-context(.dark) .composer-syntra-token,
+      :host(.dark) .composer-syntra-token,
+      .dark .composer-syntra-token {
+        color: #fb7185;
       }
       .custom-sidebar-scrollbar::-webkit-scrollbar {
         width: 4px;
@@ -1993,6 +2059,50 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   @ViewChild('scrollContainer') scrollContainer?: ElementRef<HTMLDivElement>;
   @ViewChild('convScrollContainer') convScrollContainer?: ElementRef<HTMLDivElement>;
   @ViewChild('inputArea') inputArea?: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('backdropArea') backdropArea?: ElementRef<HTMLDivElement>;
+  @ViewChild('dmBackdropArea') dmBackdropArea?: ElementRef<HTMLDivElement>;
+
+  get hasSyntraMention(): boolean {
+    return /@syntra\b/i.test(this.inputText);
+  }
+
+  get highlightedComposerHtml(): string {
+    return this.getHighlightedComposerHtml(this.inputText);
+  }
+
+  getHighlightedComposerHtml(text: string): string {
+    if (!text) return '';
+
+    // Escape HTML entities to prevent any injection into the backdrop
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+
+    // Highlight only the @Syntra token with theme-aware rose color
+    const highlighted = escaped.replace(
+      /(@syntra\b)/gi,
+      '<span class="composer-syntra-token text-rose-600 dark:text-rose-400 font-medium">$1</span>'
+    );
+
+    // Keep trailing newline spacing consistent with textarea
+    if (text.endsWith('\n')) {
+      return highlighted + ' ';
+    }
+    return highlighted;
+  }
+
+  onComposerScroll(event: Event): void {
+    const target = event.target as HTMLTextAreaElement;
+    if (this.backdropArea?.nativeElement) {
+      this.backdropArea.nativeElement.scrollTop = target.scrollTop;
+    }
+    if (this.dmBackdropArea?.nativeElement) {
+      this.dmBackdropArea.nativeElement.scrollTop = target.scrollTop;
+    }
+  }
 
   conversations: IConversation[] = [];
   filteredConversations: IConversation[] = [];
@@ -2150,8 +2260,19 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0 || !this.activeConversation) return;
     const file = input.files[0];
+
+    // Client-side pre-validation for 50 MB maximum file size
+    if (file.size > 50 * 1024 * 1024) {
+      this.modal.alert('File size exceeds the 50 MB limit. Please select a smaller file.', 'File Too Large');
+      input.value = '';
+      return;
+    }
+
+    const conversationId = this.activeConversation.id;
     this.isUploadingDmFile = true;
-    this.api.uploadDocument(file).subscribe({
+    this.localError = '';
+
+    this.api.uploadDirectMessageAttachment(conversationId, file).subscribe({
       next: (doc) => {
         this.isUploadingDmFile = false;
         const downloadableFile: IDownloadableFile = {
@@ -2161,7 +2282,7 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
           mimeType: file.type || 'application/octet-stream',
         };
         this.chatState.sendDirectMessage(
-          this.activeConversation!.id,
+          conversationId,
           `Shared file: ${doc.originalName || file.name}`,
           [],
           this.authService.currentUser(),
@@ -2171,13 +2292,17 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
             this.shouldScroll = true;
           },
           error: (err) => {
-            this.localError = err.error?.message || 'Failed to send attachment';
+            const msg = err.error?.message || 'Failed to send attachment';
+            this.localError = msg;
+            this.modal.alert(msg, 'Send Error');
           },
         });
       },
       error: (err) => {
         this.isUploadingDmFile = false;
-        this.localError = err.error?.message || 'Failed to upload file attachment';
+        const msg = err.error?.message || 'Failed to upload file attachment';
+        this.localError = msg;
+        this.modal.alert(msg, 'Upload Failed');
       },
     });
   }

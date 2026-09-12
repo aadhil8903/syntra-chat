@@ -7,6 +7,7 @@ import { ConversationEntity } from './schemas/conversation.schema';
 import { User } from '../users/schemas/user.schema';
 import { OwnershipService } from '../permissions/services/ownership.service';
 import { PresenceService } from '../users/presence.service';
+import { DocumentsService } from '../documents/documents.service';
 
 describe('ConversationsService — Direct Messaging & Organization Collaboration', () => {
   let service: ConversationsService;
@@ -156,6 +157,18 @@ describe('ConversationsService — Direct Messaging & Organization Collaboration
       })),
     };
 
+    const mockDocumentsService = {
+      uploadDirectAttachment: jest.fn().mockImplementation((userId: string, file: any) =>
+        Promise.resolve({
+          id: new Types.ObjectId().toString(),
+          originalName: file.originalname,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+          status: 'ready',
+        }),
+      ),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ConversationsService,
@@ -164,6 +177,7 @@ describe('ConversationsService — Direct Messaging & Organization Collaboration
         { provide: getConnectionToken(), useValue: mockConnection },
         { provide: OwnershipService, useValue: mockOwnershipService },
         { provide: PresenceService, useValue: mockPresenceService },
+        { provide: DocumentsService, useValue: mockDocumentsService },
       ],
     }).compile();
 
@@ -221,6 +235,63 @@ describe('ConversationsService — Direct Messaging & Organization Collaboration
       expect(list).toHaveLength(2);
       expect(list.some((item) => item.partner.firstName === 'Rahul')).toBe(true);
       expect(list.some((item) => item.partner.firstName === 'Sarah')).toBe(true);
+    });
+  });
+
+  describe('4. Direct Message Attachments Flow & Authorization', () => {
+    const mockFile: Express.Multer.File = {
+      fieldname: 'file',
+      originalname: 'Design_Spec.pdf',
+      encoding: '7bit',
+      mimetype: 'application/pdf',
+      size: 4096,
+      buffer: Buffer.from('%PDF dummy file'),
+      destination: '',
+      filename: '',
+      path: '',
+      stream: null as any,
+    };
+
+    it('should allow an active DM participant to upload an attachment', async () => {
+      const conv = await service.getOrCreateDirectConversation(userAId, userBId);
+      const res = await service.uploadDirectAttachment(userAId, conv.id, mockFile);
+      expect(res).toBeDefined();
+      expect(res.originalName).toBe('Design_Spec.pdf');
+    });
+
+    it('should reject a non-participant from uploading an attachment to the DM', async () => {
+      const conv = await service.getOrCreateDirectConversation(userAId, userBId);
+      await expect(service.uploadDirectAttachment(userCId, conv.id, mockFile)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('should reject upload when conversation is not a direct message conversation', async () => {
+      // Mock an AI conversation
+      const aiConv = {
+        _id: new Types.ObjectId(),
+        type: 'ai',
+        userId: new Types.ObjectId(userAId),
+        participants: [],
+      };
+      mockConversationsDb.push(aiConv);
+
+      await expect(service.uploadDirectAttachment(userAId, aiConv._id.toString(), mockFile)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should reject upload when no file is provided', async () => {
+      const conv = await service.getOrCreateDirectConversation(userAId, userBId);
+      await expect(service.uploadDirectAttachment(userAId, conv.id, null as any)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should reject upload for invalid/non-existent conversation ID', async () => {
+      await expect(service.uploadDirectAttachment(userAId, 'invalid-id', mockFile)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

@@ -14,9 +14,11 @@ import {
   IUpdateConversationDto,
   IDirectConversationItem,
   IOrgMember,
+  IDocument,
 } from '@enter-chat/shared-types';
 import { OwnershipService } from '../permissions/services/ownership.service';
 import { PresenceService } from '../users/presence.service';
+import { DocumentsService } from '../documents/documents.service';
 
 @Injectable()
 export class ConversationsService {
@@ -29,6 +31,7 @@ export class ConversationsService {
     private readonly connection: Connection,
     private readonly ownershipService: OwnershipService,
     private readonly presenceService: PresenceService,
+    private readonly documentsService: DocumentsService,
   ) {}
 
   async create(userId: string, dto: ICreateConversationDto): Promise<IConversation> {
@@ -272,6 +275,32 @@ export class ConversationsService {
     await conv.save();
 
     return { success: true };
+  }
+
+  async uploadDirectAttachment(
+    userId: string,
+    conversationId: string,
+    file: Express.Multer.File,
+  ): Promise<IDocument> {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    if (!conversationId || !Types.ObjectId.isValid(conversationId)) {
+      throw new NotFoundException('Direct conversation not found');
+    }
+
+    const conv = await this.conversationModel.findById(conversationId);
+    if (!conv || conv.type !== 'direct') {
+      throw new NotFoundException('Direct conversation not found');
+    }
+
+    const isParticipant = conv.participants.some((p) => p.toString() === userId);
+    if (!isParticipant) {
+      throw new ForbiddenException('You are not a participant in this direct conversation');
+    }
+
+    return this.documentsService.uploadDirectAttachment(userId, file);
   }
 
   private buildDirectConversationDto(
