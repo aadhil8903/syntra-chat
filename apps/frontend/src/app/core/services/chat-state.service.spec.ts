@@ -1,5 +1,6 @@
 import { ChatStateService } from './chat-state.service';
 import { IMessage, MessageRole } from '@enter-chat/shared-types';
+import { of } from 'rxjs';
 
 describe('ChatStateService (Streaming & Responsiveness)', () => {
   let service: ChatStateService;
@@ -212,6 +213,302 @@ describe('ChatStateService (Streaming & Responsiveness)', () => {
       service.markDirectConversationRead('unknown-or-ai-id');
       expect(apiSpy.markDirectConversationAsRead).not.toHaveBeenCalled();
       expect(service.directConversations()[0].unreadCount).toBe(3);
+    });
+  });
+
+  describe('AI Message Streaming & Realtime Reconciliation', () => {
+    it('Case A: should keep exactly ONE assistant message when SSE new_message arrives BEFORE completed_message', () => {
+      const convId = 'conv-race-a';
+      const userMsg: IMessage = {
+        id: 'user-msg-1',
+        conversationId: convId,
+        userId: 'u1',
+        role: MessageRole.USER,
+        content: 'Tell me a joke',
+        createdAt: new Date().toISOString(),
+      };
+      const streamingPlaceholder: IMessage = {
+        id: 'streaming-' + convId,
+        conversationId: convId,
+        userId: '',
+        role: MessageRole.ASSISTANT,
+        content: 'Why did the chicken...',
+        createdAt: new Date().toISOString(),
+      };
+      service.setMessages(convId, [userMsg, streamingPlaceholder]);
+
+      const finalAsstMsg: IMessage = {
+        id: 'asst-mongo-id-1',
+        conversationId: convId,
+        userId: 'syntra-ai',
+        role: MessageRole.ASSISTANT,
+        content: 'Why did the chicken cross the road? To get to the other side!',
+        createdAt: new Date().toISOString(),
+      };
+
+      // 1. SSE new_message arrives first
+      (service as any).handleIncomingRealtimeMessage(finalAsstMsg, convId);
+
+      const afterSse = service.getCachedMessages(convId)!;
+      expect(afterSse.length).toBe(2);
+      expect(afterSse[1].id).toBe('asst-mongo-id-1');
+      expect(afterSse[1].content).toBe('Why did the chicken cross the road? To get to the other side!');
+
+      // 2. HTTP stream completed_message arrives second
+      const msgs = service.getCachedMessages(convId) || [];
+      const existingIdx = msgs.findIndex((m) => m.id === finalAsstMsg.id);
+      const placeholderIdx = msgs.findIndex((m) => m.id === 'streaming-' + convId);
+      if (placeholderIdx !== -1) {
+        msgs[placeholderIdx] = finalAsstMsg;
+        const deduplicated = msgs.filter((m, idx) => idx === placeholderIdx || m.id !== finalAsstMsg.id);
+        service.setMessages(convId, deduplicated);
+      } else if (existingIdx !== -1) {
+        msgs[existingIdx] = finalAsstMsg;
+        service.setMessages(convId, [...msgs]);
+      }
+
+      const finalResult = service.getCachedMessages(convId)!;
+      expect(finalResult.length).toBe(2);
+      expect(finalResult.filter((m) => m.role === MessageRole.ASSISTANT).length).toBe(1);
+      expect(finalResult[1].id).toBe('asst-mongo-id-1');
+    });
+
+    it('Case B: should keep exactly ONE assistant message when completed_message arrives BEFORE SSE new_message', () => {
+      const convId = 'conv-race-b';
+      const userMsg: IMessage = {
+        id: 'user-msg-2',
+        conversationId: convId,
+        userId: 'u1',
+        role: MessageRole.USER,
+        content: 'Explain RAG',
+        createdAt: new Date().toISOString(),
+      };
+      const streamingPlaceholder: IMessage = {
+        id: 'streaming-' + convId,
+        conversationId: convId,
+        userId: '',
+        role: MessageRole.ASSISTANT,
+        content: 'RAG stands for...',
+        createdAt: new Date().toISOString(),
+      };
+      service.setMessages(convId, [userMsg, streamingPlaceholder]);
+
+      const finalAsstMsg: IMessage = {
+        id: 'asst-mongo-id-2',
+        conversationId: convId,
+        userId: 'syntra-ai',
+        role: MessageRole.ASSISTANT,
+        content: 'RAG stands for Retrieval-Augmented Generation.',
+        createdAt: new Date().toISOString(),
+      };
+
+      // 1. completed_message arrives first and swaps placeholder
+      const msgs = service.getCachedMessages(convId) || [];
+      const placeholderIdx = msgs.findIndex((m) => m.id === 'streaming-' + convId);
+      if (placeholderIdx !== -1) {
+        msgs[placeholderIdx] = finalAsstMsg;
+        service.setMessages(convId, [...msgs]);
+      }
+
+      const afterCompleted = service.getCachedMessages(convId)!;
+      expect(afterCompleted.length).toBe(2);
+      expect(afterCompleted[1].id).toBe('asst-mongo-id-2');
+
+      // 2. SSE new_message arrives second
+      (service as any).handleIncomingRealtimeMessage(finalAsstMsg, convId);
+
+      const finalResult = service.getCachedMessages(convId)!;
+      expect(finalResult.length).toBe(2);
+      expect(finalResult.filter((m) => m.role === MessageRole.ASSISTANT).length).toBe(1);
+      expect(finalResult[1].id).toBe('asst-mongo-id-2');
+    });
+
+    it('Case C: should replace streaming placeholder when completed_message arrives without SSE', () => {
+      const convId = 'conv-race-c';
+      const streamingPlaceholder: IMessage = {
+        id: 'streaming-' + convId,
+        conversationId: convId,
+        userId: '',
+        role: MessageRole.ASSISTANT,
+        content: 'Streaming chunk...',
+        createdAt: new Date().toISOString(),
+      };
+      service.setMessages(convId, [streamingPlaceholder]);
+
+      const finalAsstMsg: IMessage = {
+        id: 'asst-mongo-id-3',
+        conversationId: convId,
+        userId: 'syntra-ai',
+        role: MessageRole.ASSISTANT,
+        content: 'Full complete chunk',
+        createdAt: new Date().toISOString(),
+      };
+
+      const msgs = service.getCachedMessages(convId) || [];
+      const placeholderIdx = msgs.findIndex((m) => m.id === 'streaming-' + convId);
+      msgs[placeholderIdx] = finalAsstMsg;
+      service.setMessages(convId, [...msgs]);
+
+      const cached = service.getCachedMessages(convId)!;
+      expect(cached.length).toBe(1);
+      expect(cached[0].id).toBe('asst-mongo-id-3');
+    });
+
+    it('Case D: should reconcile streaming placeholder when SSE new_message arrives alone', () => {
+      const convId = 'conv-race-d';
+      const streamingPlaceholder: IMessage = {
+        id: 'streaming-' + convId,
+        conversationId: convId,
+        userId: '',
+        role: MessageRole.ASSISTANT,
+        content: 'Partial live text...',
+        createdAt: new Date().toISOString(),
+      };
+      service.setMessages(convId, [streamingPlaceholder]);
+
+      const finalAsstMsg: IMessage = {
+        id: 'asst-mongo-id-4',
+        conversationId: convId,
+        userId: 'syntra-ai',
+        role: MessageRole.ASSISTANT,
+        content: 'Partial live text completed',
+        createdAt: new Date().toISOString(),
+      };
+
+      (service as any).handleIncomingRealtimeMessage(finalAsstMsg, convId);
+
+      const cached = service.getCachedMessages(convId)!;
+      expect(cached.length).toBe(1);
+      expect(cached[0].id).toBe('asst-mongo-id-4');
+      expect(cached[0].content).toBe('Partial live text completed');
+    });
+
+    it('Case E: should preserve BOTH legitimate assistant messages when they have IDENTICAL content', () => {
+      const convId = 'conv-identical-content';
+      const priorAsstMsg: IMessage = {
+        id: 'asst-mongo-id-100',
+        conversationId: convId,
+        userId: 'syntra-ai',
+        role: MessageRole.ASSISTANT,
+        content: 'Yes, that is correct.',
+        createdAt: new Date().toISOString(),
+      };
+      service.setMessages(convId, [priorAsstMsg]);
+
+      const newAsstMsg: IMessage = {
+        id: 'asst-mongo-id-101',
+        conversationId: convId,
+        userId: 'syntra-ai',
+        role: MessageRole.ASSISTANT,
+        content: 'Yes, that is correct.',
+        createdAt: new Date().toISOString(),
+      };
+
+      // Incoming new assistant message with identical text but different ID (and no streaming placeholder)
+      (service as any).handleIncomingRealtimeMessage(newAsstMsg, convId);
+
+      const cached = service.getCachedMessages(convId)!;
+      expect(cached.length).toBe(2);
+      expect(cached[0].id).toBe('asst-mongo-id-100');
+      expect(cached[1].id).toBe('asst-mongo-id-101');
+    });
+
+    it('Case F: should preserve BOTH legitimate assistant messages when they have different IDs and roles', () => {
+      const convId = 'conv-different-ids';
+      const firstMsg: IMessage = {
+        id: 'asst-first-1',
+        conversationId: convId,
+        userId: 'syntra-ai',
+        role: MessageRole.ASSISTANT,
+        content: 'First answer',
+        createdAt: new Date().toISOString(),
+      };
+      service.setMessages(convId, [firstMsg]);
+
+      const secondMsg: IMessage = {
+        id: 'asst-second-2',
+        conversationId: convId,
+        userId: 'syntra-ai',
+        role: MessageRole.ASSISTANT,
+        content: 'Second answer',
+        createdAt: new Date().toISOString(),
+      };
+
+      (service as any).handleIncomingRealtimeMessage(secondMsg, convId);
+
+      const cached = service.getCachedMessages(convId)!;
+      expect(cached.length).toBe(2);
+      expect(cached[0].id).toBe('asst-first-1');
+      expect(cached[1].id).toBe('asst-second-2');
+    });
+
+    it('Case G: should correctly append direct realtime message from another user', () => {
+      const convId = 'conv-peer-chat';
+      const initialMsg: IMessage = {
+        id: 'msg-local-1',
+        conversationId: convId,
+        userId: 'user-me',
+        role: MessageRole.USER,
+        content: 'Hi colleague',
+        createdAt: new Date().toISOString(),
+      };
+      service.setMessages(convId, [initialMsg]);
+
+      const peerMsg: IMessage = {
+        id: 'msg-peer-2',
+        conversationId: convId,
+        userId: 'user-colleague',
+        role: MessageRole.USER,
+        content: 'Hello! I am reviewing the report now.',
+        author: {
+          id: 'user-colleague',
+          firstName: 'Sarah',
+          lastName: 'Connor',
+          email: 'sarah@example.com',
+        },
+        createdAt: new Date().toISOString(),
+      };
+
+      (service as any).handleIncomingRealtimeMessage(peerMsg, convId);
+
+      const cached = service.getCachedMessages(convId)!;
+      expect(cached.length).toBe(2);
+      expect(cached[1].id).toBe('msg-peer-2');
+      expect(cached[1].content).toBe('Hello! I am reviewing the report now.');
+    });
+
+    it('Case H: should not duplicate assistant message in non-streaming sendMessage when already present', (done) => {
+      const convId = 'conv-non-stream';
+      const existingAsst: IMessage = {
+        id: 'asst-non-stream-1',
+        conversationId: convId,
+        userId: 'syntra-ai',
+        role: MessageRole.ASSISTANT,
+        content: 'Non-streaming response',
+        createdAt: new Date().toISOString(),
+      };
+      service.setMessages(convId, [existingAsst]);
+
+      const mockResponse = {
+        userMessage: {
+          id: 'u-msg-1',
+          conversationId: convId,
+          userId: 'u1',
+          role: MessageRole.USER,
+          content: 'Hello',
+          createdAt: new Date().toISOString(),
+        },
+        assistantMessage: existingAsst,
+      };
+
+      apiSpy.sendMessage = jest.fn().mockReturnValue(of(mockResponse));
+
+      service.sendMessage(convId, 'Hello').subscribe(() => {
+        const cached = service.getCachedMessages(convId)!;
+        const asstCount = cached.filter((m) => m.id === 'asst-non-stream-1').length;
+        expect(asstCount).toBe(1);
+        done();
+      });
     });
   });
 });

@@ -229,18 +229,42 @@ export class ChatStateService {
 
     // 1. Update messages list in cache
     const currentMsgs = this.getCachedMessages(convId) || [];
-    const exists = currentMsgs.some(
-      (m) => m.id === msg.id || (m.id.startsWith('temp-') && m.role === msg.role && m.content === msg.content)
-    );
+    const exactIdx = currentMsgs.findIndex((m) => m.id === msg.id);
 
-    if (!exists) {
-      this.setMessages(convId, [...currentMsgs, msg]);
+    if (exactIdx !== -1) {
+      // Already present by exact persisted ID; update in place if necessary
+      const updated = [...currentMsgs];
+      updated[exactIdx] = msg;
+      this.setMessages(convId, updated);
     } else {
-      // Reconcile optimistic temp message
-      const reconciled = currentMsgs.map((m) =>
-        m.id.startsWith('temp-') && m.role === msg.role && m.content === msg.content ? msg : m
-      );
-      this.setMessages(convId, reconciled);
+      let placeholderIdx = -1;
+
+      if (msg.role === 'assistant') {
+        // Match active streaming or temporary assistant placeholder for this conversation
+        placeholderIdx = currentMsgs.findIndex(
+          (m) =>
+            m.id === 'streaming-' + convId ||
+            (m.id.startsWith('temp-assistant-') && m.role === 'assistant') ||
+            (m.id.startsWith('temp-') && m.role === 'assistant' && (m.content === msg.content || !m.content))
+        );
+      } else if (msg.role === 'user') {
+        // Match temporary user placeholder with same content
+        placeholderIdx = currentMsgs.findIndex(
+          (m) =>
+            m.id.startsWith('temp-') &&
+            m.role === 'user' &&
+            m.content === msg.content
+        );
+      }
+
+      if (placeholderIdx !== -1) {
+        const reconciled = [...currentMsgs];
+        reconciled[placeholderIdx] = msg;
+        this.setMessages(convId, reconciled);
+      } else {
+        // New incoming message (e.g. from another user or another conversation)
+        this.setMessages(convId, [...currentMsgs, msg]);
+      }
     }
 
     // 2. Emit to incomingMessage$ Subject for active chat view component to handle auto-scrolling / unread pill
@@ -570,12 +594,17 @@ export class ChatStateService {
           if (res.userMessage) {
             if (idx !== -1) {
               updatedMsgs[idx] = res.userMessage;
-            } else {
+            } else if (!updatedMsgs.some((m) => m.id === res.userMessage.id)) {
               updatedMsgs.push(res.userMessage);
             }
           }
           if (res.assistantMessage) {
-            updatedMsgs.push(res.assistantMessage);
+            const asstIdx = updatedMsgs.findIndex((m) => m.id === res.assistantMessage!.id);
+            if (asstIdx !== -1) {
+              updatedMsgs[asstIdx] = res.assistantMessage;
+            } else {
+              updatedMsgs.push(res.assistantMessage);
+            }
             this.soundService.playReceiveSound();
           }
           this.setMessages(conversationId, updatedMsgs);
@@ -741,13 +770,25 @@ export class ChatStateService {
               } else if (eventType === 'completed_message') {
                 if (data.assistantMessage) {
                   const msgs = this.getCachedMessages(conversationId) || [];
-                  const aIdx = msgs.findIndex((m) => m.id === tempAssistantMsg.id || m.id === 'streaming-' + conversationId);
-                  if (aIdx !== -1) {
-                    msgs[aIdx] = data.assistantMessage;
+                  const existingIdx = msgs.findIndex((m) => m.id === data.assistantMessage.id);
+                  const placeholderIdx = msgs.findIndex(
+                    (m) => m.id === tempAssistantMsg.id || m.id === 'streaming-' + conversationId
+                  );
+
+                  if (placeholderIdx !== -1) {
+                    msgs[placeholderIdx] = data.assistantMessage;
+                    // Deduplicate if concurrent realtime SSE event already appended this ID
+                    const deduplicated = msgs.filter(
+                      (m, idx) => idx === placeholderIdx || m.id !== data.assistantMessage.id
+                    );
+                    this.setMessages(conversationId, deduplicated);
+                  } else if (existingIdx !== -1) {
+                    msgs[existingIdx] = data.assistantMessage;
+                    this.setMessages(conversationId, [...msgs]);
                   } else {
                     msgs.push(data.assistantMessage);
+                    this.setMessages(conversationId, [...msgs]);
                   }
-                  this.setMessages(conversationId, [...msgs]);
                   this.soundService.playReceiveSound();
                 }
                 if (data.conversation && onConversationUpdated) {
