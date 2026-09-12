@@ -17,7 +17,10 @@ from data_analysis.dataset_loader import (
     load_dataframe,
     load_dataframe_sync,
 )
-from tools.analyze_dataset import generate_and_execute_analysis
+from tools.analyze_dataset import (
+    generate_and_execute_analysis,
+    try_format_deterministic_dataset_result,
+)
 from tools.create_chart import generate_chart_specs
 from tools.calculate import calculate_expression
 
@@ -515,6 +518,50 @@ async def route_intent_node(state: AgentState) -> Dict[str, Any]:
     return {"intent": AgentIntent.GENERAL_CHAT}
 
 
+def format_trimmed_history_messages(
+    history: List[Dict[str, Any]],
+    max_turns: int = 10,
+) -> List[Any]:
+    """
+    Safely converts conversation history into LangChain messages.
+    Trims redundant nested [Replying to message from ...] headers in older turns (where the original message
+    is already in history), preserving 100% of the conversation dialogue and full context.
+    """
+    if not history:
+        return []
+
+    sliced_history = history[-max_turns:]
+    result_messages = []
+
+    for idx, h in enumerate(sliced_history):
+        role = h.get("role")
+        content = str(h.get("content", ""))
+        if not content:
+            continue
+
+        is_older_turn = (idx < len(sliced_history) - 1)
+
+        # For older history turns, strip redundant [Replying to message from ...:\n"..."] prefixes
+        # because the original message is already present in the prior turn sequence.
+        # Keep it intact on the most recent turn in history.
+        if is_older_turn and role == "user":
+            content_cleaned = re.sub(
+                r"^\[Replying to message from [^\]]+:\s*\"[^\"]*\"\]\s*\n*",
+                "",
+                content,
+                flags=re.DOTALL,
+            ).strip()
+            if content_cleaned:
+                content = content_cleaned
+
+        if role == "user":
+            result_messages.append(HumanMessage(content=content))
+        elif role == "assistant":
+            result_messages.append(AIMessage(content=content))
+
+    return result_messages
+
+
 # -------------------------------------------------------------
 # Node 3: Unified Knowledge Retrieval & Cross-Document Synthesis
 # -------------------------------------------------------------
@@ -604,12 +651,7 @@ INSTRUCTIONS:
 - Speak plainly, directly, and do not use emojis."""
 
     messages = [SystemMessage(content=system_prompt)]
-    for h in history[-10:]:
-        if h["role"] == "user":
-            messages.append(HumanMessage(content=h["content"]))
-        elif h["role"] == "assistant":
-            messages.append(AIMessage(content=h["content"]))
-
+    messages.extend(format_trimmed_history_messages(history, max_turns=10))
     messages.append(HumanMessage(content=message))
 
     answer = await llm.generate_response(messages, temperature=0.1)
@@ -668,6 +710,24 @@ async def data_analysis_node(state: AgentState) -> Dict[str, Any]:
         schema_descriptions=schema_descriptions,
     )
 
+    # Fast-Path: If the calculation result is clearly deterministic (e.g. row count, sum, scalar),
+    # format directly without issuing a 2nd Gemini LLM call.
+    primary_ds_name = resolved_datasets[0].get("originalName", "the dataset") if resolved_datasets else "the dataset"
+    fast_path_answer = try_format_deterministic_dataset_result(
+        question=message,
+        raw_result=raw_result,
+        stdout=stdout,
+        dataset_name=primary_ds_name,
+    )
+    if fast_path_answer:
+        return {
+            "analysis_table": table_spec,
+            "analysis_raw_result": raw_result,
+            "python_code": code,
+            "execution_output": stdout,
+            "final_answer": fast_path_answer,
+        }
+
     llm = get_llm_provider()
     is_scoped = state.get("is_scoped", False) or len(state.get("resource_ids", [])) > 0
     workspace_manifest = format_workspace_manifest(resolved_docs, resolved_datasets, active_scope=active_scope, is_scoped=is_scoped)
@@ -711,11 +771,7 @@ INSTRUCTIONS:
     messages = [
         SystemMessage(content=analysis_system_prompt),
     ]
-    for h in history[-10:]:
-        if h["role"] == "user":
-            messages.append(HumanMessage(content=h["content"]))
-        elif h["role"] == "assistant":
-            messages.append(AIMessage(content=h["content"]))
+    messages.extend(format_trimmed_history_messages(history, max_turns=10))
     messages.append(HumanMessage(content=message))
 
     summary_answer = await llm.generate_response(messages, temperature=0.15)
@@ -847,11 +903,7 @@ CRITICAL ACCESS CONTROL & GROUNDING RULES:
 2. If the user asks for specific company documents, data analysis, or file comparisons, assist them appropriately with the authorized resources."""
 
     messages = [SystemMessage(content=system_prompt)]
-    for h in history[-10:]:
-        if h["role"] == "user":
-            messages.append(HumanMessage(content=h["content"]))
-        elif h["role"] == "assistant":
-            messages.append(AIMessage(content=h["content"]))
+    messages.extend(format_trimmed_history_messages(history, max_turns=10))
     messages.append(HumanMessage(content=message))
 
     answer = await llm.generate_response(messages, temperature=0.15)

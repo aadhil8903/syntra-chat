@@ -192,420 +192,464 @@ def test_two_mentions_compare_these_routes_to_comparison():
     assert res.get("intent") != AgentIntent.CLARIFICATION
 
 
-@pytest.mark.asyncio
-async def test_normal_chat_general_chat_node_does_not_raise_nameerror():
-    from agents.graph import general_chat_node
-    from unittest.mock import AsyncMock
+def test_normal_chat_general_chat_node_does_not_raise_nameerror():
+    async def _run():
+        from agents.graph import general_chat_node
+        from unittest.mock import AsyncMock
 
-    state = {
-        "message": "hey",
-        "history": [],
-        "user_id": "test_user",
-        "resolved_documents": [],
-        "resolved_datasets": [],
-        "resource_ids": [],
-        "active_scope": None,
-    }
-
-    with patch("agents.graph.get_llm_provider") as mock_get_llm:
-        mock_llm = MagicMock()
-        mock_llm.generate_response = AsyncMock(return_value="Hello! How can I assist you today?")
-        mock_get_llm.return_value = mock_llm
-
-        res = await general_chat_node(state)
-        assert "final_answer" in res
-        assert res["final_answer"] == "Hello! How can I assist you today?"
-
-
-@pytest.mark.asyncio
-async def test_normal_chat_graph_invocation_hey():
-    from agents.graph import agent_graph
-    from unittest.mock import AsyncMock
-
-    initial_state = {
-        "user_id": "test_user",
-        "user_role": "member",
-        "conversation_id": "conv_123",
-        "message": "hey",
-        "resource_ids": [],
-        "active_scope": None,
-        "shared_memory": None,
-        "history": [],
-    }
-
-    with patch("agents.graph.get_llm_provider") as mock_get_llm, \
-         patch("agents.graph.get_database") as mock_get_db:
-        mock_db = MagicMock()
-        mock_docs = MagicMock()
-        mock_docs.find.return_value = []
-        mock_datasets = MagicMock()
-        mock_datasets.find.return_value = []
-        mock_folders = MagicMock()
-        mock_folders.find.return_value = []
-        mock_users = MagicMock()
-        mock_users.find_one.return_value = {"_id": "test_user", "role": "member"}
-
-        mock_db.__getitem__.side_effect = lambda key: {
-            "documents": mock_docs,
-            "datasets": mock_datasets,
-            "folders": mock_folders,
-            "users": mock_users,
-        }.get(key, MagicMock())
-        mock_get_db.return_value = mock_db
-
-        mock_llm = MagicMock()
-        mock_llm.generate_response = AsyncMock(return_value="Hello! How can I help you today?")
-        mock_get_llm.return_value = mock_llm
-
-        final_state = await agent_graph.ainvoke(initial_state)
-        assert "final_answer" in final_state
-        assert final_state["final_answer"] == "Hello! How can I help you today?"
-        assert final_state.get("intent") == AgentIntent.GENERAL_CHAT
-
-
-@pytest.mark.asyncio
-async def test_normal_chat_graph_invocation_what_can_you_help_me_with():
-    from agents.graph import agent_graph
-    from unittest.mock import AsyncMock
-
-    initial_state = {
-        "user_id": "test_user",
-        "user_role": "member",
-        "conversation_id": "conv_123",
-        "message": "What can you help me with?",
-        "resource_ids": [],
-        "active_scope": None,
-        "shared_memory": None,
-        "history": [],
-    }
-
-    with patch("agents.graph.get_llm_provider") as mock_get_llm, \
-         patch("agents.graph.get_database") as mock_get_db:
-        mock_db = MagicMock()
-        mock_docs = MagicMock()
-        mock_docs.find.return_value = []
-        mock_datasets = MagicMock()
-        mock_datasets.find.return_value = []
-        mock_folders = MagicMock()
-        mock_folders.find.return_value = []
-        mock_users = MagicMock()
-        mock_users.find_one.return_value = {"_id": "test_user", "role": "member"}
-
-        mock_db.__getitem__.side_effect = lambda key: {
-            "documents": mock_docs,
-            "datasets": mock_datasets,
-            "folders": mock_folders,
-            "users": mock_users,
-        }.get(key, MagicMock())
-        mock_get_db.return_value = mock_db
-
-        mock_llm = MagicMock()
-        mock_llm.generate_response = AsyncMock(return_value="I can help you search documents, analyze data, and create visualizations.")
-        mock_get_llm.return_value = mock_llm
-
-        final_state = await agent_graph.ainvoke(initial_state)
-        assert "final_answer" in final_state
-        assert "I can help you search documents" in final_state["final_answer"]
-
-
-@pytest.mark.asyncio
-async def test_general_chat_token_optimization_greeting_omits_manifest():
-    from agents.graph import general_chat_node
-    from unittest.mock import AsyncMock
-
-    state = {
-        "message": "hey",
-        "history": [{"role": "user", "content": f"msg {i}"} for i in range(25)],
-        "resolved_documents": [{"originalName": "secret_doc.pdf", "folderName": "Confidential"}],
-        "resolved_datasets": [{"originalName": "sales_q3.xlsx", "totalRows": 500}],
-        "active_scope": None,
-        "is_scoped": False,
-        "resource_ids": [],
-        "shared_memory": None,
-    }
-
-    with patch("agents.graph.get_llm_provider") as mock_get_llm:
-        mock_llm = MagicMock()
-        captured_messages = []
-        async def mock_generate(messages, temperature=0.15):
-            nonlocal captured_messages
-            captured_messages = messages
-            return "Hey there! How can I assist you today?"
-        mock_llm.generate_response = AsyncMock(side_effect=mock_generate)
-        mock_get_llm.return_value = mock_llm
-
-        res = await general_chat_node(state)
-        assert res.get("final_answer") == "Hey there! How can I assist you today?"
-        
-        # 1. Verify system prompt does not contain full workspace manifest
-        system_msg = captured_messages[0].content
-        assert "WORKSPACE SCOPE & INVENTORY:" not in system_msg
-        assert "secret_doc.pdf" not in system_msg
-        assert "sales_q3.xlsx" not in system_msg
-
-        # 2. Verify history is sliced to the last 10 items + system msg + current msg = 12 total messages
-        assert len(captured_messages) == 12  # 1 system + 10 history + 1 current message
-        assert captured_messages[1].content == "msg 15"
-        assert captured_messages[-1].content == "hey"
-
-        # 3. Verify no duplicated [System Instruction: ...] appended to the user message
-        assert "[System Instruction:" not in captured_messages[-1].content
-
-
-@pytest.mark.asyncio
-async def test_general_chat_inventory_query_includes_manifest():
-    from agents.graph import general_chat_node
-    from unittest.mock import AsyncMock
-
-    state = {
-        "message": "What files do I have access to?",
-        "history": [],
-        "resolved_documents": [{"originalName": "handbook.pdf", "folderName": "HR"}],
-        "resolved_datasets": [{"originalName": "q1_metrics.xlsx", "totalRows": 100}],
-        "active_scope": None,
-        "is_scoped": False,
-        "resource_ids": [],
-        "shared_memory": None,
-    }
-
-    with patch("agents.graph.get_llm_provider") as mock_get_llm:
-        mock_llm = MagicMock()
-        captured_messages = []
-        async def mock_generate(messages, temperature=0.15):
-            nonlocal captured_messages
-            captured_messages = messages
-            return "You have access to handbook.pdf and q1_metrics.xlsx."
-        mock_llm.generate_response = AsyncMock(side_effect=mock_generate)
-        mock_get_llm.return_value = mock_llm
-
-        res = await general_chat_node(state)
-        assert res.get("final_answer") == "You have access to handbook.pdf and q1_metrics.xlsx."
-        
-        # Verify manifest is included for inventory queries
-        system_msg = captured_messages[0].content
-        assert "WORKSPACE SCOPE & INVENTORY:" in system_msg
-        assert "handbook.pdf" in system_msg
-        assert "q1_metrics.xlsx" in system_msg
-
-
-@pytest.mark.asyncio
-async def test_general_chat_scoped_includes_manifest():
-    from agents.graph import general_chat_node
-    from unittest.mock import AsyncMock
-
-    state = {
-        "message": "Tell me about this document",
-        "history": [],
-        "resolved_documents": [{"originalName": "q4_roadmap.pdf", "folderName": "Product"}],
-        "resolved_datasets": [],
-        "active_scope": {"id": "doc_123", "name": "q4_roadmap.pdf", "type": "document"},
-        "is_scoped": True,
-        "resource_ids": ["doc_123"],
-        "shared_memory": None,
-    }
-
-    with patch("agents.graph.get_llm_provider") as mock_get_llm:
-        mock_llm = MagicMock()
-        captured_messages = []
-        async def mock_generate(messages, temperature=0.15):
-            nonlocal captured_messages
-            captured_messages = messages
-            return "Here is what the roadmap covers..."
-        mock_llm.generate_response = AsyncMock(side_effect=mock_generate)
-        mock_get_llm.return_value = mock_llm
-
-        res = await general_chat_node(state)
-        
-        # Verify manifest is included when scoped
-        system_msg = captured_messages[0].content
-        assert "WORKSPACE SCOPE & INVENTORY:" in system_msg
-        assert "q4_roadmap.pdf" in system_msg
-
-
-@pytest.mark.asyncio
-async def test_active_scope_preserves_document_rag_routing_and_context():
-    from agents.graph import agent_graph
-    from unittest.mock import AsyncMock
-
-    initial_state = {
-        "user_id": "u123",
-        "user_role": "member",
-        "conversation_id": "conv_1",
-        "message": "what does this say?",
-        "resource_ids": [],
-        "active_scope": {"id": "doc_hr", "name": "HR_Policy.pdf", "type": "document"},
-        "shared_memory": None,
-        "history": [],
-    }
-
-    with patch("agents.graph.get_database") as mock_get_db, \
-         patch("agents.graph.search_documents_vector") as mock_search, \
-         patch("agents.graph.get_llm_provider") as mock_get_llm:
-        
-        mock_db = MagicMock()
-        mock_docs = MagicMock()
-        mock_docs.find_one.return_value = {
-            "_id": "doc_hr",
-            "id": "doc_hr",
-            "originalName": "HR_Policy.pdf",
-            "fileType": "pdf",
-            "userId": "u123",
-            "status": "ready",
-            "chunkCount": 5,
+        state = {
+            "message": "hey",
+            "history": [],
+            "user_id": "test_user",
+            "resolved_documents": [],
+            "resolved_datasets": [],
+            "resource_ids": [],
+            "active_scope": None,
         }
-        mock_datasets = MagicMock()
-        mock_datasets.find_one.return_value = None
-        mock_users = MagicMock()
-        mock_users.find_one.return_value = {"_id": "u123", "role": "member"}
-        mock_requests = MagicMock()
-        mock_requests.find.return_value = []
 
-        mock_db.__getitem__.side_effect = lambda k: {
-            "documents": mock_docs,
-            "datasets": mock_datasets,
-            "users": mock_users,
-            "accessrequests": mock_requests,
-        }.get(k, MagicMock())
-        mock_get_db.return_value = mock_db
+        with patch("agents.graph.get_llm_provider") as mock_get_llm:
+            mock_llm = MagicMock()
+            mock_llm.generate_response = AsyncMock(return_value="Hello! How can I assist you today?")
+            mock_get_llm.return_value = mock_llm
 
-        from schemas.chat import Citation
-        mock_search.return_value = [
-            Citation(
-                documentId="doc_hr",
-                filename="HR_Policy.pdf",
-                page=1,
-                chunkIndex=0,
-                textSnippet="Employees are entitled to 20 days of annual leave.",
-            )
-        ]
-
-        captured_messages = []
-        async def mock_generate(messages, temperature=0.1):
-            nonlocal captured_messages
-            captured_messages = messages
-            return "The HR policy states that employees get 20 days of annual leave."
-        mock_llm = MagicMock()
-        mock_llm.generate_response = AsyncMock(side_effect=mock_generate)
-        mock_get_llm.return_value = mock_llm
-
-        res = await agent_graph.ainvoke(initial_state)
-        assert res.get("intent") == AgentIntent.DOCUMENT_RAG
-        assert "20 days of annual leave" in res.get("final_answer")
-        assert len(res.get("citations")) == 1
-
-        # Verify active scope focus is in prompt
-        system_content = captured_messages[0].content
-        assert "Active Focus: HR_Policy.pdf" in system_content
-        assert "Employees are entitled to 20 days of annual leave" in system_content
+            res = await general_chat_node(state)
+            assert "final_answer" in res
+            assert res["final_answer"] == "Hello! How can I assist you today?"
+    asyncio.run(_run())
 
 
-@pytest.mark.asyncio
-async def test_file_discovery_via_full_graph_without_llm():
-    from agents.graph import agent_graph
+def test_normal_chat_graph_invocation_hey():
+    async def _run():
+        from agents.graph import agent_graph
+        from unittest.mock import AsyncMock
 
-    initial_state = {
-        "user_id": "u123",
-        "user_role": "member",
-        "conversation_id": "conv_2",
-        "message": "find the HR policy PDF",
-        "resource_ids": [],
-        "active_scope": None,
-        "shared_memory": None,
-        "history": [],
-    }
+        initial_state = {
+            "user_id": "test_user",
+            "user_role": "member",
+            "conversation_id": "conv_123",
+            "message": "hey",
+            "resource_ids": [],
+            "active_scope": None,
+            "shared_memory": None,
+            "history": [],
+        }
 
-    with patch("agents.graph.get_database") as mock_get_db:
-        mock_db = MagicMock()
-        mock_docs = MagicMock()
-        mock_docs.find.return_value = [
-            {
+        with patch("agents.graph.get_llm_provider") as mock_get_llm, \
+             patch("agents.graph.get_database") as mock_get_db:
+            mock_db = MagicMock()
+            mock_docs = MagicMock()
+            mock_docs.find.return_value = []
+            mock_datasets = MagicMock()
+            mock_datasets.find.return_value = []
+            mock_folders = MagicMock()
+            mock_folders.find.return_value = []
+            mock_users = MagicMock()
+            mock_users.find_one.return_value = {"_id": "test_user", "role": "member"}
+
+            mock_db.__getitem__.side_effect = lambda key: {
+                "documents": mock_docs,
+                "datasets": mock_datasets,
+                "folders": mock_folders,
+                "users": mock_users,
+            }.get(key, MagicMock())
+            mock_get_db.return_value = mock_db
+
+            mock_llm = MagicMock()
+            mock_llm.generate_response = AsyncMock(return_value="Hello! How can I help you today?")
+            mock_get_llm.return_value = mock_llm
+
+            final_state = await agent_graph.ainvoke(initial_state)
+            assert "final_answer" in final_state
+            assert final_state["final_answer"] == "Hello! How can I help you today?"
+            assert final_state.get("intent") == AgentIntent.GENERAL_CHAT
+    asyncio.run(_run())
+
+
+def test_normal_chat_graph_invocation_what_can_you_help_me_with():
+    async def _run():
+        from agents.graph import agent_graph
+        from unittest.mock import AsyncMock
+
+        initial_state = {
+            "user_id": "test_user",
+            "user_role": "member",
+            "conversation_id": "conv_123",
+            "message": "What can you help me with?",
+            "resource_ids": [],
+            "active_scope": None,
+            "shared_memory": None,
+            "history": [],
+        }
+
+        with patch("agents.graph.get_llm_provider") as mock_get_llm, \
+             patch("agents.graph.get_database") as mock_get_db:
+            mock_db = MagicMock()
+            mock_docs = MagicMock()
+            mock_docs.find.return_value = []
+            mock_datasets = MagicMock()
+            mock_datasets.find.return_value = []
+            mock_folders = MagicMock()
+            mock_folders.find.return_value = []
+            mock_users = MagicMock()
+            mock_users.find_one.return_value = {"_id": "test_user", "role": "member"}
+
+            mock_db.__getitem__.side_effect = lambda key: {
+                "documents": mock_docs,
+                "datasets": mock_datasets,
+                "folders": mock_folders,
+                "users": mock_users,
+            }.get(key, MagicMock())
+            mock_get_db.return_value = mock_db
+
+            mock_llm = MagicMock()
+            mock_llm.generate_response = AsyncMock(return_value="I can help you search documents, analyze data, and create visualizations.")
+            mock_get_llm.return_value = mock_llm
+
+            final_state = await agent_graph.ainvoke(initial_state)
+            assert "final_answer" in final_state
+            assert "I can help you search documents" in final_state["final_answer"]
+    asyncio.run(_run())
+
+
+def test_general_chat_token_optimization_greeting_omits_manifest():
+    async def _run():
+        from agents.graph import general_chat_node
+        from unittest.mock import AsyncMock
+
+        state = {
+            "message": "hey",
+            "history": [{"role": "user", "content": f"msg {i}"} for i in range(25)],
+            "resolved_documents": [{"originalName": "secret_doc.pdf", "folderName": "Confidential"}],
+            "resolved_datasets": [{"originalName": "sales_q3.xlsx", "totalRows": 500}],
+            "active_scope": None,
+            "is_scoped": False,
+            "resource_ids": [],
+            "shared_memory": None,
+        }
+
+        with patch("agents.graph.get_llm_provider") as mock_get_llm:
+            mock_llm = MagicMock()
+            captured_messages = []
+            async def mock_generate(messages, temperature=0.15):
+                nonlocal captured_messages
+                captured_messages = messages
+                return "Hey there! How can I assist you today?"
+            mock_llm.generate_response = AsyncMock(side_effect=mock_generate)
+            mock_get_llm.return_value = mock_llm
+
+            res = await general_chat_node(state)
+            assert res.get("final_answer") == "Hey there! How can I assist you today?"
+            
+            # 1. Verify system prompt does not contain full workspace manifest
+            system_msg = captured_messages[0].content
+            assert "WORKSPACE SCOPE & INVENTORY:" not in system_msg
+            assert "secret_doc.pdf" not in system_msg
+            assert "sales_q3.xlsx" not in system_msg
+
+            # 2. Verify history is sliced to the last 10 items + system msg + current msg = 12 total messages
+            assert len(captured_messages) == 12  # 1 system + 10 history + 1 current message
+            assert captured_messages[1].content == "msg 15"
+            assert captured_messages[-1].content == "hey"
+
+            # 3. Verify no duplicated [System Instruction: ...] appended to the user message
+            assert "[System Instruction:" not in captured_messages[-1].content
+    asyncio.run(_run())
+
+
+def test_general_chat_inventory_query_includes_manifest():
+    async def _run():
+        from agents.graph import general_chat_node
+        from unittest.mock import AsyncMock
+
+        state = {
+            "message": "What files do I have access to?",
+            "history": [],
+            "resolved_documents": [{"originalName": "handbook.pdf", "folderName": "HR"}],
+            "resolved_datasets": [{"originalName": "q1_metrics.xlsx", "totalRows": 100}],
+            "active_scope": None,
+            "is_scoped": False,
+            "resource_ids": [],
+            "shared_memory": None,
+        }
+
+        with patch("agents.graph.get_llm_provider") as mock_get_llm:
+            mock_llm = MagicMock()
+            captured_messages = []
+            async def mock_generate(messages, temperature=0.15):
+                nonlocal captured_messages
+                captured_messages = messages
+                return "You have access to handbook.pdf and q1_metrics.xlsx."
+            mock_llm.generate_response = AsyncMock(side_effect=mock_generate)
+            mock_get_llm.return_value = mock_llm
+
+            res = await general_chat_node(state)
+            assert res.get("final_answer") == "You have access to handbook.pdf and q1_metrics.xlsx."
+            
+            # Verify manifest is included for inventory queries
+            system_msg = captured_messages[0].content
+            assert "WORKSPACE SCOPE & INVENTORY:" in system_msg
+            assert "handbook.pdf" in system_msg
+            assert "q1_metrics.xlsx" in system_msg
+    asyncio.run(_run())
+
+
+def test_general_chat_scoped_includes_manifest():
+    async def _run():
+        from agents.graph import general_chat_node
+        from unittest.mock import AsyncMock
+
+        state = {
+            "message": "Tell me about this document",
+            "history": [],
+            "resolved_documents": [{"originalName": "q4_roadmap.pdf", "folderName": "Product"}],
+            "resolved_datasets": [],
+            "active_scope": {"id": "doc_123", "name": "q4_roadmap.pdf", "type": "document"},
+            "is_scoped": True,
+            "resource_ids": ["doc_123"],
+            "shared_memory": None,
+        }
+
+        with patch("agents.graph.get_llm_provider") as mock_get_llm:
+            mock_llm = MagicMock()
+            captured_messages = []
+            async def mock_generate(messages, temperature=0.15):
+                nonlocal captured_messages
+                captured_messages = messages
+                return "Here is what the roadmap covers..."
+            mock_llm.generate_response = AsyncMock(side_effect=mock_generate)
+            mock_get_llm.return_value = mock_llm
+
+            res = await general_chat_node(state)
+            
+            # Verify manifest is included when scoped
+            system_msg = captured_messages[0].content
+            assert "WORKSPACE SCOPE & INVENTORY:" in system_msg
+            assert "q4_roadmap.pdf" in system_msg
+    asyncio.run(_run())
+
+
+def test_active_scope_preserves_document_rag_routing_and_context():
+    async def _run():
+        from agents.graph import agent_graph
+        from unittest.mock import AsyncMock
+
+        initial_state = {
+            "user_id": "u123",
+            "user_role": "member",
+            "conversation_id": "conv_1",
+            "message": "what does this say?",
+            "resource_ids": [],
+            "active_scope": {"id": "doc_hr", "name": "HR_Policy.pdf", "type": "document"},
+            "shared_memory": None,
+            "history": [],
+        }
+
+        with patch("agents.graph.get_database") as mock_get_db, \
+             patch("agents.graph.search_documents_vector") as mock_search, \
+             patch("agents.graph.get_llm_provider") as mock_get_llm:
+            
+            mock_db = MagicMock()
+            mock_docs = MagicMock()
+            mock_docs.find_one.return_value = {
                 "_id": "doc_hr",
                 "id": "doc_hr",
                 "originalName": "HR_Policy.pdf",
                 "fileType": "pdf",
-                "fileSize": 1024,
                 "userId": "u123",
-                "folder": "HR",
-                "downloadPolicy": "allowed",
+                "status": "ready",
+                "chunkCount": 5,
             }
-        ]
-        mock_datasets = MagicMock()
-        mock_datasets.find.return_value = []
-        mock_folders = MagicMock()
-        mock_folders.find.return_value = [{"name": "HR", "downloadPolicy": "allowed"}]
-        mock_users = MagicMock()
-        mock_users.find_one.return_value = {"_id": "u123", "role": "member"}
-        mock_requests = MagicMock()
-        mock_requests.find.return_value = []
+            mock_datasets = MagicMock()
+            mock_datasets.find_one.return_value = None
+            mock_users = MagicMock()
+            mock_users.find_one.return_value = {"_id": "u123", "role": "member"}
+            mock_requests = MagicMock()
+            mock_requests.find.return_value = []
 
-        mock_db.__getitem__.side_effect = lambda k: {
-            "documents": mock_docs,
-            "datasets": mock_datasets,
-            "folders": mock_folders,
-            "users": mock_users,
-            "accessrequests": mock_requests,
-        }.get(k, MagicMock())
-        mock_get_db.return_value = mock_db
+            mock_db.__getitem__.side_effect = lambda k: {
+                "documents": mock_docs,
+                "datasets": mock_datasets,
+                "users": mock_users,
+                "accessrequests": mock_requests,
+            }.get(k, MagicMock())
+            mock_get_db.return_value = mock_db
 
-        res = await agent_graph.ainvoke(initial_state)
-        assert res.get("intent") == AgentIntent.FILE_REQUEST
-        assert res.get("downloadable_file") is not None
-        assert res.get("downloadable_file")["fileName"] == "HR_Policy.pdf"
+            from schemas.chat import Citation
+            mock_search.return_value = [
+                Citation(
+                    documentId="doc_hr",
+                    filename="HR_Policy.pdf",
+                    page=1,
+                    chunkIndex=0,
+                    textSnippet="Employees are entitled to 20 days of annual leave.",
+                )
+            ]
+
+            captured_messages = []
+            async def mock_generate(messages, temperature=0.1):
+                nonlocal captured_messages
+                captured_messages = messages
+                return "The HR policy states that employees get 20 days of annual leave."
+            mock_llm = MagicMock()
+            mock_llm.generate_response = AsyncMock(side_effect=mock_generate)
+            mock_get_llm.return_value = mock_llm
+
+            res = await agent_graph.ainvoke(initial_state)
+            assert res.get("intent") == AgentIntent.DOCUMENT_RAG
+            assert "20 days of annual leave" in res.get("final_answer")
+            assert len(res.get("citations")) == 1
+
+            # Verify active scope focus is in prompt
+            system_content = captured_messages[0].content
+            assert "Active Focus: HR_Policy.pdf" in system_content
+            assert "Employees are entitled to 20 days of annual leave" in system_content
+    asyncio.run(_run())
 
 
-@pytest.mark.asyncio
-async def test_active_scope_unauthorized_denies_access():
-    from agents.graph import agent_graph
-    from unittest.mock import AsyncMock
+def test_file_discovery_via_full_graph_without_llm():
+    async def _run():
+        from agents.graph import agent_graph
 
-    initial_state = {
-        "user_id": "unauth_user",
-        "user_role": "member",
-        "conversation_id": "conv_3",
-        "message": "summarize this",
-        "resource_ids": [],
-        "active_scope": {"id": "secret_doc_id", "name": "Confidential_Exec_Review.pdf", "type": "document"},
-        "shared_memory": None,
-        "history": [],
-    }
-
-    with patch("agents.graph.get_database") as mock_get_db, \
-         patch("agents.graph.search_documents_vector", return_value=[]), \
-         patch("agents.graph.get_llm_provider") as mock_get_llm:
-        
-        mock_db = MagicMock()
-        mock_docs = MagicMock()
-        # Document owned by someone else in a restricted folder
-        mock_docs.find_one.return_value = {
-            "_id": "secret_doc_id",
-            "id": "secret_doc_id",
-            "originalName": "Confidential_Exec_Review.pdf",
-            "fileType": "pdf",
-            "userId": "other_owner",
-            "folder": "Executive",
+        initial_state = {
+            "user_id": "u123",
+            "user_role": "member",
+            "conversation_id": "conv_2",
+            "message": "find the HR policy PDF",
+            "resource_ids": [],
+            "active_scope": None,
+            "shared_memory": None,
+            "history": [],
         }
-        mock_datasets = MagicMock()
-        mock_datasets.find_one.return_value = None
-        mock_users = MagicMock()
-        mock_users.find_one.return_value = {"_id": "unauth_user", "role": "member", "allowedFolders": ["Public"]}
-        mock_requests = MagicMock()
-        mock_requests.find.return_value = []
 
-        mock_db.__getitem__.side_effect = lambda k: {
-            "documents": mock_docs,
-            "datasets": mock_datasets,
-            "users": mock_users,
-            "accessrequests": mock_requests,
-        }.get(k, MagicMock())
-        mock_get_db.return_value = mock_db
+        with patch("agents.graph.get_database") as mock_get_db:
+            mock_db = MagicMock()
+            mock_docs = MagicMock()
+            mock_docs.find.return_value = [
+                {
+                    "_id": "doc_hr",
+                    "id": "doc_hr",
+                    "originalName": "HR_Policy.pdf",
+                    "fileType": "pdf",
+                    "fileSize": 1024,
+                    "userId": "u123",
+                    "folder": "HR",
+                    "downloadPolicy": "allowed",
+                }
+            ]
+            mock_datasets = MagicMock()
+            mock_datasets.find.return_value = []
+            mock_folders = MagicMock()
+            mock_folders.find.return_value = [{"name": "HR", "downloadPolicy": "allowed"}]
+            mock_users = MagicMock()
+            mock_users.find_one.return_value = {"_id": "u123", "role": "member"}
+            mock_requests = MagicMock()
+            mock_requests.find.return_value = []
 
-        mock_llm = MagicMock()
-        mock_llm.generate_response = AsyncMock(return_value="General fallback")
-        mock_get_llm.return_value = mock_llm
+            mock_db.__getitem__.side_effect = lambda k: {
+                "documents": mock_docs,
+                "datasets": mock_datasets,
+                "folders": mock_folders,
+                "users": mock_users,
+                "accessrequests": mock_requests,
+            }.get(k, MagicMock())
+            mock_get_db.return_value = mock_db
 
-        res = await agent_graph.ainvoke(initial_state)
-        # Should NOT have resolved the secret doc, should be denied or general fallback without document content
-        assert "resolved_documents" in res
-        assert len(res["resolved_documents"]) == 0
+            res = await agent_graph.ainvoke(initial_state)
+            assert res.get("intent") == AgentIntent.FILE_REQUEST
+            assert res.get("downloadable_file") is not None
+            assert res.get("downloadable_file")["fileName"] == "HR_Policy.pdf"
+    asyncio.run(_run())
+
+
+def test_active_scope_unauthorized_denies_access():
+    async def _run():
+        from agents.graph import agent_graph
+        from unittest.mock import AsyncMock
+
+        initial_state = {
+            "user_id": "unauth_user",
+            "user_role": "member",
+            "conversation_id": "conv_3",
+            "message": "summarize this",
+            "resource_ids": [],
+            "active_scope": {"id": "secret_doc_id", "name": "Confidential_Exec_Review.pdf", "type": "document"},
+            "shared_memory": None,
+            "history": [],
+        }
+
+        with patch("agents.graph.get_database") as mock_get_db, \
+             patch("agents.graph.search_documents_vector", return_value=[]), \
+             patch("agents.graph.get_llm_provider") as mock_get_llm:
+            
+            mock_db = MagicMock()
+            mock_docs = MagicMock()
+            # Document owned by someone else in a restricted folder
+            mock_docs.find_one.return_value = {
+                "_id": "secret_doc_id",
+                "id": "secret_doc_id",
+                "originalName": "Confidential_Exec_Review.pdf",
+                "fileType": "pdf",
+                "userId": "other_owner",
+                "folder": "Executive",
+            }
+            mock_datasets = MagicMock()
+            mock_datasets.find_one.return_value = None
+            mock_users = MagicMock()
+            mock_users.find_one.return_value = {"_id": "unauth_user", "role": "member", "allowedFolders": ["Public"]}
+            mock_requests = MagicMock()
+            mock_requests.find.return_value = []
+
+            mock_db.__getitem__.side_effect = lambda k: {
+                "documents": mock_docs,
+                "datasets": mock_datasets,
+                "users": mock_users,
+                "accessrequests": mock_requests,
+            }.get(k, MagicMock())
+            mock_get_db.return_value = mock_db
+
+            mock_llm = MagicMock()
+            mock_llm.generate_response = AsyncMock(return_value="General fallback")
+            mock_get_llm.return_value = mock_llm
+
+            res = await agent_graph.ainvoke(initial_state)
+            # Should NOT have resolved the secret doc, should be denied or general fallback without document content
+            assert "resolved_documents" in res
+            assert len(res["resolved_documents"]) == 0
+    asyncio.run(_run())
+
+
+def test_format_trimmed_history_messages_strips_older_reply_headers():
+    from agents.graph import format_trimmed_history_messages
+    from langchain_core.messages import HumanMessage, AIMessage
+
+    history = [
+        {"role": "user", "content": "What is the policy?"},
+        {"role": "assistant", "content": "The policy is 25 days annual leave."},
+        {
+            "role": "user",
+            "content": '[Replying to message from Syntra AI: "The policy is 25 days annual leave."]\nCan I roll over unused days?',
+        },
+        {"role": "assistant", "content": "Yes, up to 5 days can be rolled over."},
+        {
+            "role": "user",
+            "content": '[Replying to message from Syntra AI: "Yes, up to 5 days can be rolled over."]\nWhat is the deadline for rollover?',
+        },
+    ]
+
+    messages = format_trimmed_history_messages(history, max_turns=10)
+    assert len(messages) == 5
+
+    # Turn 1: Clean user message
+    assert messages[0].content == "What is the policy?"
+    # Turn 2: Clean assistant response
+    assert messages[1].content == "The policy is 25 days annual leave."
+    # Turn 3 (older user turn): Redundant quote header stripped, keeping the actual query
+    assert messages[2].content == "Can I roll over unused days?"
+    # Turn 4: Assistant message
+    assert messages[3].content == "Yes, up to 5 days can be rolled over."
+    # Turn 5 (most recent user turn in history): Preserves the immediate quote metadata
+    assert '[Replying to message from Syntra AI: "Yes, up to 5 days can be rolled over."]' in messages[4].content
+    assert "What is the deadline for rollover?" in messages[4].content
+
 
 
