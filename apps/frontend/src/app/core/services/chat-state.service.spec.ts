@@ -176,4 +176,42 @@ describe('ChatStateService (Streaming & Responsiveness)', () => {
     expect(updatedList[0].lastMessage?.content).toBe('Hey colleague!');
     expect(updatedList[0].lastMessage?.senderName).toBe('Jane Doe');
   });
+
+  describe('Direct conversation read handling', () => {
+    beforeEach(() => {
+      apiSpy.markDirectConversationAsRead = jest.fn().mockReturnValue({
+        subscribe: jest.fn(),
+      });
+      service.directConversations.set([
+        {
+          id: 'dm-101',
+          title: 'Alice',
+          userId: 'user-alice',
+          unreadCount: 3,
+          createdAt: '',
+          updatedAt: '',
+        },
+      ]);
+    });
+
+    it('should NOT call api.markDirectConversationAsRead when selecting a non-direct / AI conversation', () => {
+      service.setActiveConversationId('ai-conv-999');
+      expect(service.getActiveConversationId()).toBe('ai-conv-999');
+      expect(apiSpy.markDirectConversationAsRead).not.toHaveBeenCalled();
+      expect(service.directConversations()[0].unreadCount).toBe(3);
+    });
+
+    it('should call api.markDirectConversationAsRead and reset unreadCount when selecting a direct conversation', () => {
+      service.setActiveConversationId('dm-101');
+      expect(service.getActiveConversationId()).toBe('dm-101');
+      expect(apiSpy.markDirectConversationAsRead).toHaveBeenCalledWith('dm-101');
+      expect(service.directConversations()[0].unreadCount).toBe(0);
+    });
+
+    it('should NOT make an HTTP request or update state when markDirectConversationRead is invoked with an unknown ID', () => {
+      service.markDirectConversationRead('unknown-or-ai-id');
+      expect(apiSpy.markDirectConversationAsRead).not.toHaveBeenCalled();
+      expect(service.directConversations()[0].unreadCount).toBe(3);
+    });
+  });
 });

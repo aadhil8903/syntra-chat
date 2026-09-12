@@ -89,7 +89,7 @@ export class ChatStateService {
 
   setActiveConversationId(id: string | null): void {
     this.currentActiveConversationId = id;
-    if (id) {
+    if (id && this.directConversations().some((item) => item.id === id)) {
       this.markDirectConversationRead(id);
     }
   }
@@ -349,7 +349,15 @@ export class ChatStateService {
    * Mark direct conversation as read in state and backend
    */
   markDirectConversationRead(conversationId: string): void {
-    const list = this.directConversations().map((item) => {
+    if (!conversationId) return;
+
+    const directList = this.directConversations();
+    const isDirect = directList.some((item) => item.id === conversationId);
+    if (!isDirect) {
+      return;
+    }
+
+    const list = directList.map((item) => {
       if (item.id === conversationId) {
         return { ...item, unreadCount: 0 };
       }
