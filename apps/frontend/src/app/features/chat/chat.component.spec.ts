@@ -786,5 +786,92 @@ describe('ChatComponent (Per-Chat Draft Persistence & Switching)', () => {
       );
     });
   });
+
+  describe('Mention Autocomplete Filtering (Normal AI Chat vs Direct Message)', () => {
+    const mockResources: IMentionOption[] = [
+      { id: 'folder:Finance', name: 'Finance', type: MentionResourceType.FOLDER, fileType: 'folder' },
+      { id: 'doc-1', name: 'Budget.pdf', type: MentionResourceType.DOCUMENT, fileType: 'pdf' },
+      { id: 'ds-1', name: 'Sales.csv', type: MentionResourceType.DATASET, fileType: 'csv' },
+    ];
+    const mockUsers: IMentionOption[] = [
+      { id: 'user-2', name: 'Jane Doe', type: 'user' as any, status: 'online' },
+    ];
+
+    it('Scenario 1: in Normal AI Chat, @mention does NOT include Syntra AI / AI ASSISTANT, returning only resources', () => {
+      component.selectConversation(mockConvA); // Normal persistent AI chat
+      apiServiceMock.searchMentions.mockReturnValue(of({ results: mockResources }));
+
+      const event = {
+        target: {
+          value: '@',
+          selectionStart: 1,
+        },
+      } as unknown as Event;
+
+      component.onInputChange(event);
+
+      expect(component.isMentionOpen).toBe(true);
+      expect(apiServiceMock.searchMentions).toHaveBeenCalledWith('');
+      // Verify Syntra AI is NOT in mentionOptions
+      expect(component.mentionOptions.some((opt) => opt.id === 'syntra-ai' || (opt.type as any) === 'ai')).toBe(false);
+      // Verify all resources are present
+      expect(component.mentionOptions.length).toBe(3);
+      expect(component.mentionOptions.map((o) => o.name)).toEqual(['Finance', 'Budget.pdf', 'Sales.csv']);
+    });
+
+    it('Scenario 2: in Normal AI Chat with search query, @mention returns matching resources without Syntra AI', () => {
+      component.selectConversation(mockConvA);
+      apiServiceMock.searchMentions.mockReturnValue(of({ results: [mockResources[1]] }));
+
+      const event = {
+        target: {
+          value: '@Bud',
+          selectionStart: 4,
+        },
+      } as unknown as Event;
+
+      component.onInputChange(event);
+
+      expect(component.isMentionOpen).toBe(true);
+      expect(apiServiceMock.searchMentions).toHaveBeenCalledWith('Bud');
+      expect(component.mentionOptions.some((opt) => opt.id === 'syntra-ai')).toBe(false);
+      expect(component.mentionOptions.length).toBe(1);
+      expect(component.mentionOptions[0].name).toBe('Budget.pdf');
+    });
+
+    it('Scenario 3: in Direct Message mode, @mention includes Syntra AI and team members, excluding files/resources', () => {
+      const mockDmConv: IConversation = {
+        id: 'dm-conv-1',
+        title: 'Jane Doe',
+        userId: 'user-2',
+        type: 'direct',
+        participants: ['user-1', 'user-2'],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      component.activeConversation = mockDmConv;
+      apiServiceMock.searchMentions.mockReturnValue(of({ results: [...mockResources, ...mockUsers] }));
+
+      const event = {
+        target: {
+          value: '@',
+          selectionStart: 1,
+        },
+      } as unknown as Event;
+
+      component.onInputChange(event);
+
+      expect(component.isMentionOpen).toBe(true);
+      expect(apiServiceMock.searchMentions).toHaveBeenCalledWith('');
+      // Verify Syntra AI IS included in DM mode
+      expect(component.mentionOptions[0].id).toBe('syntra-ai');
+      expect(component.mentionOptions[0].name).toBe('Syntra AI');
+      // Verify colleagues are included and document/folder resources are excluded
+      expect(component.mentionOptions.some((opt) => opt.name === 'Jane Doe')).toBe(true);
+      expect(component.mentionOptions.some((opt) => opt.name === 'Budget.pdf')).toBe(false);
+      expect(component.mentionOptions.some((opt) => opt.name === 'Finance')).toBe(false);
+    });
+  });
 });
+
 

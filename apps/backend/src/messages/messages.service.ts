@@ -1716,20 +1716,80 @@ export class MessagesService {
       if (targetUserId === userId) continue;
       if (!Types.ObjectId.isValid(targetUserId)) continue;
 
+      const targetObjId = new Types.ObjectId(targetUserId);
+      const userObjId = new Types.ObjectId(userId);
+
       const shareDoc = await this.messageShareModel.findOneAndUpdate(
         {
           messageId: new Types.ObjectId(messageId),
-          sharedWithUserId: new Types.ObjectId(targetUserId),
+          sharedWithUserId: targetObjId,
         },
         {
           $set: {
             conversationId: conv._id,
             ownerId: conv.userId,
-            createdBy: new Types.ObjectId(userId),
+            createdBy: userObjId,
           },
         },
         { upsert: true, new: true },
       );
+
+      // Find or create 1:1 Direct Conversation between sender and recipient
+      let directConv = await this.conversationModel.findOne({
+        type: 'direct',
+        participants: { $all: [userObjId, targetObjId] },
+      });
+
+      if (!directConv) {
+        const targetUser = await this.userModel.findById(targetObjId).lean().exec();
+        directConv = new this.conversationModel({
+          userId: userObjId,
+          type: 'direct',
+          participants: [userObjId, targetObjId],
+          title: targetUser ? `${targetUser.firstName} ${targetUser.lastName}` : 'Direct Message',
+          attachedResourceIds: [],
+          unreadCounts: new Map(),
+        });
+        await directConv.save();
+      }
+
+      const isAi = message.role === 'assistant';
+      const senderHeader = isAi ? `Shared an AI insight:` : `Shared a message:`;
+      const directMsgContent = isAi
+        ? `${senderHeader}\n\n${message.content}`
+        : message.content;
+
+      const directMsg = new this.messageModel({
+        conversationId: directConv._id,
+        userId: userObjId,
+        role: MessageRole.USER,
+        content: directMsgContent,
+        citations: message.citations || [],
+        generatedCharts: message.generatedCharts || (message.generatedChart ? [message.generatedChart] : []),
+        generatedChart: message.generatedChart || null,
+        generatedTable: message.generatedTable || null,
+        downloadableFile: message.downloadableFile || null,
+        referencedResourceIds: message.referencedResourceIds || [],
+      });
+      await directMsg.save();
+
+      // Update direct conversation lastMessage and unread count
+      const currentUnread = (directConv.unreadCounts as any)?.get?.(targetUserId) ?? (directConv.unreadCounts as any)?.[targetUserId] ?? 0;
+      if (directConv.unreadCounts instanceof Map) {
+        directConv.unreadCounts.set(targetUserId, currentUnread + 1);
+      } else {
+        (directConv.unreadCounts as any)[targetUserId] = currentUnread + 1;
+      }
+      directConv.lastMessage = {
+        content: directMsgContent.length > 80 ? directMsgContent.slice(0, 77) + '...' : directMsgContent,
+        senderId: userObjId,
+        senderName: senderName,
+        createdAt: new Date(),
+        role: 'user',
+        isAi: isAi,
+      };
+      directConv.updatedAt = new Date();
+      await directConv.save();
 
       // Create notification
       try {
@@ -1739,7 +1799,7 @@ export class MessagesService {
           senderId: userId,
           type: 'message_shared',
           title: 'Message Shared',
-          message: `${senderName} shared a message with you: "${preview}"`,
+          message: `${senderName} shared a message with you in Direct Messages: "${preview}"`,
           resourceType: 'message',
           resourceId: messageId,
         });

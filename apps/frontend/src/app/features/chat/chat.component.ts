@@ -4004,8 +4004,8 @@ export class ChatComponent implements OnInit, AfterViewChecked, OnDestroy {
     this.api.searchMentions(query).subscribe((res) => {
       const results: IMentionOption[] = [];
 
-      // If in direct message (or general), prepend Syntra AI invocation option
-      if (isDirect || !q || 'syntra'.includes(q) || 'ai'.includes(q)) {
+      // In Direct Messages, prepend Syntra AI invocation option if query matches or is empty
+      if (isDirect && (!q || 'syntra'.includes(q) || 'ai'.includes(q))) {
         results.push({
           id: 'syntra-ai',
           name: 'Syntra AI',

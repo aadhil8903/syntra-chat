@@ -15,12 +15,14 @@ import {
   ConversationEntity,
   ConversationEntityDocument,
 } from './schemas/conversation.schema';
+import { MessageEntity, MessageEntityDocument } from '../messages/schemas/message.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 import {
   IConversationShare,
   ISharedConversationItem,
   IShareConversationDto,
   SharePermission,
+  MessageRole,
 } from '@enter-chat/shared-types';
 import { PresenceService } from '../users/presence.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -34,6 +36,8 @@ export class ConversationSharesService {
     private readonly shareModel: Model<ConversationShareDocument>,
     @InjectModel(ConversationEntity.name)
     private readonly conversationModel: Model<ConversationEntityDocument>,
+    @InjectModel(MessageEntity.name)
+    private readonly messageModel: Model<MessageEntityDocument>,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
     private readonly presenceService: PresenceService,
@@ -67,25 +71,76 @@ export class ConversationSharesService {
     const permission: SharePermission = dto.permission === 'contribute' ? 'contribute' : 'view';
     const owner = await this.userModel.findById(ownerId).lean().exec();
     const ownerName = owner ? `${owner.firstName} ${owner.lastName}`.trim() : 'A colleague';
+    const ownerObjId = new Types.ObjectId(ownerId);
 
     for (const targetUserId of dto.userIds) {
       if (targetUserId === ownerId) continue;
       if (!Types.ObjectId.isValid(targetUserId)) continue;
 
+      const targetObjId = new Types.ObjectId(targetUserId);
+
       await this.shareModel.findOneAndUpdate(
         {
           conversationId: new Types.ObjectId(conversationId),
-          sharedWithUserId: new Types.ObjectId(targetUserId),
+          sharedWithUserId: targetObjId,
         },
         {
           $set: {
-            ownerId: new Types.ObjectId(ownerId),
+            ownerId: ownerObjId,
             permission,
-            createdBy: new Types.ObjectId(ownerId),
+            createdBy: ownerObjId,
           },
         },
         { upsert: true, new: true },
       );
+
+      // Find or create 1:1 Direct Conversation between owner and recipient
+      let directConv = await this.conversationModel.findOne({
+        type: 'direct',
+        participants: { $all: [ownerObjId, targetObjId] },
+      });
+
+      if (!directConv) {
+        const targetUser = await this.userModel.findById(targetObjId).lean().exec();
+        directConv = new this.conversationModel({
+          userId: ownerObjId,
+          type: 'direct',
+          participants: [ownerObjId, targetObjId],
+          title: targetUser ? `${targetUser.firstName} ${targetUser.lastName}` : 'Direct Message',
+          attachedResourceIds: [],
+          unreadCounts: new Map(),
+        });
+        await directConv.save();
+      }
+
+      const permText = permission === 'contribute' ? 'collaborative (can edit)' : 'view-only';
+      const shareContent = `${ownerName} shared a collaborative conversation with you: **[${conv.title}](/chat/${conv._id})** (${permText} access). Click to open the conversation thread.`;
+
+      const directMsg = new this.messageModel({
+        conversationId: directConv._id,
+        userId: ownerObjId,
+        role: MessageRole.USER,
+        content: shareContent,
+        referencedResourceIds: [conv._id.toString()],
+      });
+      await directMsg.save();
+
+      // Update direct conversation lastMessage and unread count
+      const currentUnread = (directConv.unreadCounts as any)?.get?.(targetUserId) ?? (directConv.unreadCounts as any)?.[targetUserId] ?? 0;
+      if (directConv.unreadCounts instanceof Map) {
+        directConv.unreadCounts.set(targetUserId, currentUnread + 1);
+      } else {
+        (directConv.unreadCounts as any)[targetUserId] = currentUnread + 1;
+      }
+      directConv.lastMessage = {
+        content: shareContent.length > 80 ? shareContent.slice(0, 77) + '...' : shareContent,
+        senderId: ownerObjId,
+        senderName: ownerName,
+        createdAt: new Date(),
+        role: 'user',
+      };
+      directConv.updatedAt = new Date();
+      await directConv.save();
 
       // Create notification
       try {
